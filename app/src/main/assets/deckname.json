@@ -1,0 +1,26 @@
+[
+  {
+    "deck_name": "Scrum Basics",
+    "card_count": 12
+  },
+  {
+    "deck_name": "Kotlin Fundamentals",
+    "card_count": 45
+  },
+  {
+    "deck_name": "Jetpack Compose UI",
+    "card_count": 30
+  },
+  {
+    "deck_name": "Android Architecture",
+    "card_count": 22
+  },
+  {
+    "deck_name": "Project Management",
+    "card_count": 8
+  },
+  {
+    "deck_name": "Mobile Design Patterns",
+    "card_count": 15
+  }
+]

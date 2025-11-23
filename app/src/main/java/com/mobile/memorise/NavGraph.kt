@@ -47,7 +47,10 @@ fun NavGraph(
             arguments = listOf(navArgument("folderName") { type = NavType.StringType })
         ) { backStackEntry ->
             val folderName = backStackEntry.arguments?.getString("folderName") ?: "Unknown"
-            DeckScreen(folderName = folderName)
+            DeckScreen(
+                folderName = folderName,
+                onBackClick = { navController.popBackStack() }
+            )
         }
     }
 }

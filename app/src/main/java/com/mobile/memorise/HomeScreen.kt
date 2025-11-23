@@ -28,7 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import com.mobile.memorise.ui.theme.* @Serializable
+import com.mobile.memorise.ui.theme.*
+
+@Serializable
 data class FolderItemData(
     val name: String,
     val date: String,
