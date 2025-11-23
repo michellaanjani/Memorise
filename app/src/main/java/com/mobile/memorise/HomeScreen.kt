@@ -1,5 +1,6 @@
 package com.mobile.memorise
 
+import androidx.compose.foundation.Image // Import Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,13 +10,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale // Import ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -23,9 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import com.mobile.memorise.ui.theme.* // Import warna dari Theme.kt kamu
-
-// Model Data JSON
+import com.mobile.memorise.ui.theme.* // Model Data JSON
 @Serializable
 data class FolderItemData(
     val name: String,
@@ -38,7 +40,6 @@ fun HomeScreen(onFolderClick: (String) -> Unit) {
     val context = LocalContext.current
     var folderList by remember { mutableStateOf(listOf<FolderItemData>()) }
 
-    // Membaca JSON dari assets/foldername.json
     LaunchedEffect(Unit) {
         try {
             val jsonString = context.assets.open("foldername.json").bufferedReader().use { it.readText() }
@@ -51,17 +52,14 @@ fun HomeScreen(onFolderClick: (String) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8F9FB)) // Background abu-abu sangat muda
+            .background(Color(0xFFF8F9FB))
     ) {
-        // 1. Header Biru
         HeaderSection()
 
-        // 2. Konten Scrollable
         LazyColumn(
             contentPadding = PaddingValues(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Judul "Choice your Folder"
             item {
                 Text(
                     text = "Choice your Folder",
@@ -72,7 +70,6 @@ fun HomeScreen(onFolderClick: (String) -> Unit) {
                 )
             }
 
-            // Looping Data JSON ke UI
             items(folderList) { folder ->
                 FolderItemView(
                     data = folder,
@@ -88,7 +85,7 @@ fun HeaderSection() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(220.dp) // Tinggi Header Biru
+            .height(220.dp)
             .background(DeepBlue)
             .padding(24.dp)
     ) {
@@ -112,7 +109,6 @@ fun HeaderSection() {
                         fontSize = 14.sp
                     )
                 }
-                // Avatar Placeholder
                 Box(
                     modifier = Modifier
                         .size(48.dp)
@@ -126,18 +122,20 @@ fun HeaderSection() {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Dua Kartu "Memorize" & "Learn"
+            // --- BAGIAN INI YANG DIPERBAIKI ---
+            // Dua Tombol Gambar "Memorize" & "Learn"
             Row(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                ActionCard(
-                    text = "Memorize",
-                    color = Color(0xFFBBDEFB),
+                // Memanggil resource drawable/memorize.xml
+                ImageActionCard(
+                    drawableId = R.drawable.memorize,
                     modifier = Modifier.weight(1f)
                 )
-                ActionCard(
-                    text = "Learn",
-                    color = Color(0xFFF8BBD0),
+
+                // Memanggil resource drawable/learn.xml
+                ImageActionCard(
+                    drawableId = R.drawable.learn,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -145,30 +143,32 @@ fun HeaderSection() {
     }
 }
 
+// --- KOMPONEN BARU UNTUK GAMBAR ---
 @Composable
-fun ActionCard(text: String, color: Color, modifier: Modifier = Modifier) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = color),
-        modifier = modifier.height(80.dp)
-    ) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
-            Text(
-                text = text,
-                modifier = Modifier.padding(12.dp),
-                fontWeight = FontWeight.Bold,
-                color = DeepBlue
-            )
-        }
-    }
+fun ImageActionCard(
+    drawableId: Int,
+    modifier: Modifier = Modifier
+) {
+    // Menggunakan Image bukan Card+Box, karena desain sudah ada di XML
+    Image(
+        painter = painterResource(id = drawableId),
+        contentDescription = null,
+        contentScale = ContentScale.FillBounds, // Agar gambar memenuhi kotak
+        modifier = modifier
+            .height(80.dp) // Menjaga tinggi tetap sama
+            .clip(RoundedCornerShape(16.dp)) // Memotong sudut gambar agar rounded
+            .clickable { /* Aksi klik disini */ }
+    )
 }
 
 @Composable
 fun FolderItemView(data: FolderItemData, onClick: () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }, // Tombol Folder bisa diklik
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = White)
@@ -177,7 +177,6 @@ fun FolderItemView(data: FolderItemData, onClick: () -> Unit) {
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon Folder Kotak Kiri
             Box(
                 modifier = Modifier
                     .size(60.dp)
@@ -185,9 +184,8 @@ fun FolderItemView(data: FolderItemData, onClick: () -> Unit) {
                     .background(FolderIconBg),
                 contentAlignment = Alignment.Center
             ) {
-                // Placeholder Icon Garis-garis
                 Icon(
-                    painter = painterResource(id = R.drawable.folder), // Ganti dengan painterResource icon folder kamu
+                    painter = painterResource(id = R.drawable.folder),
                     contentDescription = null,
                     tint = Color.Unspecified
                 )
@@ -195,7 +193,6 @@ fun FolderItemView(data: FolderItemData, onClick: () -> Unit) {
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Teks Tengah
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = data.name,
@@ -217,25 +214,39 @@ fun FolderItemView(data: FolderItemData, onClick: () -> Unit) {
                 )
             }
 
-            // Tombol Delete & Edit
-            Column(horizontalAlignment = Alignment.End) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SmallActionButton(text = "delete", bg = DeleteBtnBg, txtColor = DeleteBtnText)
-                    SmallActionButton(text = "edit", bg = Color(0xFFFFF3E0), txtColor = Color(0xFFFF9800))
+            Box {
+                IconButton(onClick = { expanded = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = TextGray)
+                }
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.background(White)
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFFFF9800))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Edit", fontSize = 14.sp, color = TextBlack)
+                            }
+                        },
+                        onClick = { expanded = false }
+                    )
+
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Delete", fontSize = 14.sp, color = TextBlack)
+                            }
+                        },
+                        onClick = { expanded = false }
+                    )
                 }
             }
         }
-    }
-}
-
-@Composable
-fun SmallActionButton(text: String, bg: Color, txtColor: Color) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(bg)
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-    ) {
-        Text(text = text, fontSize = 10.sp, color = txtColor, fontWeight = FontWeight.SemiBold)
     }
 }
