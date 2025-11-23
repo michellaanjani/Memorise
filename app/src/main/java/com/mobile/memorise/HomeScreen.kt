@@ -1,6 +1,6 @@
 package com.mobile.memorise
 
-import androidx.compose.foundation.Image // Import Image
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -19,16 +19,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale // Import ContentScale
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign // Tambahan Import
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import com.mobile.memorise.ui.theme.* // Model Data JSON
-@Serializable
+import com.mobile.memorise.ui.theme.* @Serializable
 data class FolderItemData(
     val name: String,
     val date: String,
@@ -40,12 +40,14 @@ fun HomeScreen(onFolderClick: (String) -> Unit) {
     val context = LocalContext.current
     var folderList by remember { mutableStateOf(listOf<FolderItemData>()) }
 
+    // Simulasi load data (jika file kosong/error, list tetap kosong)
     LaunchedEffect(Unit) {
         try {
             val jsonString = context.assets.open("foldername.json").bufferedReader().use { it.readText() }
             folderList = Json.decodeFromString(jsonString)
         } catch (e: Exception) {
             e.printStackTrace()
+            // folderList tetap kosong jika error
         }
     }
 
@@ -54,31 +56,81 @@ fun HomeScreen(onFolderClick: (String) -> Unit) {
             .fillMaxSize()
             .background(Color(0xFFF8F9FB))
     ) {
+        // 1. Header (Selalu Muncul)
         HeaderSection()
 
-        LazyColumn(
-            contentPadding = PaddingValues(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                Text(
-                    text = "Choice your Folder",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextBlack,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
+        // 2. Logika Tampilan: Empty State vs List Folder
+        if (folderList.isEmpty()) {
+            // --- TAMPILAN KOSONG (EMPTY STATE) ---
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f), // Mengisi sisa ruang di bawah header
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.padding(24.dp)
+                ) {
+                    // Gambar Empty
+                    Image(
+                        painter = painterResource(id = R.drawable.empty), // Pastikan file empty.xml ada
+                        contentDescription = "No Data",
+                        modifier = Modifier.size(200.dp), // Sesuaikan ukuran gambar
+                        contentScale = ContentScale.Fit
+                    )
 
-            items(folderList) { folder ->
-                FolderItemView(
-                    data = folder,
-                    onClick = { onFolderClick(folder.name) }
-                )
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Teks Judul
+                    Text(
+                        text = "No Folders yet!",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextBlack
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Teks Subjudul
+                    Text(
+                        text = "Let’s make a card for you learn!",
+                        fontSize = 14.sp,
+                        color = TextGray,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            // --- TAMPILAN LIST FOLDER ---
+            LazyColumn(
+                contentPadding = PaddingValues(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.weight(1f) // Mengisi sisa ruang agar bisa discroll
+            ) {
+                item {
+                    Text(
+                        text = "Choice your Folder",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextBlack,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+
+                items(folderList) { folder ->
+                    FolderItemView(
+                        data = folder,
+                        onClick = { onFolderClick(folder.name) }
+                    )
+                }
             }
         }
     }
 }
+
+// ... (Sisa kode HeaderSection, ImageActionCard, FolderItemView TETAP SAMA seperti sebelumnya)
 
 @Composable
 fun HeaderSection() {
@@ -90,7 +142,6 @@ fun HeaderSection() {
             .padding(24.dp)
     ) {
         Column {
-            // Baris Atas: Teks Salam & Avatar
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -122,18 +173,14 @@ fun HeaderSection() {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- BAGIAN INI YANG DIPERBAIKI ---
-            // Dua Tombol Gambar "Memorize" & "Learn"
             Row(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Memanggil resource drawable/memorize.xml
                 ImageActionCard(
                     drawableId = R.drawable.memorize,
                     modifier = Modifier.weight(1f)
                 )
 
-                // Memanggil resource drawable/learn.xml
                 ImageActionCard(
                     drawableId = R.drawable.learn,
                     modifier = Modifier.weight(1f)
@@ -143,20 +190,18 @@ fun HeaderSection() {
     }
 }
 
-// --- KOMPONEN BARU UNTUK GAMBAR ---
 @Composable
 fun ImageActionCard(
     drawableId: Int,
     modifier: Modifier = Modifier
 ) {
-    // Menggunakan Image bukan Card+Box, karena desain sudah ada di XML
     Image(
         painter = painterResource(id = drawableId),
         contentDescription = null,
-        contentScale = ContentScale.FillBounds, // Agar gambar memenuhi kotak
+        contentScale = ContentScale.FillBounds,
         modifier = modifier
-            .height(80.dp) // Menjaga tinggi tetap sama
-            .clip(RoundedCornerShape(16.dp)) // Memotong sudut gambar agar rounded
+            .height(80.dp)
+            .clip(RoundedCornerShape(16.dp))
             .clickable { /* Aksi klik disini */ }
     )
 }

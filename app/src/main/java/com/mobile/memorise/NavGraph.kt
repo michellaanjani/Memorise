@@ -38,7 +38,7 @@ fun NavGraph(
 
         // 3. Halaman Account (Dummy)
         composable(route = Screen.Account.route) {
-            Text("Halaman Account")
+            ProfileScreen()
         }
 
         // 4. Halaman Detail Deck (Menerima Data JSON)
