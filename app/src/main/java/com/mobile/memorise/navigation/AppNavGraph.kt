@@ -25,19 +25,19 @@ fun AppNavGraph(
 
     NavHost(
         navController = navController,
-        startDestination = "splash"                      //  Splash jadi start
+        startDestination = "landing"                      //  Splash jadi start
     ) {
 
-        // =============== SPLASH ==================
-        composable("splash") {
-            SplashScreen(
-                onFinish = {
-                    navController.navigate("landing") {
-                        popUpTo("splash") { inclusive = true }   //  tidak bisa back ke splash
-                    }
-                }
-            )
-        }
+//        // =============== SPLASH ==================
+//        composable("splash") {
+//            SplashScreen(
+//                onFinish = {
+//                    navController.navigate("landing") {
+//                        popUpTo("splash") { inclusive = true }   //  tidak bisa back ke splash
+//                    }
+//                }
+//            )
+//        }
 
         // =============== LANDING ==================
         composable("landing") {

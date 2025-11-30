@@ -37,10 +37,15 @@ import androidx.navigation.NavHostController
 import com.mobile.memorise.navigation.NavGraph
 import com.mobile.memorise.R
 import com.mobile.memorise.navigation.MainRoute
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.activity.compose.setContent
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+
         enableEdgeToEdge()// 1. Wajib untuk HP modern agar status bar & nav bar transparan/responsif
+        // Panggil ini untuk menginstal layar peluncuran
+        installSplashScreen()
         super.onCreate(savedInstanceState)
 
         setContent {
