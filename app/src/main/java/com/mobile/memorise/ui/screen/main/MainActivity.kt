@@ -33,6 +33,7 @@ import com.mobile.memorise.navigation.AppNavGraph
 // Import yang diperlukan
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.navigation.NavHostController
 import com.mobile.memorise.navigation.NavGraph
 import com.mobile.memorise.R
 import com.mobile.memorise.navigation.MainRoute
@@ -50,7 +51,14 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = AppBackgroundColor
                 ) {
-                    AppNavGraph(navController)
+                    AppNavGraph(
+                        navController = navController,
+                        onLogout = {
+                            navController.navigate("landing") {
+                                popUpTo("main_entry") { inclusive = true }
+                            }
+                        }
+                    )
                     // MainScreenContent() jjj
                 }
             }
@@ -60,7 +68,10 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreenContent() {
+fun MainScreenContent(
+    navController: NavHostController,
+    onLogout: () -> Unit
+) {
     val navController = rememberNavController()
 
     // 1. PINDAHKAN INI KE ATAS (Agar bisa dibaca oleh Scaffold)
@@ -170,7 +181,10 @@ fun MainScreenContent() {
             }
         }
     ) { innerPadding ->
-        NavGraph(navController = navController, innerPadding = innerPadding)
+        NavGraph(navController = navController,
+            innerPadding = innerPadding,
+            onLogout = onLogout
+        )
 
         if (showBottomSheet) {
             ModalBottomSheet(

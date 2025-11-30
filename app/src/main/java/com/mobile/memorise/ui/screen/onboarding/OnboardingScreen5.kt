@@ -52,19 +52,18 @@ fun OnboardingScreen5(
             )
         }
 
-        Spacer(modifier = Modifier.height(55.dp))
+        Spacer(modifier = Modifier.height(65.dp))
 
         // ===================== BLUE CARD IMAGE =====================
         Image(
             painter = painterResource(id = R.drawable.offer),
             contentDescription = null,
             modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(26.dp)),
+                .fillMaxWidth(),
             contentScale = ContentScale.FillWidth
         )
 
-        Spacer(modifier = Modifier.height(55.dp))
+        Spacer(modifier = Modifier.height(85.dp))
 
         // ===================== PAGE INDICATOR (PAGE 5 ACTIVE) =====================
         Row(
@@ -84,41 +83,48 @@ fun OnboardingScreen5(
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        // ===================== BUTTON SIGN UP =====================
-        Button(
-            onClick = onSignUp,
-            colors = ButtonDefaults.buttonColors(containerColor = deepBlue),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Text(
-                text = "Sign up",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White
-            )
-        }
-
-        Spacer(modifier = Modifier.height(18.dp))
-
         // ===================== BUTTON LOGIN (OUTLINE) =====================
-        Button(
-            onClick = onLogin,
-            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+        Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp),
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(2.dp, deepBlueBorder)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Log in",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = deepBlue
-            )
+
+            // SIGN UP BUTTON (filled)
+            Button(
+                onClick = onSignUp,
+                colors = ButtonDefaults.buttonColors(containerColor = deepBlue),
+                modifier = Modifier
+                    .width(150.dp)            // ⬅️ persis seperti Figma (tidak full width)
+                    .height(52.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text(
+                    text = "Sign up",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+            }
+
+            // LOG IN BUTTON (outline)
+            Button(
+                onClick = onLogin,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+                modifier = Modifier
+                    .width(150.dp)
+                    .height(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(2.dp, deepBlueBorder)
+            ) {
+                Text(
+                    text = "Log in",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = deepBlue
+                )
+            }
         }
     }
 }

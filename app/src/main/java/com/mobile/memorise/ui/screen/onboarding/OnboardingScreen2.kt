@@ -84,7 +84,7 @@ fun OnboardingScreen2(
             painter = painterResource(id = R.drawable.materi),
             contentDescription = null,
             modifier = Modifier
-                .fillMaxWidth(0.85f)
+                .fillMaxWidth(0.75f)
                 .clip(RoundedCornerShape(18.dp)),
             contentScale = ContentScale.Fit    // ⬅️ tidak akan crop
         )
@@ -106,7 +106,7 @@ fun OnboardingScreen2(
         }
 
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(28.dp))
 
         // ===================== PAGE INDICATOR (PAGE 2) =====================
         Row(
@@ -159,7 +159,7 @@ fun OnboardingScreen2(
         }
 
 
-        Spacer(modifier = Modifier.height(36.dp))
+        Spacer(modifier = Modifier.height(26.dp))
 
         // ===================== BUTTON =====================
         Button(
@@ -168,7 +168,7 @@ fun OnboardingScreen2(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
-            shape = RoundedCornerShape(14.dp)
+            shape = RoundedCornerShape(16.dp)
         ) {
             Text(
                 text = "Generate FlashCard",

@@ -115,7 +115,7 @@ fun OnboardingScreen4(
         ) {
             Text(
                 text = "Let’s Start",
-                fontSize = 17.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White
             )
