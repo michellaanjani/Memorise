@@ -4,7 +4,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
-import com.mobile.memorise.MainScreenContent
+import com.mobile.memorise.ui.screen.main.MainScreenContent
 import com.mobile.memorise.ui.screen.landing.LandingScreen
 import com.mobile.memorise.ui.screen.sigin.SignInScreen
 import com.mobile.memorise.ui.screen.signup.SignUpScreen

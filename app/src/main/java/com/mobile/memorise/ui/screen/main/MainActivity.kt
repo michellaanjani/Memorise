@@ -1,4 +1,4 @@
-package com.mobile.memorise
+package com.mobile.memorise.ui.screen.main
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -33,6 +33,9 @@ import com.mobile.memorise.navigation.AppNavGraph
 // Import yang diperlukan
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.navigationBarsPadding
+import com.mobile.memorise.navigation.NavGraph
+import com.mobile.memorise.R
+import com.mobile.memorise.navigation.MainRoute
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,7 +51,7 @@ class MainActivity : ComponentActivity() {
                     color = AppBackgroundColor
                 ) {
                     AppNavGraph(navController)
-                    // MainScreenContent()
+                    // MainScreenContent() jjj
                 }
             }
         }
@@ -65,7 +68,7 @@ fun MainScreenContent() {
     val currentDestination = navBackStackEntry?.destination
     val currentRoute = currentDestination?.route
 
-    val items = listOf(Screen.Home, Screen.Create, Screen.Account)
+    val items = listOf(MainRoute.Home, MainRoute.Create, MainRoute.Account)
     var showBottomSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
@@ -75,7 +78,7 @@ fun MainScreenContent() {
             // 2. LOGIKA PENENTUAN (Hanya muncul di Home dan Account)
             // Screen.Create tidak perlu dimasukkan ke sini karena dia hanya tombol (bukan halaman pindah)
             // Tapi jika kamu punya halaman lain, Bottom Bar akan hilang.
-            val showBottomBar = currentRoute == Screen.Home.route || currentRoute == Screen.Account.route
+            val showBottomBar = currentRoute == MainRoute.Home.route || currentRoute == MainRoute.Account.route
 
             // 3. BUNGKUS DENGAN IF
             if (showBottomBar) {
@@ -92,7 +95,7 @@ fun MainScreenContent() {
                     // Loop items tetap sama
                     items.forEach { screen ->
                         val isSelected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
-                        val isCreateButton = screen == Screen.Create
+                        val isCreateButton = screen == MainRoute.Create
 
                         NavigationBarItem(
                             colors = NavigationBarItemDefaults.colors(indicatorColor = Color.Transparent),
