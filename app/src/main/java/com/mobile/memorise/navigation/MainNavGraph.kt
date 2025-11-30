@@ -17,6 +17,7 @@ import com.mobile.memorise.ui.screen.profile.EditProfileScreen
 import com.mobile.memorise.ui.screen.profile.ProfileScreen
 import com.mobile.memorise.ui.screen.cards.CardsScreen
 import com.mobile.memorise.ui.screen.cards.StudyScreen
+import com.mobile.memorise.ui.screen.cards.QuizScreen
 import com.mobile.memorise.ui.screen.cards.CardItemData
 import kotlinx.serialization.json.Json
 //import com.mobile.memorise.navigation.MainRoute
@@ -103,6 +104,10 @@ fun NavGraph(
                     // Navigasi ke Study Screen bawa data JSON
                     navController.navigate(MainRoute.Study.createRoute(deckName, encodedJson))
                 },
+                onQuizClick = { encodedJson ->
+                    // Navigasi ke Study Screen bawa data JSON
+                    navController.navigate(MainRoute.Quiz.createRoute(deckName, encodedJson))
+                },
                 onAddCardClick = { /* Navigate ke Create Card (Nanti) */ }
             )
         }
@@ -127,6 +132,31 @@ fun NavGraph(
             }
 
             StudyScreen(
+                deckName = deckName,
+                cardList = cardList,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+        // 8. Halaman Quiz
+        // --- TAMBAHAN BARU ---
+        composable(
+            route = MainRoute.Quiz.route, // "study/{deckName}/{cardList}"
+            arguments = listOf(
+                navArgument("deckName") { type = NavType.StringType },
+                navArgument("cardList") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val deckName = backStackEntry.arguments?.getString("deckName") ?: "Unknown"
+            val jsonString = backStackEntry.arguments?.getString("cardList") ?: "[]"
+
+            // Deserialize JSON String kembali menjadi List<CardItemData>
+            val cardList = try {
+                Json.decodeFromString<List<CardItemData>>(jsonString)
+            } catch (e: Exception) {
+                emptyList()
+            }
+
+            QuizScreen(
                 deckName = deckName,
                 cardList = cardList,
                 onBackClick = { navController.popBackStack() }

@@ -64,6 +64,7 @@ fun CardsScreen(
     deckName: String,
     onBackClick: () -> Unit,
     onStudyClick: (String) -> Unit,
+    onQuizClick: (String) -> Unit,
     onAddCardClick: () -> Unit = {}  // Parameter diminta tapi belum dipakai di UI
 ) {
     val context = LocalContext.current
@@ -214,7 +215,12 @@ fun CardsScreen(
                             if (cardData.cards.size < 3) {
                                 showQuizAlert = true // Munculkan Popup
                             } else {
-                                // TODO: Lanjut ke Quiz Action
+                                // 1. Serialize List Cards ke JSON String
+                                val jsonList = Json.encodeToString(cardData.cards)
+                                // 2. Encode agar aman untuk URL (menghindari error karakter khusus)
+                                val encodedJson = Uri.encode(jsonList)
+                                // 3. Panggil Callback navigasi
+                                onQuizClick(encodedJson)
                             }
                         },
                         modifier = Modifier

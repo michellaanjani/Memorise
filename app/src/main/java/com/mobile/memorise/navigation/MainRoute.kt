@@ -26,4 +26,9 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
         // Fungsi ini dipakai saat tombol Study diklik
         fun createRoute(deckName: String, cardListJson: String) = "study/$deckName/$cardListJson"
     }
+    // --- TAMBAHAN BARU ---
+    object Quiz : MainRoute("quiz/{deckName}/{cardList}", "Quiz", Icons.Filled.Home) {
+        // Fungsi ini dipakai saat tombol Study diklik
+        fun createRoute(deckName: String, cardListJson: String) = "quiz/$deckName/$cardListJson"
+    }
 }
