@@ -48,8 +48,7 @@ private val LightColorScheme = lightColorScheme(
 @Composable
 fun MemoriseTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // PENTING: Set ke FALSE agar warna tetap Biru sesuai desain,
-    // tidak mengikuti warna wallpaper HP user (Android 12+)
+    // Diset false agar warna konsisten sesuai brand (Biru/Memorise), tidak ikut wallpaper user
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
@@ -66,21 +65,30 @@ fun MemoriseTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            // Mengubah warna Status Bar (Sinyal/Baterai) agar menyatu dengan Header Biru
-            // Jika Light Mode -> Status Bar Biru Tua (DeepBlue)
-            // Jika Dark Mode -> Biarkan default
-            window.statusBarColor = if (darkTheme) Color.Black.toArgb() else DeepBlue.toArgb()
 
-            // Mengatur warna ikon status bar (Jam/Baterai)
-            // false = ikon putih (cocok untuk background biru tua)
-            // true = ikon hitam
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = darkTheme
+            // 1. STATUS BAR & NAVIGATION BAR TRANSPARAN (Standard Production Edge-to-Edge)
+            // Kita set transparent agar background aplikasi bisa naik sampai ke belakang jam/baterai
+            window.statusBarColor = Color(0x60424242).toArgb()
+            window.navigationBarColor = Color(0x70424242).toArgb() // Nav bar bawah juga transparan
+
+            // 2. MENGATUR KONTRAS ICON (Jam, Baterai, Sinyal)
+            // Logic:
+            // !darkTheme (Jika Light Mode) -> true  -> Icon jadi HITAM (karena background biasanya putih)
+            // !darkTheme (Jika Dark Mode)  -> false -> Icon jadi PUTIH (karena background gelap)
+            val insetsController = WindowCompat.getInsetsController(window, view)
+
+            // CATATAN PENTING:
+            // Jika di Light Mode header kamu warnanya BIRU TUA (DeepBlue),
+            // maka kamu harus memaksa ini menjadi 'false' (Icon Putih).
+            // Tapi jika background aplikasimu Putih, gunakan logic standar di bawah ini:
+            insetsController.isAppearanceLightStatusBars = false
+            insetsController.isAppearanceLightNavigationBars = false
         }
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography, // Pastikan file Type.kt ada, atau hapus baris ini jika error
+        typography = Typography,
         content = content
     )
 }

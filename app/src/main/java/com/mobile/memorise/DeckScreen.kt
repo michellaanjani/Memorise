@@ -6,8 +6,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape // Tambah import ini
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add // Tambah import ini
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -17,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow // Tambah import ini (opsional untuk shadow)
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -28,9 +31,9 @@ import androidx.compose.ui.unit.sp
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import com.mobile.memorise.ui.theme.* // Pastikan import Theme.kt ada
+import com.mobile.memorise.ui.theme.*
 
-// 1. Model Data Deck (Sesuai JSON)
+// Model Data Deck (Sesuai JSON)
 @Serializable
 data class DeckItemData(
     @SerialName("deck_name") val deckName: String,
@@ -41,25 +44,25 @@ data class DeckItemData(
 @Composable
 fun DeckScreen(
     folderName: String,
-    onBackClick: () -> Unit, // Callback untuk tombol back
-    onDeckClick: (String) -> Unit = {} // Callback saat deck diklik
+    onBackClick: () -> Unit,
+    onDeckClick: (String) -> Unit = {},
+    onAddDeckClick: () -> Unit = {} // Opsional: Callback untuk tombol plus
 ) {
     val context = LocalContext.current
     var deckList by remember { mutableStateOf(listOf<DeckItemData>()) }
 
-    // Load JSON deckname.json
+    // Load JSON
     LaunchedEffect(Unit) {
         try {
             val jsonString = context.assets.open("deckname.json").bufferedReader().use { it.readText() }
             deckList = Json.decodeFromString(jsonString)
         } catch (e: Exception) {
             e.printStackTrace()
-            // List tetap kosong jika error/file tidak ditemukan
         }
     }
 
     Scaffold(
-        containerColor = Color(0xFFF8F9FB), // Background abu muda
+        containerColor = Color(0xFFF8F9FB),
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -83,17 +86,34 @@ fun DeckScreen(
                     containerColor = Color(0xFFF8F9FB)
                 )
             )
+        },
+        // --- TAMBAHAN 1: FLOATING ACTION BUTTON ---
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onAddDeckClick, // Panggil action saat diklik
+                containerColor = WhitePurple, // Pastikan warna ini ada di Theme.kt
+                contentColor = BrightBlue,  // Icon warna putih
+                shape = CircleShape,         // Bentuk bulat penuh
+                modifier = Modifier.padding(bottom = 16.dp) // Jarak sedikit dari bawah agar tidak nempel tepi
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add Deck",
+                    modifier = Modifier.size(28.dp)
+                )
+            }
         }
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
+            modifier = Modifier.fillMaxSize()
+            // Note: Modifier padding(innerPadding) SUDAH DIHAPUS disini (sudah benar)
         ) {
             if (deckList.isEmpty()) {
-                // --- 3. TAMPILAN EMPTY STATE (Mirip Folder) ---
+                // Empty State
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = innerPadding.calculateTopPadding()),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -101,14 +121,14 @@ fun DeckScreen(
                         modifier = Modifier.padding(24.dp)
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.empty), // Icon orang empty
+                            painter = painterResource(id = R.drawable.empty),
                             contentDescription = "No Decks",
                             modifier = Modifier.size(200.dp),
                             contentScale = ContentScale.Fit
                         )
                         Spacer(modifier = Modifier.height(24.dp))
                         Text(
-                            text = "No Decks yet!", // Ganti folder jadi Deck
+                            text = "No Decks yet!",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF1A1C24)
@@ -125,7 +145,18 @@ fun DeckScreen(
             } else {
                 // --- LIST DECK ---
                 LazyColumn(
-                    contentPadding = PaddingValues(24.dp),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        top = innerPadding.calculateTopPadding() + 24.dp,
+
+                        // --- TAMBAHAN 2: PADDING BAWAH EKSTRA BESAR ---
+                        // Ditambah 100.dp (bukan 24.dp) agar scroll bisa naik tinggi
+                        // Melewati FAB sehingga titik tiga item terakhir aman.
+                        bottom = innerPadding.calculateBottomPadding() + 100.dp,
+
+                        start = 24.dp,
+                        end = 24.dp
+                    ),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(deckList) { deck ->

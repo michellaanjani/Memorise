@@ -19,7 +19,7 @@ fun NavGraph(
     NavHost(
         navController = navController,
         startDestination = Screen.Home.route,
-        modifier = Modifier.padding(innerPadding)
+        modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
     ) {
         // 1. Halaman Home
         composable(route = Screen.Home.route) {
@@ -29,11 +29,6 @@ fun NavGraph(
                     navController.navigate(Screen.DeckDetail.createRoute(folderName))
                 }
             )
-        }
-
-        // 2. Halaman Create (Dummy)
-        composable(route = Screen.Create.route) {
-            Text("Halaman Create New")
         }
 
         // 3. Halaman Account (Dummy)

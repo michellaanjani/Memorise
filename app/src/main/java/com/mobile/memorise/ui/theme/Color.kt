@@ -34,3 +34,5 @@ val DeleteBtnText = Color(0xFFEF5350)
 val NavbarBgColor = Color(0xFFEEEEF2)
 val AppBackgroundColor = Color(0xFFF8F9FB)
 val InactiveIconColor = Color(0xFFB0B3C6)
+
+val WhitePurple = Color(0xFFEAEAFF)

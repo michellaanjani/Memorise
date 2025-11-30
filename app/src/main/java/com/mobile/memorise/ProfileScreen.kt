@@ -27,6 +27,7 @@ fun ProfileScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFF8F9FB)) // Background Abu sangat muda sesuai desain
+            .statusBarsPadding()
             .padding(24.dp)
     ) {
         // --- 1. JUDUL HALAMAN ---

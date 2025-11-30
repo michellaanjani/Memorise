@@ -30,15 +30,26 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.mobile.memorise.ui.theme.*
 import com.mobile.memorise.navigation.AppNavGraph
+// Import yang diperlukan
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.navigationBarsPadding
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()// 1. Wajib untuk HP modern agar status bar & nav bar transparan/responsif
         super.onCreate(savedInstanceState)
+
         setContent {
             MemoriseTheme {
                 val navController = rememberNavController()
-                AppNavGraph(navController)
-//                MainScreenContent()
+                // Tambahkan Modifier.fillMaxSize() agar background pas
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = AppBackgroundColor
+                ) {
+                    AppNavGraph(navController)
+                    // MainScreenContent()
+                }
             }
         }
     }
@@ -48,28 +59,37 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreenContent() {
     val navController = rememberNavController()
-    val items = listOf(Screen.Home, Screen.Create, Screen.Account)
 
+    // 1. PINDAHKAN INI KE ATAS (Agar bisa dibaca oleh Scaffold)
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+    val currentRoute = currentDestination?.route
+
+    val items = listOf(Screen.Home, Screen.Create, Screen.Account)
     var showBottomSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
     Scaffold(
         containerColor = AppBackgroundColor,
         bottomBar = {
-            Box(modifier = Modifier.fillMaxWidth().background(AppBackgroundColor)) {
+            // 2. LOGIKA PENENTUAN (Hanya muncul di Home dan Account)
+            // Screen.Create tidak perlu dimasukkan ke sini karena dia hanya tombol (bukan halaman pindah)
+            // Tapi jika kamu punya halaman lain, Bottom Bar akan hilang.
+            val showBottomBar = currentRoute == Screen.Home.route || currentRoute == Screen.Account.route
+
+            // 3. BUNGKUS DENGAN IF
+            if (showBottomBar) {
                 NavigationBar(
                     containerColor = NavbarBgColor,
                     tonalElevation = 0.dp,
+                    windowInsets = NavigationBarDefaults.windowInsets,
                     modifier = Modifier
                         .graphicsLayer {
                             shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp)
                             clip = true
                         }
-                        .height(80.dp)
                 ) {
-                    val navBackStackEntry by navController.currentBackStackEntryAsState()
-                    val currentDestination = navBackStackEntry?.destination
-
+                    // Loop items tetap sama
                     items.forEach { screen ->
                         val isSelected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
                         val isCreateButton = screen == Screen.Create
@@ -116,26 +136,29 @@ fun MainScreenContent() {
                                                     .height(3.dp)
                                                     .background(BrightBlue, RoundedCornerShape(2.dp))
                                             )
-                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Spacer(modifier = Modifier.height(4.dp))
                                         } else {
-                                            Spacer(modifier = Modifier.height(11.dp))
+                                            Spacer(modifier = Modifier.height(7.dp))
                                         }
+
                                         Icon(
                                             imageVector = screen.icon,
                                             contentDescription = screen.title,
-                                            modifier = Modifier.size(28.dp),
+                                            modifier = Modifier.size(26.dp),
                                             tint = if (isSelected) BrightBlue else InactiveIconColor
                                         )
                                     }
                                 }
                             },
                             label = {
-                                Text(
-                                    text = screen.title,
-                                    fontSize = 12.sp,
-                                    color = if (isSelected) BrightBlue else InactiveIconColor,
-                                    modifier = Modifier.padding(top = 4.dp)
-                                )
+                                if (!isCreateButton) {
+                                    Text(
+                                        text = screen.title,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (isSelected) BrightBlue else InactiveIconColor,
+                                        modifier = Modifier.padding(top = 0.dp)
+                                    )
+                                }
                             },
                             alwaysShowLabel = true
                         )
@@ -152,9 +175,7 @@ fun MainScreenContent() {
                 sheetState = sheetState,
                 containerColor = White,
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                // dragHandle = null // Uncomment ini jika ingin menghilangkan garis abu-abu kecil (handle) di atas
             ) {
-                // Panggil konten tanpa parameter onClose
                 CreateBottomSheetContent()
             }
         }
@@ -168,6 +189,7 @@ fun CreateBottomSheetContent() {
             .fillMaxWidth()
             .padding(horizontal = 24.dp)
             .padding(bottom = 48.dp)
+            .navigationBarsPadding()
     ) {
         // --- HEADER BARU (HANYA JUDUL) ---
         Text(

@@ -28,6 +28,7 @@ fun ResetPwScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .background(Color(0xFFF3F3FA)),
         horizontalAlignment = Alignment.Start
     ) {
