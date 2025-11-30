@@ -10,47 +10,70 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.mobile.memorise.navigation.MainRote
 import com.mobile.memorise.ui.screen.deck.DeckScreen
 import com.mobile.memorise.ui.screen.home.HomeScreen
+import com.mobile.memorise.ui.screen.profile.UpdatePasswordScreen
+import com.mobile.memorise.ui.screen.profile.EditProfileScreen
 import com.mobile.memorise.ui.screen.profile.ProfileScreen
 
 @Composable
 fun NavGraph(
     navController: NavHostController,
-    innerPadding: PaddingValues
+    innerPadding: PaddingValues,
+    onLogout: () -> Unit            // <-- tambahkan parameter ini
 ) {
+
     NavHost(
         navController = navController,
-        startDestination = MainRote.Home.route,
+        startDestination = MainRoute.Home.route,
         modifier = Modifier.padding(innerPadding)
     ) {
-        // 1. Halaman Home
-        composable(route = MainRote.Home.route) {
+
+        /** 1. Home */
+        composable(route = MainRoute.Home.route) {
             HomeScreen(
                 onFolderClick = { folderName ->
-                    // Pindah ke halaman DeckDetail membawa nama folder
-                    navController.navigate(MainRote.DeckDetail.createRoute(folderName))
+                    navController.navigate(MainRoute.DeckDetail.createRoute(folderName))
                 }
             )
         }
 
-        // 2. Halaman Create (Dummy)
-        composable(route = MainRote.Create.route) {
+        /** 2. Create */
+        composable(route = MainRoute.Create.route) {
             Text("Halaman Create New")
         }
 
-        // 3. Halaman Account (Dummy)
-        composable(route = MainRote.Account.route) {
-            ProfileScreen()
+        /** 3. Account */
+        composable(route = MainRoute.Account.route) {
+            ProfileScreen(
+                navController = navController,
+                onLogout = onLogout
+            )
         }
 
-        // 4. Halaman Detail Deck (Menerima Data JSON)
+        /** 4. Edit Profile */
+        composable(route = MainRoute.EditProfile.route) {
+            EditProfileScreen(
+                navController = navController
+            )
+        }
+
+        /** 5. Update Password */
+        composable(route = MainRoute.EditPassword.route) {
+            UpdatePasswordScreen(
+                navController = navController
+            )
+        }
+
+        /** 6. Deck Detail */
         composable(
-            route = MainRote.DeckDetail.route,
-            arguments = listOf(navArgument("folderName") { type = NavType.StringType })
+            route = MainRoute.DeckDetail.route,
+            arguments = listOf(navArgument("folderName") {
+                type = NavType.StringType
+            })
         ) { backStackEntry ->
             val folderName = backStackEntry.arguments?.getString("folderName") ?: "Unknown"
+
             DeckScreen(
                 folderName = folderName,
                 onBackClick = { navController.popBackStack() }

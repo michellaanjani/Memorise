@@ -28,30 +28,44 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavHostController
 import com.mobile.memorise.R
 import com.mobile.memorise.ui.theme.*
 import com.mobile.memorise.navigation.AppNavGraph
-import com.mobile.memorise.navigation.MainRote
+import com.mobile.memorise.navigation.MainRoute
 import com.mobile.memorise.navigation.NavGraph
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContent {
             MemoriseTheme {
                 val navController = rememberNavController()
-                AppNavGraph(navController)
-//                MainScreenContent()
+
+                AppNavGraph(
+                    navController = navController,
+                    onLogout = {
+                        navController.navigate("landing") {
+                            popUpTo("main_entry") { inclusive = true }
+                        }
+                    }
+                )
             }
         }
     }
 }
 
+/** Composable utama yang menampilkan bottom nav dan container nav (Main flow).
+ *  Ini menerima navController yang dibuat di dalamnya, dan meneruskan onLogout ke NavGraph.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreenContent() {
-    val navController = rememberNavController()
-    val items = listOf(MainRote.Home, MainRote.Create, MainRote.Account)
+fun MainScreenContent(
+    navController: NavHostController,
+    onLogout: () -> Unit
+) {
+    val items = listOf(MainRoute.Home, MainRoute.Create, MainRoute.Account)
 
     var showBottomSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
@@ -74,8 +88,9 @@ fun MainScreenContent() {
                     val currentDestination = navBackStackEntry?.destination
 
                     items.forEach { screen ->
-                        val isSelected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
-                        val isCreateButton = screen == MainRote.Create
+                        val isSelected =
+                            currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                        val isCreateButton = screen == MainRoute.Create
 
                         NavigationBarItem(
                             colors = NavigationBarItemDefaults.colors(indicatorColor = Color.Transparent),
@@ -85,7 +100,9 @@ fun MainScreenContent() {
                                     showBottomSheet = true
                                 } else {
                                     navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
                                         launchSingleTop = true
                                         restoreState = true
                                     }
@@ -147,7 +164,13 @@ fun MainScreenContent() {
             }
         }
     ) { innerPadding ->
-        NavGraph(navController = navController, innerPadding = innerPadding)
+
+        // PENTING: NavGraph sekarang menerima onLogout agar ProfileScreen bisa memanggilnya
+        NavGraph(
+            navController = navController,
+            innerPadding = innerPadding,
+            onLogout = onLogout
+        )
 
         if (showBottomSheet) {
             ModalBottomSheet(
@@ -155,9 +178,7 @@ fun MainScreenContent() {
                 sheetState = sheetState,
                 containerColor = White,
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                // dragHandle = null // Uncomment ini jika ingin menghilangkan garis abu-abu kecil (handle) di atas
             ) {
-                // Panggil konten tanpa parameter onClose
                 CreateBottomSheetContent()
             }
         }
@@ -172,26 +193,22 @@ fun CreateBottomSheetContent() {
             .padding(horizontal = 24.dp)
             .padding(bottom = 48.dp)
     ) {
-        // --- HEADER BARU (HANYA JUDUL) ---
         Text(
             text = "Create New",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             color = TextGray,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp), // Sedikit jarak vertikal
+            modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // --- MENU ITEM ---
         CreateOptionItem(
             painter = painterResource(id = R.drawable.cfolder),
             title = "Create Folder",
-            subtitle = "Create Folder to organize your decks",
-            onClick = { /* Aksi buat folder */ }
+            subtitle = "Create Folder to organize decks",
+            onClick = { }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -200,7 +217,7 @@ fun CreateBottomSheetContent() {
             painter = painterResource(id = R.drawable.cdeck),
             title = "Create Deck",
             subtitle = "Organize flashcard into decks",
-            onClick = { /* Aksi buat deck */ }
+            onClick = { }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -209,7 +226,7 @@ fun CreateBottomSheetContent() {
             painter = painterResource(id = R.drawable.cai),
             title = "Generate With AI",
             subtitle = "Create cards with AI",
-            onClick = { /* Aksi AI */ }
+            onClick = { }
         )
     }
 }

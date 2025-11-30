@@ -17,6 +17,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextDecoration
 
 @Composable
 fun SignInScreen(
@@ -26,9 +27,17 @@ fun SignInScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
 
+    // Error states
+    var emailError by remember { mutableStateOf(false) }
+    var passwordError by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+
+    var passwordVisible by remember { mutableStateOf(false) }
     val deepBlue = Color(0xFF0C3DF4)
+
+    val correctEmail = "user01@gmail.com"
+    val correctPassword = "01user"
 
     Column(
         modifier = Modifier
@@ -39,28 +48,27 @@ fun SignInScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Logo
+        // ========== LOGO ==========
         Image(
             painter = painterResource(id = R.drawable.memorisey),
             contentDescription = null,
-            modifier = Modifier.height(18.dp),
+            modifier = Modifier.height(30.dp),
             contentScale = ContentScale.Fit
         )
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-        // Title
+        // ========== HEADER SUPER BOLD ==========
         Text(
             text = "Log In",
-            fontSize = 26.sp,
-            fontWeight = FontWeight.Bold,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Black,
             color = Color(0xFF1D1D1D),
             modifier = Modifier.align(Alignment.Start)
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ================= FORM BOX =================
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -68,29 +76,51 @@ fun SignInScreen(
                 .padding(12.dp)
         ) {
 
-            // EMAIL FIELD
-            Text("Your Email", fontSize = 12.sp, color = Color.Gray)
+            // ================= EMAIL =================
+            Text("Your Email", fontSize = 13.sp, color = Color.Gray)
             Spacer(modifier = Modifier.height(4.dp))
 
             OutlinedTextField(
                 value = email,
-                onValueChange = { email = it },
+                onValueChange = {
+                    email = it
+                    emailError = false
+                    errorMessage = ""
+                },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
-                textStyle = LocalTextStyle.current.copy(fontSize = 14.sp)
+                isError = emailError,
+                textStyle = LocalTextStyle.current.copy(
+                    fontSize = 14.sp,
+                    color = Color.Black
+                )
             )
+
+            if (emailError) {
+                Text(
+                    text = errorMessage,
+                    color = Color(0xFFFF6A00),
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // PASSWORD FIELD
-            Text("Password", fontSize = 12.sp, color = Color.Gray)
+            // ================= PASSWORD =================
+            Text("Password", fontSize = 13.sp, color = Color.Gray)
             Spacer(modifier = Modifier.height(4.dp))
 
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = {
+                    password = it
+                    passwordError = false
+                    errorMessage = ""
+                },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
+                isError = passwordError,
                 textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
@@ -103,25 +133,55 @@ fun SignInScreen(
                     )
                 }
             )
+
+            if (passwordError) {
+                Text(
+                    text = errorMessage,
+                    color = Color(0xFFFF6A00),
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // Forgot Password
+        // ========== FORGOT PASSWORD (underline) ==========
         Text(
-            text = "Forget password?",
+            text = "Forgot password?",
             fontSize = 12.sp,
             color = Color.Gray,
             modifier = Modifier
                 .align(Alignment.End)
-                .clickable { onForgotPasswordClick() }  // ← PENTING
+                .clickable { onForgotPasswordClick() }
+                .padding(bottom = 2.dp),
+            textDecoration = TextDecoration.Underline
         )
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        // LOG IN BUTTON
+        // ========== LOGIN BUTTON ==========
         Button(
-            onClick = { onSignInSuccess() },
+            onClick = {
+                val isEmailCorrect = email == correctEmail
+                val isPasswordCorrect = password == correctPassword
+
+                when {
+                    isEmailCorrect && isPasswordCorrect -> {
+                        onSignInSuccess()
+                    }
+
+                    !isEmailCorrect -> {
+                        emailError = true
+                        errorMessage = "Email not found!"
+                    }
+
+                    !isPasswordCorrect -> {
+                        passwordError = true
+                        errorMessage = "Password is incorrect!"
+                    }
+                }
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp),
@@ -138,7 +198,7 @@ fun SignInScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // SIGNUP LINK
+        // ========== SIGN UP (underline) ==========
         Row {
             Text("Don’t have an account? ", color = Color.Gray, fontSize = 13.sp)
             Text(
@@ -146,8 +206,11 @@ fun SignInScreen(
                 color = deepBlue,
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp,
+                textDecoration = TextDecoration.Underline,
                 modifier = Modifier.clickable { onSignUpClick() }
             )
         }
     }
 }
+
+

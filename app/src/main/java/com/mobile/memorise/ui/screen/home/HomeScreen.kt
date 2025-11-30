@@ -155,7 +155,7 @@ fun HeaderSection() {
                         text = "Hi, Reynard",
                         color = White,
                         fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.ExtraBold
                     )
                     Text(
                         text = "Let's train your memory!",

@@ -19,59 +19,61 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
 import com.mobile.memorise.R
+import com.mobile.memorise.navigation.MainRoute
 
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(
+    navController: NavHostController,       // untuk pindah halaman dalam main nav
+    onLogout: () -> Unit // ubah ini
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF8F9FB)) // Background Abu sangat muda sesuai desain
+            .background(Color(0xFFF8F9FB))
             .padding(24.dp)
     ) {
-        // --- 1. JUDUL HALAMAN ---
+
+        // --- 1. TITLE ---
         Text(
             text = "Account",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF1A1C24), // Hitam pekat / DeepBlue
+            color = Color(0xFF1A1C24),
             modifier = Modifier.padding(bottom = 32.dp)
         )
 
-        // --- 2. BAGIAN AVATAR & NAMA ---
+        // --- 2. AVATAR & NAME ---
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Box untuk Avatar + Icon Kamera
-            Box(
-                contentAlignment = Alignment.BottomEnd // Agar kamera di pojok kanan bawah
-            ) {
-                // Avatar Frame Lingkaran
+
+            Box(contentAlignment = Alignment.BottomEnd) {
+
                 Box(
                     modifier = Modifier
-                        .size(100.dp) // Ukuran Avatar
-                        .clip(CircleShape) // Crop otomatis jadi lingkaran
-                        .background(Color(0xFFBBDEFB)), // Warna placeholder biru muda
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFBBDEFB)),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Icon Placeholder (Ganti dengan Image() jika sudah ada foto asli)
                     Icon(
                         imageVector = Icons.Default.Person,
                         contentDescription = "Avatar",
                         modifier = Modifier.size(60.dp),
-                        tint = Color(0xFF1976D2) // Warna icon biru
+                        tint = Color(0xFF1976D2)
                     )
                 }
 
-                // Tombol Kamera Kecil
                 Box(
                     modifier = Modifier
-                        .offset(x = 4.dp, y = 4.dp) // Sedikit geser keluar agar estetik
+                        .offset(x = 4.dp, y = 4.dp)
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF448AFF)) // Warna tombol kamera (Biru terang)
-                        .clickable { /* TODO: Aksi ganti foto */ }
+                        .background(Color(0xFF448AFF))
+                        .clickable { /* TODO: Change Photo */ }
                         .padding(6.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -86,7 +88,6 @@ fun ProfileScreen() {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Nama User
             Text(
                 text = "Reynard Wijaya",
                 fontSize = 18.sp,
@@ -97,13 +98,15 @@ fun ProfileScreen() {
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        // --- 3. MENU EDIT ACCOUNT ---
+        // --- 3. EDIT ACCOUNT BUTTON ---
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(12.dp))
-                .clickable { /* TODO: Aksi Edit Account */ }
-                .padding(vertical = 12.dp), // Area sentuh lebih luas
+                .clickable {
+                    navController.navigate(MainRoute.EditProfile.route)
+                }
+                .padding(vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -121,30 +124,28 @@ fun ProfileScreen() {
             )
         }
 
-        // --- 4. SPACER UNTUK DORONG TOMBOL LOGOUT KE BAWAH ---
         Spacer(modifier = Modifier.weight(1f))
 
-        // --- 5. TOMBOL LOG OUT ---
+        // --- 4. LOG OUT BUTTON ---
         Button(
-            onClick = { /* TODO: Aksi Log Out */ },
+            onClick = { onLogout()
+            }, // ubah ini
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp)
-                .shadow(4.dp, RoundedCornerShape(16.dp)), // Efek bayangan
+                .shadow(4.dp, RoundedCornerShape(16.dp)),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color.White // Background Putih
+                containerColor = Color.White
             ),
             shape = RoundedCornerShape(16.dp)
         ) {
             Text(
                 text = "Log Out",
-                color = Color.Red, // Teks Merah
+                color = Color.Red,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
         }
-
-        // Jarak sedikit dari bawah layar
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
