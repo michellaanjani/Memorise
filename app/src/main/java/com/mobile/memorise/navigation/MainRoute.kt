@@ -17,4 +17,13 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
     object DeckDetail : MainRoute("deck_detail/{folderName}", "Deck Detail", Icons.Filled.Home) {
         fun createRoute(folderName: String) = "deck_detail/$folderName"
     }
+    object Cards : MainRoute("cards/{deckName}", "Cards", Icons.Filled.Home) {
+        fun createRoute(deckName: String) = "cards/$deckName"
+    }
+
+    // --- TAMBAHAN BARU ---
+    object Study : MainRoute("study/{deckName}/{cardList}", "Study", Icons.Filled.Home) {
+        // Fungsi ini dipakai saat tombol Study diklik
+        fun createRoute(deckName: String, cardListJson: String) = "study/$deckName/$cardListJson"
+    }
 }

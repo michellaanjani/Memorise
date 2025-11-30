@@ -28,5 +28,17 @@
     "name": "English",
     "date": "05 June 2025",
     "deckCount": 4
+  },
+  {
+    "deck_name": "Scrum Basics",
+    "card_count": 12
+  },
+  {
+    "deck_name": "Kotlin Fundamentals",
+    "card_count": 45
+  },
+  {
+    "deck_name": "Jetpack Compose UI",
+    "card_count": 30
   }
 ]

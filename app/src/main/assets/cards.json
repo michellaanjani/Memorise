@@ -1,0 +1,30 @@
+{
+  "card_count": 5,
+  "cards": [
+    {
+      "id": 1,
+      "front": "What are the essential elements of a valid contract?",
+      "back": "A valid contract requires an offer, acceptance, consideration, legal intention."
+    },
+    {
+      "id": 2,
+      "front": "Describe the \"Scrum\" framework in Agile.",
+      "back": "Scrum is an iterative framework for managing complex work, with roles like Product Owner, Scrum Master, and Development Team."
+    },
+    {
+      "id": 3,
+      "front": "What is a user story?",
+      "back": "A user story is an informal, natural language description of one or more features from an end-user perspective, typically structured as \"As a [role], I want [goal], so that [benefit].\""
+    },
+    {
+      "id": 4,
+      "front": "Placeholder Card 4 Front",
+      "back": "Placeholder Card 4 Back"
+    },
+    {
+      "id": 5,
+      "front": "Placeholder Card 5 Front",
+      "back": "Placeholder Card 5 Back"
+    }
+  ]
+}
