@@ -13,6 +13,8 @@ val Pink40 = Color(0xFF7D5260)
 // --- Warna Utama (Header & Brand) ---
 val DeepBlue = Color(0xFF0A26A6)      // Warna Biru Tua di Header
 val BrightBlue = Color(0xFF3D5AFE)    // Warna Biru Text "3 decks" & Icon Home Aktif
+
+val CalmBlue = Color(0xFFBDC3FF)
 val White = Color(0xFFFFFFFF)
 
 // --- Warna Background & Surface ---
