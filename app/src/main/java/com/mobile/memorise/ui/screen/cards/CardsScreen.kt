@@ -1,5 +1,6 @@
 package com.mobile.memorise.ui.screen.cards
 
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,19 +23,18 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.mobile.memorise.R
 import com.mobile.memorise.ui.theme.BrightBlue
 import com.mobile.memorise.ui.theme.WhitePurple
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import android.net.Uri
-import androidx.compose.ui.text.style.TextAlign
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import androidx.compose.ui.window.Dialog
 
 // --- 1. DATA MODELS ---
 @Serializable
@@ -50,13 +50,13 @@ data class CardItemData(
     val back: String
 )
 
-// --- 2. COLORS (Hardcoded to match screenshot) ---
-private val BlueHeader = Color(0xFF5391F5) // Warna Biru Header
-private val OrangeButton = Color(0xFFFF851B) // Warna Orange Tombol
-private val BlueButton = Color(0xFF4285F4)   // Warna Biru Tombol
-private val BgColor = Color(0xFFF8F9FB)      // Background Abu Muda
-private val TextDark = Color(0xFF1A1C24)     // Hitam Teks
-private val TextGray = Color(0xFF757575)     // Abu Teks
+// --- 2. COLORS ---
+private val BlueHeader = Color(0xFF5391F5)
+private val OrangeButton = Color(0xFFFF851B)
+private val BlueButton = Color(0xFF4285F4)
+private val BgColor = Color(0xFFF8F9FB)
+private val TextDark = Color(0xFF1A1C24)
+private val TextGray = Color(0xFF757575)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,15 +65,16 @@ fun CardsScreen(
     onBackClick: () -> Unit,
     onStudyClick: (String) -> Unit,
     onQuizClick: (String) -> Unit,
-    onAddCardClick: () -> Unit = {}  // Parameter diminta tapi belum dipakai di UI
+    onAddCardClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var cardData by remember { mutableStateOf(CardListResponse()) }
 
-    // 1. STATE UNTUK POPUP
+    // State untuk Popup
     var showQuizAlert by remember { mutableStateOf(false) }
+    var showStudyAlert by remember { mutableStateOf(false) } // Popup baru untuk Study
 
-    // Load JSON cards.json
+    // Load JSON
     LaunchedEffect(Unit) {
         try {
             val jsonString = context.assets.open("cards.json").bufferedReader().use { it.readText() }
@@ -87,7 +88,7 @@ fun CardsScreen(
         containerColor = BgColor,
         topBar = {
             TopAppBar(
-                title = {}, // Title kosong karena kita pakai custom header di body
+                title = {},
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
@@ -98,55 +99,45 @@ fun CardsScreen(
                     }
                 },
                 actions = {
-                    // LOGO MEMORISE DI KANAN
                     Image(
                         painter = painterResource(id = R.drawable.memorisey),
                         contentDescription = "Logo",
-                        contentScale = ContentScale.Fit, // Menjaga rasio asli
+                        contentScale = ContentScale.Fit,
                         modifier = Modifier
-                            .height(28.dp) // Tinggi fix, lebar menyesuaikan rasio
+                            .height(28.dp)
                             .padding(end = 16.dp)
                     )
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = BgColor
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = BgColor)
             )
         },
-        // --- TAMBAHAN 1: FLOATING ACTION BUTTON ---
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onAddCardClick, // Panggil action saat diklik
-                containerColor = WhitePurple, // Pastikan warna ini ada di Theme.kt
-                contentColor = BrightBlue,  // Icon warna putih
-                shape = CircleShape,         // Bentuk bulat penuh
-                modifier = Modifier.padding(bottom = 16.dp) // Jarak sedikit dari bawah agar tidak nempel tepi
+                onClick = onAddCardClick,
+                containerColor = WhitePurple,
+                contentColor = BrightBlue,
+                shape = CircleShape,
+                modifier = Modifier.padding(bottom = 16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Add Deck",
-                    modifier = Modifier.size(28.dp)
-                )
+                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Deck", modifier = Modifier.size(28.dp))
             }
         }
     ) { innerPadding ->
 
-        // Gunakan LazyColumn untuk seluruh konten agar bisa discroll
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 top = innerPadding.calculateTopPadding(),
-                bottom = innerPadding.calculateBottomPadding() + 100.dp, // Padding bawah list
+                bottom = innerPadding.calculateBottomPadding() + 100.dp,
                 start = 24.dp,
                 end = 24.dp
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-
-            // --- ITEM 1: JUDUL DECK ---
+            // 1. Judul
             item {
                 Text(
-                    text = deckName, // "Agile for Methodology"
+                    text = deckName,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextDark,
@@ -154,7 +145,7 @@ fun CardsScreen(
                 )
             }
 
-            // --- ITEM 2: SUMMARY CARD (BIRU BESAR) ---
+            // 2. Summary Card
             item {
                 Box(
                     modifier = Modifier
@@ -166,7 +157,7 @@ fun CardsScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "${cardData.count}", // Angka Besar
+                            text = "${cardData.cards.size}", // Menggunakan size real
                             fontSize = 64.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -180,7 +171,7 @@ fun CardsScreen(
                 }
             }
 
-            // --- ITEM 3: TOMBOL ACTION (STUDY & QUIZ) ---
+            // 3. Tombol Actions (Study & Quiz)
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -189,75 +180,118 @@ fun CardsScreen(
                     // Tombol Study (Orange)
                     Button(
                         onClick = {
-                            // 1. Serialize List Cards ke JSON String
-                            val jsonList = Json.encodeToString(cardData.cards)
-                            // 2. Encode agar aman untuk URL (menghindari error karakter khusus)
-                            val encodedJson = Uri.encode(jsonList)
-                            // 3. Panggil Callback navigasi
-                            onStudyClick(encodedJson)
+                            // VALIDASI: Minimal 1 Kartu
+                            if (cardData.cards.isEmpty()) {
+                                showStudyAlert = true
+                            } else {
+                                val jsonList = Json.encodeToString(cardData.cards)
+                                val encodedJson = Uri.encode(jsonList)
+                                onStudyClick(encodedJson)
+                            }
                         },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(50.dp),
+                        modifier = Modifier.weight(1f).height(50.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = OrangeButton)
                     ) {
-                        Text(
-                            "Study cards",
-                            color = Color.White,
-                            fontWeight = FontWeight.SemiBold)
+                        Text("Study cards", color = Color.White, fontWeight = FontWeight.SemiBold)
                     }
 
-                    // Tombol Quiz (Biru) - UPDATE DISINI
+                    // Tombol Quiz (Biru)
                     Button(
                         onClick = {
-                            // 2. LOGIKA CEK JUMLAH KARTU
+                            // VALIDASI: Minimal 3 Kartu
                             if (cardData.cards.size < 3) {
-                                showQuizAlert = true // Munculkan Popup
+                                showQuizAlert = true
                             } else {
-                                // 1. Serialize List Cards ke JSON String
                                 val jsonList = Json.encodeToString(cardData.cards)
-                                // 2. Encode agar aman untuk URL (menghindari error karakter khusus)
                                 val encodedJson = Uri.encode(jsonList)
-                                // 3. Panggil Callback navigasi
                                 onQuizClick(encodedJson)
                             }
                         },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(50.dp),
+                        modifier = Modifier.weight(1f).height(50.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = BlueButton)
                     ) {
-                        Text(
-                            "Start Quiz",
-                            color = Color.White,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        Text("Start Quiz", color = Color.White, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
 
-            // --- ITEM 4: SECTION HEADER LIST ---
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Cards in deck (${cardData.cards.size})",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextDark
-                )
-            }
+            // --- LOGIKA TAMPILAN LIST VS EMPTY STATE ---
 
-            // --- ITEM 5: LIST KARTU ---
-            items(cardData.cards) { card ->
-                CardItemView(card)
+            if (cardData.cards.isNotEmpty()) {
+                // A. Jika Ada Kartu: Tampilkan Header List & Item Kartu
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Cards in deck (${cardData.cards.size})",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextDark
+                    )
+                }
+
+                items(cardData.cards) { card ->
+                    CardItemView(card)
+                }
+            } else {
+                // B. Jika KOSONG: Tampilkan Empty State UI (Sesuai Request)
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 40.dp), // Jarak dari tombol
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(24.dp)
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.empty), // Pastikan file ini ada
+                                contentDescription = "No Cards",
+                                modifier = Modifier.size(200.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Text(
+                                text = "No Cards yet!",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1A1C24)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Let’s create a card for you to learn!",
+                                fontSize = 14.sp,
+                                color = Color.Gray,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
             }
         }
-        // 3. PANGGIL DIALOG DI SINI (Di luar LazyColumn tapi di dalam Scaffold)
+
+        // --- DIALOG POPUPS ---
+
+        // Dialog untuk Quiz (Minimal 3)
         if (showQuizAlert) {
-            MinimalCardsDialog(
+            ValidationDialog(
+                iconRes = R.drawable.threecard, // Icon 3 kartu
+                title = "Minimal 3 Kartu Diperlukan",
+                description = "Anda memerlukan minimal 3 kartu untuk memulai mode Quiz. Silakan tambah kartu.",
                 onDismiss = { showQuizAlert = false }
+            )
+        }
+
+        // Dialog untuk Study (Minimal 1)
+        if (showStudyAlert) {
+            ValidationDialog(
+                iconRes = R.drawable.empty, // Bisa pakai icon empty atau icon single card
+                title = "Kartu Kosong",
+                description = "Anda harus memiliki minimal 1 kartu untuk mulai belajar. Yuk buat kartu barumu!",
+                onDismiss = { showStudyAlert = false }
             )
         }
     }
@@ -268,7 +302,7 @@ fun CardItemView(card: CardItemData) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), // Bayangan tipis
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -277,9 +311,7 @@ fun CardItemView(card: CardItemData) {
                 .fillMaxWidth(),
             verticalAlignment = Alignment.Top
         ) {
-            // Konten Teks
             Column(modifier = Modifier.weight(1f)) {
-                // Front (Pertanyaan)
                 Text(
                     text = card.front,
                     fontWeight = FontWeight.Bold,
@@ -287,42 +319,38 @@ fun CardItemView(card: CardItemData) {
                     color = TextDark,
                     lineHeight = 22.sp
                 )
-
                 Spacer(modifier = Modifier.height(8.dp))
-
-                // Back (Jawaban)
                 Text(
                     text = card.back,
                     fontSize = 14.sp,
                     color = TextGray,
                     lineHeight = 20.sp,
-                    maxLines = 3, // Batasi 3 baris agar rapi
+                    maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-
             Spacer(modifier = Modifier.width(8.dp))
-
-            // Icon Titik Tiga (More)
             Icon(
                 imageVector = Icons.Default.MoreVert,
                 contentDescription = "More",
                 tint = Color.Gray,
-                modifier = Modifier
-                    .size(20.dp)
-                    .clickable { /* Handle Edit/Delete */ }
+                modifier = Modifier.size(20.dp).clickable { }
             )
         }
     }
 }
 
-// --- 4. KOMPONEN UI POPUP (Simpan di bagian bawah file CardsScreen.kt) ---
-
+// --- KOMPONEN DIALOG REUSABLE ---
 @Composable
-fun MinimalCardsDialog(onDismiss: () -> Unit) {
+fun ValidationDialog(
+    iconRes: Int,
+    title: String,
+    description: String,
+    onDismiss: () -> Unit
+) {
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            shape = RoundedCornerShape(24.dp), // Sudut tumpul sesuai gambar
+            shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             modifier = Modifier
                 .fillMaxWidth()
@@ -332,17 +360,17 @@ fun MinimalCardsDialog(onDismiss: () -> Unit) {
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // A. Icon Lingkaran Biru Muda
+                // Icon Lingkaran Biru Muda
                 Box(
                     modifier = Modifier
                         .size(80.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE3F2FD)), // Warna biru sangat muda
+                        .background(Color(0xFFE3F2FD)),
                     contentAlignment = Alignment.Center
                 ) {
                     Image(
-                        painter = painterResource(id = R.drawable.threecard), // Pastikan icon ada
-                        contentDescription = "Icon Cards",
+                        painter = painterResource(id = iconRes),
+                        contentDescription = "Icon Alert",
                         modifier = Modifier.size(40.dp),
                         contentScale = ContentScale.Fit
                     )
@@ -350,9 +378,9 @@ fun MinimalCardsDialog(onDismiss: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // B. Judul
+                // Judul
                 Text(
-                    text = "Minimal 3 Kartu Diperlukan",
+                    text = title,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1A1C24),
@@ -361,9 +389,9 @@ fun MinimalCardsDialog(onDismiss: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // C. Deskripsi
+                // Deskripsi
                 Text(
-                    text = "Anda memerlukan minimal 3 kartu untuk memulai mode Quiz. Silakan tambah kartu.",
+                    text = description,
                     fontSize = 14.sp,
                     color = Color.Gray,
                     textAlign = TextAlign.Center,
@@ -372,17 +400,15 @@ fun MinimalCardsDialog(onDismiss: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // D. Tombol Tutup
+                // Tombol Tutup
                 Button(
                     onClick = onDismiss,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = BlueButton)
                 ) {
                     Text(
-                        text = "Tutup",
+                        text = "Mengerti", // Atau "Tutup"
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White

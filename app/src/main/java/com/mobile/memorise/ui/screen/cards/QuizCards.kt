@@ -1,16 +1,15 @@
 package com.mobile.memorise.ui.screen.cards
 
-import android.media.MediaPlayer  // Import Media Player
+import android.media.MediaPlayer
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-//import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState // Import Scroll State
-import androidx.compose.foundation.verticalScroll // Import Vertical Scroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -21,25 +20,23 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-//import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext // Import Context
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mobile.memorise.R
-//import com.mobile.memorise.ui.screen.cards.CardItemData
+// import com.mobile.memorise.ui.screen.cards.CardItemData // Pastikan ini di-import sesuai package project Anda
 
 // --- COLORS ---
 private val TextDark = Color(0xFF1A1C24)
 private val TextGray = Color(0xFF757575)
 private val BluePrimary = Color(0xFF4285F4)
-//private val BgColor = Color(0xFFF8F9FB)
-private val OrangeButton = Color(0xFFFF9800) // Warna tombol hasil
+private val OrangeButton = Color(0xFFFF9800)
 
 // Warna Status Jawaban
 private val CorrectGreen = Color(0xFF00C853)
@@ -55,12 +52,10 @@ fun QuizScreen(
     cardList: List<CardItemData>,
     onBackClick: () -> Unit
 ) {
-    // State Global Quiz
     var currentIndex by remember { mutableIntStateOf(0) }
     var correctCount by remember { mutableIntStateOf(0) }
     var isQuizFinished by remember { mutableStateOf(false) }
 
-    // Jika Quiz Selesai, Tampilkan Result Screen
     if (isQuizFinished) {
         QuizResultContent(
             totalQuestions = cardList.size,
@@ -68,12 +63,10 @@ fun QuizScreen(
             onBackClick = onBackClick
         )
     } else {
-        // Tampilkan Pertanyaan
         QuizQuestionContent(
             currentCard = cardList[currentIndex],
             currentNumber = currentIndex + 1,
             totalNumber = cardList.size,
-            // Ambil list kartu lain untuk dijadikan jawaban jebakan
             allCards = cardList,
             onBackClick = onBackClick,
             onAnswerSelected = { isCorrect ->
@@ -106,8 +99,6 @@ fun QuizQuestionContent(
 
     var selectedAnswer by remember { mutableStateOf<String?>(null) }
     var isAnswered by remember { mutableStateOf(false) }
-
-    // --- LOGIKA BARU: Cek apakah ini soal terakhir ---
     val isLastQuestion = currentNumber == totalNumber
 
     val options = remember(currentCard) {
@@ -126,7 +117,7 @@ fun QuizQuestionContent(
             CenterAlignedTopAppBar(
                 title = {
                     Image(
-                        painter = painterResource(id = R.drawable.memorisey), // Pastikan resource ada
+                        painter = painterResource(id = R.drawable.memorisey),
                         contentDescription = "Memorise Logo",
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.height(28.dp)
@@ -150,10 +141,7 @@ fun QuizQuestionContent(
                 ){
                     Button(
                         onClick = {
-                            // --- LOGIKA BARU: Suara Done & Navigasi ---
                             if (isLastQuestion) {
-                                // Mainkan suara done.mp3
-                                // Pastikan file 'done' ada di res/raw/done.mp3
                                 try {
                                     val mediaPlayer = MediaPlayer.create(context, R.raw.done)
                                     mediaPlayer.start()
@@ -162,8 +150,6 @@ fun QuizQuestionContent(
                                     e.printStackTrace()
                                 }
                             }
-
-                            // Reset state lokal & Lanjut
                             selectedAnswer = null
                             isAnswered = false
                             onNextClick()
@@ -172,12 +158,10 @@ fun QuizQuestionContent(
                             .fillMaxWidth()
                             .height(56.dp),
                         shape = RoundedCornerShape(12.dp),
-                        // Ubah warna tombol jika "Selesai" (Opsional, agar user sadar)
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (isLastQuestion) CorrectGreen else BluePrimary
                         )
                     ){
-                        // --- LOGIKA BARU: Teks Tombol ---
                         Text(
                             text = if (isLastQuestion) "Selesai" else "Next Question",
                             fontSize = 16.sp,
@@ -289,23 +273,19 @@ fun QuizResultContent(
     correctAnswers: Int,
     onBackClick: () -> Unit
 ) {
-    // 1. Hitung Target Persentase
     val targetPercentage = if (totalQuestions > 0) {
         ((correctAnswers.toFloat() / totalQuestions.toFloat()) * 100)
     } else 0f
     val wrongAnswers = totalQuestions - correctAnswers
 
-    // --- ANIMASI BARU ---
-    // Animatable float mulai dari 0f
     val animatedProgress = remember { Animatable(0f) }
 
-    // Jalankan animasi saat layar pertama kali muncul (LaunchedEffect)
     LaunchedEffect(Unit) {
         animatedProgress.animateTo(
             targetValue = targetPercentage,
             animationSpec = tween(
-                durationMillis = 1500, // Durasi animasi 1.5 detik
-                easing = FastOutSlowInEasing // Gerakan natural (cepat di awal, pelan di akhir)
+                durationMillis = 1500,
+                easing = FastOutSlowInEasing
             )
         )
     }
@@ -331,71 +311,80 @@ fun QuizResultContent(
             )
         }
     ) { innerPadding ->
+        // MAIN COLUMN
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.size(250.dp)
+
+            // 1. KONTEN TENGAH (Animasi & Teks Hasil)
+            // Gunakan weight(1f) di sini agar mengambil semua ruang sisa antara TopBar dan Button
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center // Kunci: Konten vertikal di tengah
             ) {
-                // Track Belakang (Diam)
-                CircularProgressIndicator(
-                    progress = { 1f },
-                    modifier = Modifier.fillMaxSize(),
-                    color = Color(0xFFF3F6FF),
-                    strokeWidth = 20.dp,
-                    trackColor = Color(0xFFF3F6FF),
-                    strokeCap = StrokeCap.Round,
-                )
-
-                // Progress Depan (Animasi)
-                // Nilai progress harus 0.0 sampai 1.0, jadi bagi 100
-                CircularProgressIndicator(
-                    progress = { animatedProgress.value / 100f },
-                    modifier = Modifier.fillMaxSize(),
-                    color = BluePrimary,
-                    strokeWidth = 20.dp,
-                    trackColor = Color.Transparent,
-                    strokeCap = StrokeCap.Round,
-                )
-
-                // Teks Angka (Mengikuti nilai animasi)
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "${animatedProgress.value.toInt()}%", // Mengubah float animasi ke int text
-                        fontSize = 48.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextDark
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.size(250.dp)
+                ) {
+                    // Track Belakang
+                    CircularProgressIndicator(
+                        progress = { 1f },
+                        modifier = Modifier.fillMaxSize(),
+                        color = Color(0xFFF3F6FF),
+                        strokeWidth = 20.dp,
+                        trackColor = Color(0xFFF3F6FF),
+                        strokeCap = StrokeCap.Round,
                     )
-                    Text(
-                        text = "Jawaban Benar",
-                        fontSize = 14.sp,
-                        color = TextGray
+
+                    // Progress Depan
+                    CircularProgressIndicator(
+                        progress = { animatedProgress.value / 100f },
+                        modifier = Modifier.fillMaxSize(),
+                        color = BluePrimary,
+                        strokeWidth = 20.dp,
+                        trackColor = Color.Transparent,
+                        strokeCap = StrokeCap.Round,
                     )
+
+                    // Teks Angka
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "${animatedProgress.value.toInt()}%",
+                            fontSize = 48.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextDark
+                        )
+                        Text(
+                            text = "Jawaban Benar",
+                            fontSize = 14.sp,
+                            color = TextGray
+                        )
+                    }
                 }
+
+                Spacer(modifier = Modifier.height(40.dp))
+
+                Text(
+                    text = "$correctAnswers Benar, $wrongAnswers Salah",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextDark
+                )
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
-
-            Text(
-                text = "$correctAnswers Benar, $wrongAnswers Salah",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextDark
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
-
+            // 2. TOMBOL (Di bagian bawah)
             Button(
                 onClick = onBackClick,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(24.dp)
-                    .height(56.dp),
+                    .height(56.dp), // Tombol tetap di bawah dan tingginya fix
                 shape = RoundedCornerShape(28.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = OrangeButton)
             ) {
