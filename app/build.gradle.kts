@@ -62,4 +62,16 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
     implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation("androidx.compose.runtime:runtime-livedata:1.6.0")
+    // --- CAMERAX ---
+    val cameraxVersion = "1.3.1" // Atau versi terbaru
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
+    implementation("androidx.camera:camera-extensions:$cameraxVersion")
+
+    // --- ICONS (Untuk icon flash, close, camera) ---
+    implementation("androidx.compose.material:material-icons-extended:1.6.1")
+
 }

@@ -19,6 +19,10 @@ import com.mobile.memorise.ui.screen.cards.CardsScreen
 import com.mobile.memorise.ui.screen.cards.StudyScreen
 import com.mobile.memorise.ui.screen.cards.QuizScreen
 import com.mobile.memorise.ui.screen.cards.CardItemData
+import com.mobile.memorise.ui.screen.cards.DetailCardScreen
+import com.mobile.memorise.ui.screen.create.ai.AiGenerationScreen
+import com.mobile.memorise.ui.screen.create.ai.CameraCaptureScreen
+
 import kotlinx.serialization.json.Json
 //import com.mobile.memorise.navigation.MainRoute
 
@@ -108,7 +112,38 @@ fun NavGraph(
                     // Navigasi ke Study Screen bawa data JSON
                     navController.navigate(MainRoute.Quiz.createRoute(deckName, encodedJson))
                 },
-                onAddCardClick = { /* Navigate ke Create Card (Nanti) */ }
+                onAddCardClick = { /* Navigate ke Create Card (Nanti) */ },
+                onCardClick = { encodedJson, index ->
+                    // Navigasi ke Detail Card bawa data JSON dan Index
+                    navController.navigate(MainRoute.CardDetail.createRoute(encodedJson, index))
+                }
+            )
+        }
+        // 9. Halaman Detail Card (TAMPILAN DETAIL KARTU)
+        // --- INI YANG KURANG ---
+        composable(
+            route = MainRoute.CardDetail.route, // Pastikan MainRoute.CardDetail sudah dibuat
+            arguments = listOf(
+                navArgument("cardList") { type = NavType.StringType },
+                navArgument("index") { type = NavType.IntType }
+            )
+        ) { backStackEntry ->
+            // 1. Ambil argumen dari URL
+            val jsonString = backStackEntry.arguments?.getString("cardList") ?: "[]"
+            val index = backStackEntry.arguments?.getInt("index") ?: 0
+
+            // 2. Decode JSON kembali menjadi List Data
+            val cardList = try {
+                Json.decodeFromString<List<CardItemData>>(jsonString)
+            } catch (e: Exception) {
+                emptyList()
+            }
+
+            // 3. Panggil UI Screen
+            DetailCardScreen(
+                cards = cardList,
+                initialIndex = index,
+                onClose = { navController.popBackStack() }
             )
         }
 
@@ -160,6 +195,37 @@ fun NavGraph(
                 deckName = deckName,
                 cardList = cardList,
                 onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(route = MainRoute.AiGeneration.route) {
+            AiGenerationScreen(
+                navController = navController,
+                onBackClick = {
+                    navController.popBackStack()
+                },
+                onGenerateClick = {
+                    // TODO: Logika saat tombol Generate ditekan
+                    // Misalnya validasi input atau kirim data ke server
+                    // Untuk sementara, bisa navigasi kembali atau tampilkan pesan
+                }
+            )
+        }
+
+        // Di NavGraph
+        composable("camera_screen") {
+            CameraCaptureScreen(
+                onImageCaptured = { uri ->
+                    // Simpan URI ke NavBackStack agar bisa diambil Form Screen
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("captured_image_uri", uri.toString())
+
+                    navController.popBackStack() // Kembali ke Form
+                },
+                onClose = {
+                    navController.popBackStack() // Batal
+                }
             )
         }
 

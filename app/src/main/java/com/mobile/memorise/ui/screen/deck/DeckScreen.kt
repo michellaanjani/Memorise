@@ -9,12 +9,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape // Tambah import ini
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add // Tambah import ini
-import androidx.compose.material.icons.filled.ArrowBack
+//import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,7 +78,7 @@ fun DeckScreen(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = Color(0xFF1A1C24)
                         )
@@ -174,7 +176,9 @@ fun DeckScreen(
 @Composable
 fun DeckItemView(
     data: DeckItemData,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onEditClicked: () -> Unit = {},
+    onDeleteClicked: () -> Unit = {}
 ) {
     var expanded by remember { mutableStateOf(false) }
 
@@ -258,6 +262,11 @@ fun DeckItemView(
                             }
                         },
                         onClick = { expanded = false }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = DividerDefaults.Thickness,
+                        color = Color.Gray.copy(alpha = 0.3f)
                     )
                     DropdownMenuItem(
                         text = {

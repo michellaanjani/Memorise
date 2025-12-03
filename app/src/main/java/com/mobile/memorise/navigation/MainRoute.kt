@@ -31,4 +31,27 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
         // Fungsi ini dipakai saat tombol Study diklik
         fun createRoute(deckName: String, cardListJson: String) = "quiz/$deckName/$cardListJson"
     }
+
+    object CardDetail : MainRoute("detail_card/{cardList}/{index}", "Detail", Icons.Filled.Home) {
+
+        // Fungsi helper untuk membuat link navigasi
+        fun createRoute(encodedJson: String, index: Int): String {
+            return "detail_card/$encodedJson/$index"
+        }
+    }
+
+    object AiGeneration : MainRoute(
+        route = "ai_generation",
+        title = "AI Generation",
+        icon = Icons.Filled.Home
+    )
+
+    object CameraScreen : MainRoute(
+        route = "camera_screen",
+        title = "Camera Screen",
+        icon = Icons.Filled.Home
+    )
+
+
+
 }

@@ -7,11 +7,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
+//import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.mobile.memorise.R
 import com.mobile.memorise.ui.theme.BrightBlue
+import com.mobile.memorise.ui.theme.TextBlack
 import com.mobile.memorise.ui.theme.WhitePurple
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -65,7 +70,8 @@ fun CardsScreen(
     onBackClick: () -> Unit,
     onStudyClick: (String) -> Unit,
     onQuizClick: (String) -> Unit,
-    onAddCardClick: () -> Unit = {}
+    onAddCardClick: () -> Unit = {},
+            onCardClick: (String, Int) -> Unit // <--- TAMBAHAN BARU (Kirim JSON list & Index)
 ) {
     val context = LocalContext.current
     var cardData by remember { mutableStateOf(CardListResponse()) }
@@ -92,7 +98,7 @@ fun CardsScreen(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
-                            imageVector = Icons.Default.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = TextDark
                         )
@@ -231,8 +237,16 @@ fun CardsScreen(
                     )
                 }
 
-                items(cardData.cards) { card ->
-                    CardItemView(card)
+                itemsIndexed(cardData.cards) { index, card ->
+                    CardItemView(
+                        card = card,
+                        onClick = {
+                            // Saat item diklik, kita kirim List Kartu (sebagai JSON) dan Indexnya
+                            val jsonList = Json.encodeToString(cardData.cards)
+                            val encodedJson = Uri.encode(jsonList) // Encode agar aman di URL
+                            onCardClick(encodedJson, index)
+                        }
+                    )
                 }
             } else {
                 // B. Jika KOSONG: Tampilkan Empty State UI (Sesuai Request)
@@ -298,12 +312,18 @@ fun CardsScreen(
 }
 
 @Composable
-fun CardItemView(card: CardItemData) {
+fun CardItemView(
+    card: CardItemData,
+    onClick: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
     ) {
         Row(
             modifier = Modifier
@@ -330,12 +350,48 @@ fun CardItemView(card: CardItemData) {
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = "More",
-                tint = Color.Gray,
-                modifier = Modifier.size(20.dp).clickable { }
-            )
+            // 5. Menu Titik Tiga (Edit & Delete)
+            Box {
+                IconButton(onClick = { expanded = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Options",
+                        tint = Color.Gray
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.background(Color.White)
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFFFF9800))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Edit", fontSize = 14.sp, color = TextBlack)
+                            }
+                        },
+                        onClick = { expanded = false }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = DividerDefaults.Thickness,
+                        color = Color.Gray.copy(alpha = 0.3f)
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Delete", fontSize = 14.sp, color = TextBlack)
+                            }
+                        },
+                        onClick = { expanded = false }
+                    )
+                }
+            }
         }
     }
 }

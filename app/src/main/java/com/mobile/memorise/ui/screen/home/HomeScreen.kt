@@ -299,6 +299,11 @@ fun FolderItemView(data: FolderItemData, onClick: () -> Unit) {
                         },
                         onClick = { expanded = false }
                     )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = DividerDefaults.Thickness,
+                        color = Color.Gray.copy(alpha = 0.3f)
+                    )
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -365,6 +370,11 @@ fun DeckItemView(data: DeckItemData, onClick: () -> Unit) {
                             }
                         },
                         onClick = { expanded = false }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = DividerDefaults.Thickness,
+                        color = Color.Gray.copy(alpha = 0.3f)
                     )
                     DropdownMenuItem(
                         text = {

@@ -29,7 +29,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.mobile.memorise.ui.theme.*
-import com.mobile.memorise.navigation.AppNavGraph
+//import com.mobile.memorise.navigation.AppNavGraph
 // Import yang diperlukan
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -38,7 +38,8 @@ import com.mobile.memorise.navigation.NavGraph
 import com.mobile.memorise.R
 import com.mobile.memorise.navigation.MainRoute
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.activity.compose.setContent
+//import androidx.activity.compose.setContent
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,7 +57,15 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = AppBackgroundColor
                 ) {
-                    AppNavGraph(
+//                    AppNavGraph(
+//                        navController = navController,
+//                        onLogout = {
+//                            navController.navigate("landing") {
+//                                popUpTo("main_entry") { inclusive = true }
+//                            }
+//                        }
+//                    )
+                    MainScreenContent(
                         navController = navController,
                         onLogout = {
                             navController.navigate("landing") {
@@ -64,7 +73,6 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     )
-                    // MainScreenContent() jjj
                 }
             }
         }
@@ -74,12 +82,12 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreenContent(
-    navController: NavHostController,
+    navController: NavHostController, // Gunakan parameter ini
     onLogout: () -> Unit
 ) {
-    val navController = rememberNavController()
+    // HAPUS BARIS DI BAWAH INI (Ini penyebab bug fatal)
+    // val navController = rememberNavController()
 
-    // 1. PINDAHKAN INI KE ATAS (Agar bisa dibaca oleh Scaffold)
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val currentRoute = currentDestination?.route
@@ -88,15 +96,25 @@ fun MainScreenContent(
     var showBottomSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
+    // Scope untuk menjalankan animasi menutup sheet
+    val scope = rememberCoroutineScope()
+
+    // Fungsi helper untuk menutup sheet lalu navigasi
+    val closeSheetAndNavigate: (String) -> Unit = { route ->
+        scope.launch { sheetState.hide() }.invokeOnCompletion {
+            if (!sheetState.isVisible) {
+                showBottomSheet = false
+                navController.navigate(route)
+            }
+        }
+    }
+
     Scaffold(
         containerColor = AppBackgroundColor,
         bottomBar = {
-            // 2. LOGIKA PENENTUAN (Hanya muncul di Home dan Account)
-            // Screen.Create tidak perlu dimasukkan ke sini karena dia hanya tombol (bukan halaman pindah)
-            // Tapi jika kamu punya halaman lain, Bottom Bar akan hilang.
+            // Logika showBottomBar tetap sama
             val showBottomBar = currentRoute == MainRoute.Home.route || currentRoute == MainRoute.Account.route
 
-            // 3. BUNGKUS DENGAN IF
             if (showBottomBar) {
                 NavigationBar(
                     containerColor = NavbarBgColor,
@@ -108,7 +126,6 @@ fun MainScreenContent(
                             clip = true
                         }
                 ) {
-                    // Loop items tetap sama
                     items.forEach { screen ->
                         val isSelected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
                         val isCreateButton = screen == MainRoute.Create
@@ -186,7 +203,8 @@ fun MainScreenContent(
             }
         }
     ) { innerPadding ->
-        NavGraph(navController = navController,
+        NavGraph(
+            navController = navController,
             innerPadding = innerPadding,
             onLogout = onLogout
         )
@@ -198,14 +216,19 @@ fun MainScreenContent(
                 containerColor = White,
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             ) {
-                CreateBottomSheetContent()
+                CreateBottomSheetContent(
+                    // Pass fungsi navigasi yang sudah otomatis menutup sheet
+                    onNavigate = closeSheetAndNavigate
+                )
             }
         }
     }
 }
 
 @Composable
-fun CreateBottomSheetContent() {
+fun CreateBottomSheetContent(
+    onNavigate: (String) -> Unit // Ganti parameter navController dengan callback string
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -213,7 +236,6 @@ fun CreateBottomSheetContent() {
             .padding(bottom = 48.dp)
             .navigationBarsPadding()
     ) {
-        // --- HEADER BARU (HANYA JUDUL) ---
         Text(
             text = "Create New",
             fontSize = 18.sp,
@@ -221,18 +243,17 @@ fun CreateBottomSheetContent() {
             color = TextGray,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp), // Sedikit jarak vertikal
+                .padding(vertical = 8.dp),
             textAlign = TextAlign.Center
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // --- MENU ITEM ---
         CreateOptionItem(
             painter = painterResource(id = R.drawable.cfolder),
             title = "Create Folder",
             subtitle = "Create Folder to organize your decks",
-            onClick = { /* Aksi buat folder */ }
+            onClick = { /* TODO: Route Create Folder */ }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -241,19 +262,26 @@ fun CreateBottomSheetContent() {
             painter = painterResource(id = R.drawable.cdeck),
             title = "Create Deck",
             subtitle = "Organize flashcard into decks",
-            onClick = { /* Aksi buat deck */ }
+            onClick = { /* TODO: Route Create Deck */ }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // UPDATE BAGIAN INI
         CreateOptionItem(
             painter = painterResource(id = R.drawable.cai),
             title = "Generate With AI",
             subtitle = "Create cards with AI",
-            onClick = { /* Aksi AI */ }
+            onClick = {
+                // Panggil fungsi onNavigate agar sheet tertutup dulu baru pindah
+                onNavigate(MainRoute.AiGeneration.route)
+            }
         )
     }
 }
+
+// PASTIKAN MENAMBAHKAN IMPORT INI DI ATAS FILE:
+// import kotlinx.coroutines.launch
 
 @Composable
 fun CreateOptionItem(
