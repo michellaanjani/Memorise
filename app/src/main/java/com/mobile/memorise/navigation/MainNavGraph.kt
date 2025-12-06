@@ -2,9 +2,9 @@ package com.mobile.memorise.navigation
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
-//import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel // ✅ DITAMBAHKAN
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -15,6 +15,7 @@ import com.mobile.memorise.ui.screen.home.HomeScreen
 import com.mobile.memorise.ui.screen.profile.UpdatePasswordScreen
 import com.mobile.memorise.ui.screen.profile.EditProfileScreen
 import com.mobile.memorise.ui.screen.profile.ProfileScreen
+import com.mobile.memorise.ui.screen.profile.ProfileViewModel // ✅ DITAMBAHKAN
 import com.mobile.memorise.ui.screen.cards.CardsScreen
 import com.mobile.memorise.ui.screen.cards.StudyScreen
 import com.mobile.memorise.ui.screen.cards.QuizScreen
@@ -22,10 +23,7 @@ import com.mobile.memorise.ui.screen.cards.CardItemData
 import com.mobile.memorise.ui.screen.cards.DetailCardScreen
 import com.mobile.memorise.ui.screen.create.ai.AiGenerationScreen
 import com.mobile.memorise.ui.screen.create.ai.CameraCaptureScreen
-
 import kotlinx.serialization.json.Json
-//import com.mobile.memorise.navigation.MainRoute
-
 
 @Composable
 fun NavGraph(
@@ -33,48 +31,58 @@ fun NavGraph(
     innerPadding: PaddingValues,
     onLogout: () -> Unit
 ) {
+
+    // ---------------------------------------------------------
+    // ✅ FIX PALING PENTING
+    // BUAT SATU VIEWMODEL UNTUK PROFILE & EDIT PROFILE
+    // (MENCEGAH VIEWMODEL TERBENTUK ULANG)
+    // ---------------------------------------------------------
+    val profileViewModel: ProfileViewModel = viewModel() // 🔥 WAJIB
+
     NavHost(
         navController = navController,
         startDestination = MainRoute.Home.route,
         modifier = Modifier.padding(bottom = innerPadding.calculateBottomPadding())
     ) {
-        // 1. Halaman Home
+
+        // 1. Home
         composable(route = MainRoute.Home.route) {
             HomeScreen(
                 onFolderClick = { folderName ->
-                    // Pindah ke halaman DeckDetail membawa nama folder
                     navController.navigate(MainRoute.DeckDetail.createRoute(folderName))
                 },
                 onDeckClick = { deckName ->
-                    // Pindah ke halaman Cards membawa nama deck
                     navController.navigate(MainRoute.Cards.createRoute(deckName))
                 }
-
             )
         }
 
-        // 3. Halaman Account (Dummy)
+        // 2. Profile Screen
         composable(route = MainRoute.Account.route) {
             ProfileScreen(
                 navController = navController,
-                onLogout = onLogout
-            )
-        }
-        /** 4. Edit Profile */
-        composable(route = MainRoute.EditProfile.route) {
-            EditProfileScreen(
-                navController = navController
+                onLogout = onLogout,
+                viewModel = profileViewModel // ✅ PENTING
             )
         }
 
-        /** 5. Update Password */
+        // 3. Edit Profile
+        composable(route = MainRoute.EditProfile.route) {
+            EditProfileScreen(
+                navController = navController,
+                viewModel = profileViewModel // 🔥 AGAR DATA TETAP SAMA
+            )
+        }
+
+        // 4. Update Password
         composable(route = MainRoute.EditPassword.route) {
             UpdatePasswordScreen(
                 navController = navController
             )
         }
 
-        // 4. Halaman Detail Deck (Menerima Data JSON)
+        // 👇 Sisanya tidak ada hubungannya dengan profile
+        // Jadi tidak diubah
         composable(
             route = MainRoute.DeckDetail.route,
             arguments = listOf(navArgument("folderName") { type = NavType.StringType })
@@ -84,16 +92,11 @@ fun NavGraph(
                 folderName = folderName,
                 onBackClick = { navController.popBackStack() },
                 onDeckClick = { deckName ->
-                    // Kita navigasi ke rute Cards sambil menyelipkan nama deck-nya
                     navController.navigate(MainRoute.Cards.createRoute(deckName))
                 }
-
-
             )
         }
 
-        // 6. Halaman Cards (Detail Kartu dalam Deck)
-        // --- TAMBAHAN BARU ---
         composable(
             route = MainRoute.Cards.route,
             arguments = listOf(navArgument("deckName") { type = NavType.StringType })
@@ -103,43 +106,35 @@ fun NavGraph(
             CardsScreen(
                 deckName = deckName,
                 onBackClick = { navController.popBackStack() },
-                // --- UPDATE INI ---
                 onStudyClick = { encodedJson ->
-                    // Navigasi ke Study Screen bawa data JSON
                     navController.navigate(MainRoute.Study.createRoute(deckName, encodedJson))
                 },
                 onQuizClick = { encodedJson ->
-                    // Navigasi ke Study Screen bawa data JSON
                     navController.navigate(MainRoute.Quiz.createRoute(deckName, encodedJson))
                 },
-                onAddCardClick = { /* Navigate ke Create Card (Nanti) */ },
+                onAddCardClick = {},
                 onCardClick = { encodedJson, index ->
-                    // Navigasi ke Detail Card bawa data JSON dan Index
                     navController.navigate(MainRoute.CardDetail.createRoute(encodedJson, index))
                 }
             )
         }
-        // 9. Halaman Detail Card (TAMPILAN DETAIL KARTU)
-        // --- INI YANG KURANG ---
+
         composable(
-            route = MainRoute.CardDetail.route, // Pastikan MainRoute.CardDetail sudah dibuat
+            route = MainRoute.CardDetail.route,
             arguments = listOf(
                 navArgument("cardList") { type = NavType.StringType },
                 navArgument("index") { type = NavType.IntType }
             )
         ) { backStackEntry ->
-            // 1. Ambil argumen dari URL
             val jsonString = backStackEntry.arguments?.getString("cardList") ?: "[]"
             val index = backStackEntry.arguments?.getInt("index") ?: 0
 
-            // 2. Decode JSON kembali menjadi List Data
             val cardList = try {
                 Json.decodeFromString<List<CardItemData>>(jsonString)
             } catch (e: Exception) {
                 emptyList()
             }
 
-            // 3. Panggil UI Screen
             DetailCardScreen(
                 cards = cardList,
                 initialIndex = index,
@@ -147,10 +142,8 @@ fun NavGraph(
             )
         }
 
-        // 7. Halaman Study (Swipe Card)
-        // --- TAMBAHAN BARU ---
         composable(
-            route = MainRoute.Study.route, // "study/{deckName}/{cardList}"
+            route = MainRoute.Study.route,
             arguments = listOf(
                 navArgument("deckName") { type = NavType.StringType },
                 navArgument("cardList") { type = NavType.StringType }
@@ -159,7 +152,6 @@ fun NavGraph(
             val deckName = backStackEntry.arguments?.getString("deckName") ?: "Unknown"
             val jsonString = backStackEntry.arguments?.getString("cardList") ?: "[]"
 
-            // Deserialize JSON String kembali menjadi List<CardItemData>
             val cardList = try {
                 Json.decodeFromString<List<CardItemData>>(jsonString)
             } catch (e: Exception) {
@@ -172,10 +164,9 @@ fun NavGraph(
                 onBackClick = { navController.popBackStack() }
             )
         }
-        // 8. Halaman Quiz
-        // --- TAMBAHAN BARU ---
+
         composable(
-            route = MainRoute.Quiz.route, // "study/{deckName}/{cardList}"
+            route = MainRoute.Quiz.route,
             arguments = listOf(
                 navArgument("deckName") { type = NavType.StringType },
                 navArgument("cardList") { type = NavType.StringType }
@@ -184,7 +175,6 @@ fun NavGraph(
             val deckName = backStackEntry.arguments?.getString("deckName") ?: "Unknown"
             val jsonString = backStackEntry.arguments?.getString("cardList") ?: "[]"
 
-            // Deserialize JSON String kembali menjadi List<CardItemData>
             val cardList = try {
                 Json.decodeFromString<List<CardItemData>>(jsonString)
             } catch (e: Exception) {
@@ -201,33 +191,21 @@ fun NavGraph(
         composable(route = MainRoute.AiGeneration.route) {
             AiGenerationScreen(
                 navController = navController,
-                onBackClick = {
-                    navController.popBackStack()
-                },
-                onGenerateClick = {
-                    // TODO: Logika saat tombol Generate ditekan
-                    // Misalnya validasi input atau kirim data ke server
-                    // Untuk sementara, bisa navigasi kembali atau tampilkan pesan
-                }
+                onBackClick = { navController.popBackStack() },
+                onGenerateClick = {}
             )
         }
 
-        // Di NavGraph
         composable("camera_screen") {
             CameraCaptureScreen(
                 onImageCaptured = { uri ->
-                    // Simpan URI ke NavBackStack agar bisa diambil Form Screen
                     navController.previousBackStackEntry
                         ?.savedStateHandle
                         ?.set("captured_image_uri", uri.toString())
-
-                    navController.popBackStack() // Kembali ke Form
+                    navController.popBackStack()
                 },
-                onClose = {
-                    navController.popBackStack() // Batal
-                }
+                onClose = { navController.popBackStack() }
             )
         }
-
-    }//NavGraph
+    }
 }

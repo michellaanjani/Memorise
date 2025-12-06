@@ -56,25 +56,30 @@ fun UpdatePasswordScreen(
     ) {
 
         /** TOP BAR **/
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp),
+            contentAlignment = Alignment.Center
         ) {
+
+            // Back Button (kiri)
             Image(
                 painter = painterResource(id = R.drawable.back),
                 contentDescription = "Back",
                 modifier = Modifier
                     .size(28.dp)
+                    .align(Alignment.CenterStart)
                     .clickable { navController.popBackStack() }
             )
 
-            Spacer(modifier = Modifier.width(12.dp))
-
+            // Title (center)
             Text(
                 text = "Update Password",
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1A1C24)
+                color = Color(0xFF1A1C24),
+                modifier = Modifier.align(Alignment.Center)
             )
         }
 

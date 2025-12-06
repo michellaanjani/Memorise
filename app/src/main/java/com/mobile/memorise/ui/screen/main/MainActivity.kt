@@ -29,7 +29,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.mobile.memorise.ui.theme.*
-//import com.mobile.memorise.navigation.AppNavGraph
+import com.mobile.memorise.navigation.AppNavGraph
 // Import yang diperlukan
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.navigationBarsPadding

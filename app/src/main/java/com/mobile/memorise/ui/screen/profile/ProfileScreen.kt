@@ -1,6 +1,9 @@
 package com.mobile.memorise.ui.screen.profile
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -10,11 +13,14 @@ import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import coil.compose.AsyncImage
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -22,131 +28,185 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.mobile.memorise.R
 import com.mobile.memorise.navigation.MainRoute
+import androidx.compose.foundation.BorderStroke
 
 @Composable
 fun ProfileScreen(
-    navController: NavHostController,       // untuk pindah halaman dalam main nav
-    onLogout: () -> Unit // ubah ini
+    navController: NavHostController,
+    viewModel: ProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    onLogout: () -> Unit
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF8F9FB))
-            .statusBarsPadding()
-            .padding(24.dp)
-    ) {
+    val user = viewModel.userProfile.collectAsState().value
+    val hasPhoto = user.avatarUri != null
 
-        // --- 1. TITLE ---
-        Text(
-            text = "Account",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1A1C24),
-            modifier = Modifier.padding(bottom = 32.dp)
-        )
+    val pickImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null && !hasPhoto) {
+            viewModel.updateProfile(
+                firstName = user.firstName,
+                lastName = user.lastName,
+                email = user.email,
+                avatarUri = uri.toString()
+            )
+        }
+    }
 
-        // --- 2. AVATAR & NAME ---
+    Box(modifier = Modifier.fillMaxSize()) {
+
+        // HEADER
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp) // ⭐ LEBIH PENDEK → text & logo otomatis naik
+                .clip(RoundedCornerShape(bottomStart = 34.dp, bottomEnd = 34.dp))
+                .background(Color(0xFF0961F5))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 22.dp, vertical = 20.dp), // ⭐ NAIKKAN
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Account",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White
+                )
+
+                Icon(
+                    painter = painterResource(id = R.drawable.logm),
+                    contentDescription = "Account Icon",
+                    tint = Color.White,
+                    modifier = Modifier.size(90.dp) // ⭐ sedikit lebih kecil, jadi lebih naik
+                )
+            }
+        }
+
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 110.dp), // ⭐ Foto naik sedikit
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
+            // PROFILE PHOTO
             Box(contentAlignment = Alignment.BottomEnd) {
 
-                Box(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFBBDEFB)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Avatar",
-                        modifier = Modifier.size(60.dp),
-                        tint = Color(0xFF1976D2)
+                if (hasPhoto) {
+                    AsyncImage(
+                        model = user.avatarUri,
+                        contentDescription = "Profile Photo",
+                        modifier = Modifier
+                            .size(115.dp)
+                            .clip(CircleShape)
+                            .border(1.dp, Color(0xFFE2E2E2), CircleShape),
+                        contentScale = ContentScale.Crop
                     )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(115.dp)
+                            .background(Color.White, CircleShape)
+                            .border(1.dp, Color(0xFFE2E2E2), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = Color(0xFF0961F5),
+                            modifier = Modifier.size(60.dp)
+                        )
+                    }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .offset(x = 4.dp, y = 4.dp)
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF448AFF))
-                        .clickable { /* TODO: Change Photo */ }
-                        .padding(6.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.camera),
-                        contentDescription = "Change Photo",
-                        tint = Color.Unspecified,
-                        modifier = Modifier.size(16.dp)
-                    )
+                // Camera icon
+                if (!hasPhoto) {
+                    Box(
+                        modifier = Modifier
+                            .offset(8.dp, 8.dp)
+                            .size(36.dp)
+                            .shadow(4.dp, CircleShape, clip = false)
+                            .background(Color.White, CircleShape)
+                            .border(1.dp, Color(0xFFE0E0E0), CircleShape)
+                            .clip(CircleShape)
+                            .clickable { pickImageLauncher.launch("image/*") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.camera),
+                            contentDescription = "Change Photo",
+                            tint = Color(0xFF0961F5),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                text = "Reynard Wijaya",
-                fontSize = 18.sp,
+                text = "${user.firstName} ${user.lastName}",
+                fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1A1C24)
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // EDIT ACCOUNT CARD
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White)
+                    .clickable { navController.navigate(MainRoute.EditProfile.route) }
+                    .padding(vertical = 13.dp, horizontal = 18.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Edit Account",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF1A1C24)
+                )
+
+                Icon(
+                    imageVector = Icons.Default.ArrowForward,
+                    contentDescription = null,
+                    tint = Color(0xFF1A1C24)
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // LOGOUT BUTTON — ⭐ Dipendekkan
+            Button(
+                onClick = onLogout,
+                modifier = Modifier
+                    .padding(horizontal = 80.dp) // ⭐ Lebih pendek
+                    .height(48.dp)
+                    .fillMaxWidth(), // tetap center tapi tidak sepanjang sebelumnya
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFFFCDD2),
+                    contentColor = Color(0xFFD32F2F)
+                ),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, Color(0xFFFF8A80))
+            ) {
+                Text(
+                    text = "Log Out",
+                    color = Color(0xFFD32F2F),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
         }
-
-        Spacer(modifier = Modifier.height(40.dp))
-
-        // --- 3. EDIT ACCOUNT BUTTON ---
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .clickable {
-                    navController.navigate(MainRoute.EditProfile.route)
-                }
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Edit Account",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF1A1C24)
-            )
-
-            Icon(
-                imageVector = Icons.Default.ArrowForward,
-                contentDescription = null,
-                tint = Color(0xFF1A1C24)
-            )
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        // --- 4. LOG OUT BUTTON ---
-        Button(
-            onClick = { onLogout()
-            }, // ubah ini
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .shadow(4.dp, RoundedCornerShape(16.dp)),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.White
-            ),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Text(
-                text = "Log Out",
-                color = Color.Red,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-        }
-        Spacer(modifier = Modifier.height(24.dp))
     }
 }
