@@ -4,8 +4,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.ui.graphics.vector.ImageVector
 
+// MainRoute requires (route, title, icon)
 sealed class MainRoute(val route: String, val title: String, val icon: ImageVector) {
     object Home : MainRoute("home", "Home", Icons.Filled.Home)
     object Create : MainRoute("create", "Create", Icons.Filled.Add) // Tombol Tambah di tengah
@@ -17,6 +19,7 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
     object DeckDetail : MainRoute("deck_detail/{folderName}", "Deck Detail", Icons.Filled.Home) {
         fun createRoute(folderName: String) = "deck_detail/$folderName"
     }
+
     object Cards : MainRoute("cards/{deckName}", "Cards", Icons.Filled.Home) {
         fun createRoute(deckName: String) = "cards/$deckName"
     }
@@ -26,15 +29,12 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
         // Fungsi ini dipakai saat tombol Study diklik
         fun createRoute(deckName: String, cardListJson: String) = "study/$deckName/$cardListJson"
     }
-    // --- TAMBAHAN BARU ---
+
     object Quiz : MainRoute("quiz/{deckName}/{cardList}", "Quiz", Icons.Filled.Home) {
-        // Fungsi ini dipakai saat tombol Study diklik
         fun createRoute(deckName: String, cardListJson: String) = "quiz/$deckName/$cardListJson"
     }
 
     object CardDetail : MainRoute("detail_card/{cardList}/{index}", "Detail", Icons.Filled.Home) {
-
-        // Fungsi helper untuk membuat link navigasi
         fun createRoute(encodedJson: String, index: Int): String {
             return "detail_card/$encodedJson/$index"
         }
@@ -52,6 +52,23 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
         icon = Icons.Filled.Home
     )
 
+    // Create folder
+    object CreateFolder : MainRoute(
+        route = "create_folder",
+        title = "Create Folder",
+        icon = Icons.Filled.Folder
+    )
 
-
+    // ✅ FIXED: CreateDeck must also provide title and icon
+    object CreateDeck : MainRoute(
+        route = "create_deck",
+        title = "Create Deck",
+        icon = Icons.Filled.Add
+    )
 }
+
+
+
+
+
+
