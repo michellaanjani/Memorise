@@ -106,6 +106,9 @@ fun NavGraph(
                 onBackClick = { navController.popBackStack() },
                 onDeckClick = { deckName ->
                     navController.navigate(MainRoute.Cards.createRoute(deckName))
+                },
+                { route ->
+                    navController.navigate(route)
                 }
             )
         }

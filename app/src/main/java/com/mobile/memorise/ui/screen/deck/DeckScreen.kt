@@ -30,6 +30,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mobile.memorise.R
+import com.mobile.memorise.navigation.MainRoute
+import com.mobile.memorise.ui.screen.main.CreateOptionItem
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -48,10 +50,13 @@ fun DeckScreen(
     folderName: String,
     onBackClick: () -> Unit,
     onDeckClick: (String) -> Unit = {},
-    onAddDeckClick: () -> Unit = {} // Opsional: Callback untuk tombol plus
+    onNavigate: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     var deckList by remember { mutableStateOf(listOf<DeckItemData>()) }
+    // --- TAMBAHAN 1: State untuk Bottom Sheet ---
+    val sheetState = rememberModalBottomSheetState()
+    var showBottomSheet by remember { mutableStateOf(false) }
 
     // Load JSON
     LaunchedEffect(Unit) {
@@ -92,7 +97,7 @@ fun DeckScreen(
         // --- TAMBAHAN 1: FLOATING ACTION BUTTON ---
         floatingActionButton = {
             FloatingActionButton(
-                onClick = onAddDeckClick, // Panggil action saat diklik
+                onClick = { showBottomSheet = true }, // UBAH: Set showBottomSheet jadi true,
                 containerColor = WhitePurple, // Pastikan warna ini ada di Theme.kt
                 contentColor = BrightBlue,  // Icon warna putih
                 shape = CircleShape,         // Bentuk bulat penuh
@@ -168,6 +173,26 @@ fun DeckScreen(
                         )
                     }
                 }
+            }
+        }
+        // --- TAMBAHAN 3: KODE MODAL BOTTOM SHEET ---
+        if (showBottomSheet) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    showBottomSheet = false
+                },
+                sheetState = sheetState,
+                containerColor = Color.White // Sesuaikan warna background sheet
+            ) {
+                // Panggil konten Bottom Sheet yang sudah kamu buat
+                CreateBottomSheetContent(
+                    onNavigate = { route ->
+                        // Tutup sheet dulu
+                        showBottomSheet = false
+                        // Lalu navigasi
+                        onNavigate(route)
+                    }
+                )
             }
         }
     }
@@ -281,5 +306,51 @@ fun DeckItemView(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun CreateBottomSheetContent(
+    onNavigate: (String) -> Unit // Ganti parameter navController dengan callback string
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 48.dp)
+            .navigationBarsPadding()
+    ) {
+        Text(
+            text = "Create New",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = TextGray,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            textAlign = TextAlign.Center
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        CreateOptionItem(
+            painter = painterResource(id = R.drawable.cdeck),
+            title = "Create Deck",
+            subtitle = "Organize flashcard into decks",
+            onClick = { /* TODO: Route Create Deck */ }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // UPDATE BAGIAN INI
+        CreateOptionItem(
+            painter = painterResource(id = R.drawable.cai),
+            title = "Generate With AI",
+            subtitle = "Create cards with AI",
+            onClick = {
+                // Panggil fungsi onNavigate agar sheet tertutup dulu baru pindah
+                onNavigate(MainRoute.AiGeneration.route)
+            }
+        )
     }
 }

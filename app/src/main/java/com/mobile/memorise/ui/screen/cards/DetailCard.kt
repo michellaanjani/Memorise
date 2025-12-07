@@ -2,6 +2,8 @@ package com.mobile.memorise.ui.screen.cards
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,126 +26,155 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mobile.memorise.ui.theme.*
+import kotlinx.coroutines.launch // Tambah import ini
 
-// Warna khusus sesuai desain gambar
+// Warna khusus (Sama seperti sebelumnya)
 private val BgColor = Color(0xFFF8F9FB)
-private val LabelBgColor = Color(0xFFE3F2FD) // Biru muda untuk label
-private val LabelTextColor = Color(0xFF2196F3) // Biru untuk teks label
+private val LabelBgColor = Color(0xFFE3F2FD)
+private val LabelTextColor = Color(0xFF2196F3)
 private val TextDark = Color(0xFF1A1C24)
-private val DividerColor = Color(0xFFF0F0F0)
 
 @Composable
 fun DetailCardScreen(
-    cards: List<CardItemData>, // Data list kartu dari screen sebelumnya
-    initialIndex: Int = 0,     // Index kartu yang diklik
-    onClose: () -> Unit        // Callback saat tombol X ditekan
+    cards: List<CardItemData>,
+    initialIndex: Int = 0,
+    onClose: () -> Unit
 ) {
-    // State untuk melacak kartu mana yang sedang dilihat
-    var currentIndex by remember { mutableIntStateOf(initialIndex) }
+    // 1. Setup Pager State
+    // pageCount memberitahu pager berapa banyak kartu yang ada
+    val pagerState = rememberPagerState(
+        initialPage = initialIndex,
+        pageCount = { cards.size }
+    )
 
-    // Mengambil data kartu saat ini dengan aman
-    val currentCard = cards.getOrNull(currentIndex)
+    // 2. Coroutine Scope untuk animasi tombol Next/Prev
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         containerColor = BgColor,
         topBar = {
             DetailTopBar(
-                currentIndex = currentIndex,
+                // Mengambil index langsung dari pagerState
+                currentIndex = pagerState.currentPage,
                 totalCards = cards.size,
                 onClose = onClose
             )
         },
         bottomBar = {
             DetailBottomBar(
-                currentIndex = currentIndex,
+                currentIndex = pagerState.currentPage,
                 totalCards = cards.size,
-                onPrevClick = { if (currentIndex > 0) currentIndex-- },
-                onNextClick = { if (currentIndex < cards.size - 1) currentIndex++ }
+                onPrevClick = {
+                    // Animasi geser ke kiri
+                    scope.launch {
+                        pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                    }
+                },
+                onNextClick = {
+                    // Animasi geser ke kanan
+                    scope.launch {
+                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                    }
+                }
             )
         }
     ) { innerPadding ->
-        // Area Utama
+
+        // 3. Horizontal Pager (Area Swipe)
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .padding(vertical = 16.dp), // Hapus padding horizontal di container utama agar swipe lebih luas
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (currentCard != null) {
-                Card(
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f) // Mengisi sisa ruang
-                ) {
-                    // Scrollable Column agar teks panjang bisa di-scroll
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState()) // Fitur scroll
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Top
-                    ) {
-                        // --- FRONT SIDE ---
-                        SideLabel(text = "Front Side")
+            if (cards.isNotEmpty()) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.weight(1f), // Isi sisa ruang
+                    contentPadding = PaddingValues(horizontal = 24.dp), // Beri jarak antar kartu tetangga (opsional)
+                    pageSpacing = 16.dp // Jarak antar kartu
+                ) { pageIndex ->
+                    // Ambil data berdasarkan index halaman
+                    val currentCard = cards[pageIndex]
 
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        Text(
-                            text = currentCard.front,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextDark,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 30.sp
-                        )
-
-                        Spacer(modifier = Modifier.height(32.dp))
-
-                        // Divider Pemisah
-                        HorizontalDivider(
-                            thickness = 4.dp,
-                            color = BgColor, // Sedikit abu-abu
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(2.dp))
-                        )
-
-                        Spacer(modifier = Modifier.height(32.dp))
-
-                        // --- BACK SIDE ---
-                        SideLabel(text = "Back Side")
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        Text(
-                            text = currentCard.back,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = TextDark.copy(alpha = 0.8f),
-                            textAlign = TextAlign.Center,
-                            lineHeight = 24.sp
-                        )
-
-                        // Spacer tambahan di bawah agar tidak mentok saat di-scroll
-                        Spacer(modifier = Modifier.height(24.dp))
-                    }
+                    // Render Tampilan Kartu
+                    CardContentView(currentCard = currentCard)
                 }
             } else {
-                // Fallback jika data error
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Card not found")
+                    Text("No cards available")
                 }
             }
         }
     }
 }
 
-// --- KOMPONEN PENDUKUNG ---
+// Saya pisahkan UI Kartu ke fungsi sendiri agar kode di atas lebih rapi
+@Composable
+fun CardContentView(currentCard: CardItemData) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top
+        ) {
+            // --- FRONT SIDE ---
+            SideLabel(text = "Front Side")
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = currentCard.front,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextDark,
+                textAlign = TextAlign.Center,
+                lineHeight = 30.sp
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Divider
+            HorizontalDivider(
+                thickness = 4.dp,
+                color = BgColor,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(2.dp))
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // --- BACK SIDE ---
+            SideLabel(text = "Back Side")
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = currentCard.back,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Normal,
+                color = TextDark.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center,
+                lineHeight = 24.sp
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+// --- KOMPONEN PENDUKUNG (Tidak Berubah) ---
 
 @Composable
 fun DetailTopBar(
@@ -160,7 +191,6 @@ fun DetailTopBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // 1. Tombol Close (X)
         IconButton(onClick = onClose) {
             Icon(
                 imageVector = Icons.Default.Close,
@@ -170,22 +200,20 @@ fun DetailTopBar(
             )
         }
 
-        // 2. Indikator Halaman (1/1)
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(20.dp)) // Pill shape
+                .clip(RoundedCornerShape(20.dp))
                 .background(Color.White)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Text(
                 text = "${currentIndex + 1}/$totalCards",
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF9FA8DA), // Warna ungu muda pudar sesuai gambar
+                color = Color.Gray,
                 fontSize = 16.sp
             )
         }
 
-        // 5. Menu Titik Tiga (Edit & Delete)
         Box {
             IconButton(onClick = { expanded = true }) {
                 Icon(
@@ -240,11 +268,10 @@ fun DetailBottomBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 32.dp, top = 16.dp), // Jarak dari bawah layar
+            .padding(bottom = 32.dp, top = 16.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Tombol Previous (<)
         NavigationButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
             enabled = currentIndex > 0,
@@ -253,7 +280,6 @@ fun DetailBottomBar(
 
         Spacer(modifier = Modifier.width(24.dp))
 
-        // Tombol Next (>)
         NavigationButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             enabled = currentIndex < totalCards - 1,
@@ -272,9 +298,9 @@ fun NavigationButton(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier
-            .size(56.dp) // Ukuran tombol
+            .size(56.dp)
             .clip(CircleShape)
-            .background(if (enabled) Color(0xFFEEEEEE) else Color(0xFFF5F5F5)) // Sedikit beda jika disabled
+            .background(if (enabled) Color(0xFFEEEEEE) else Color(0xFFF5F5F5))
     ) {
         Icon(
             imageVector = icon,

@@ -30,6 +30,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.mobile.memorise.ui.theme.*
 import com.mobile.memorise.navigation.AppNavGraph
+// Import yang diperlukan
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.navigation.NavHostController
@@ -56,15 +57,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = AppBackgroundColor
                 ) {
-                    AppNavGraph(
-                        navController = navController,
-                        onLogout = {
-                            navController.navigate("landing") {
-                                popUpTo("main_entry") { inclusive = true }
-                            }
-                        }
-                    )
-//                    MainScreenContent(
+//                    AppNavGraph(
 //                        navController = navController,
 //                        onLogout = {
 //                            navController.navigate("landing") {
@@ -72,6 +65,14 @@ class MainActivity : ComponentActivity() {
 //                            }
 //                        }
 //                    )
+                    MainScreenContent(
+                        navController = navController,
+                        onLogout = {
+                            navController.navigate("landing") {
+                                popUpTo("main_entry") { inclusive = true }
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -84,6 +85,7 @@ fun MainScreenContent(
     navController: NavHostController, // Gunakan parameter ini
     onLogout: () -> Unit
 ) {
+    // HAPUS BARIS DI BAWAH INI (Ini penyebab bug fatal)
     // val navController = rememberNavController()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -251,7 +253,7 @@ fun CreateBottomSheetContent(
             painter = painterResource(id = R.drawable.cfolder),
             title = "Create Folder",
             subtitle = "Create Folder to organize your decks",
-            onClick = {  onNavigate(MainRoute.CreateFolder.route) }
+            onClick = { /* TODO: Route Create Folder */ }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -260,7 +262,7 @@ fun CreateBottomSheetContent(
             painter = painterResource(id = R.drawable.cdeck),
             title = "Create Deck",
             subtitle = "Organize flashcard into decks",
-            onClick = {  onNavigate(MainRoute.CreateDeck.route) }
+            onClick = { /* TODO: Route Create Deck */ }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
