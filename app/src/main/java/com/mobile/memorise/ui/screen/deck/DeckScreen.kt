@@ -337,7 +337,7 @@ fun CreateBottomSheetContent(
             painter = painterResource(id = R.drawable.cdeck),
             title = "Create Deck",
             subtitle = "Organize flashcard into decks",
-            onClick = { /* TODO: Route Create Deck */ }
+            onClick = { onNavigate(MainRoute.CreateDeck.route) }
         )
 
         Spacer(modifier = Modifier.height(16.dp))

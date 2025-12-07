@@ -253,7 +253,7 @@ fun CreateBottomSheetContent(
             painter = painterResource(id = R.drawable.cfolder),
             title = "Create Folder",
             subtitle = "Create Folder to organize your decks",
-            onClick = { /* TODO: Route Create Folder */ }
+            onClick = { onNavigate(MainRoute.CreateFolder.route) }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -262,7 +262,7 @@ fun CreateBottomSheetContent(
             painter = painterResource(id = R.drawable.cdeck),
             title = "Create Deck",
             subtitle = "Organize flashcard into decks",
-            onClick = { /* TODO: Route Create Deck */ }
+            onClick = { onNavigate(MainRoute.CreateDeck.route) }
         )
 
         Spacer(modifier = Modifier.height(16.dp))

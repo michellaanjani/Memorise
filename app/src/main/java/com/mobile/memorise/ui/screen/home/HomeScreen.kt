@@ -201,15 +201,6 @@ fun HeaderSection() {
                     fontSize = 14.sp
                 )
             }
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.2f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.Person, contentDescription = null, tint = White)
-            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
