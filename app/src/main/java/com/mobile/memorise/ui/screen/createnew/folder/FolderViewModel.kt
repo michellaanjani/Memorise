@@ -10,25 +10,23 @@ data class FolderItem(
 
 class FolderViewModel : ViewModel() {
 
-    // ⭐ List folder sementara (lokal tanpa backend)
     var folderList = mutableStateListOf<FolderItem>()
         private set
 
-    // ⭐ Fungsi menambah folder baru
     fun addFolder(name: String, color: String) {
-        folderList.add(
-            FolderItem(
-                name = name,
-                color = color
-            )
-        )
+        folderList.add(FolderItem(name, color))
     }
 
     fun updateFolder(oldName: String, newName: String, newColor: String) {
         val idx = folderList.indexOfFirst { it.name == oldName }
         if (idx >= 0) {
-            // replace with updated FolderItem
-            folderList[idx] = FolderItem(name = newName, color = newColor)
+            folderList[idx] = FolderItem(newName, newColor)
         }
+    }
+
+    // ✔ FIXED — delete pakai `name`, sesuai HomeScreen
+    fun deleteFolder(name: String) {
+        folderList.removeAll { it.name == name }
+        println("Deleted folder: $name")
     }
 }

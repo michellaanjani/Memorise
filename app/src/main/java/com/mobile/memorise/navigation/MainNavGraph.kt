@@ -70,7 +70,9 @@ fun NavGraph(
                 },
                 onEditDeck = { deckName ->
                     navController.navigate(MainRoute.EditDeck.createRoute(deckName))
-                }
+                },
+                folderViewModel = folderViewModel,
+                deckViewModel = deckViewModel
             )
         }
 

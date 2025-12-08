@@ -24,6 +24,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import com.mobile.memorise.ui.component.DeleteConfirmDialog
+import com.mobile.memorise.ui.screen.createnew.folder.FolderViewModel
+import com.mobile.memorise.ui.screen.createnew.deck.DeckViewModel
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mobile.memorise.R
@@ -55,6 +58,7 @@ data class DeckItemData(
     @SerialName("card_count") val cardCount: Int
 )
 
+
 /* =========================
         MAIN HOME SCREEN
    ========================= */
@@ -64,8 +68,13 @@ fun HomeScreen(
     onFolderClick: (String) -> Unit,
     onDeckClick: (String) -> Unit,
     onEditFolder: (String, String) -> Unit,
-    onEditDeck: (String) -> Unit
+    onEditDeck: (String) -> Unit,
+    folderViewModel: FolderViewModel,     // ⭐ WAJIB DITAMBAH
+    deckViewModel: DeckViewModel
 ) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var itemToDelete by remember { mutableStateOf("") }
+    var deleteType by remember { mutableStateOf("") } // "folder" / "deck"
 
     val context = LocalContext.current
     var homeData by remember { mutableStateOf(HomeData()) }
@@ -131,6 +140,11 @@ fun HomeScreen(
                             onClick = { onFolderClick(folder.name) },
                             onEditClick = { oldName, color ->
                                 onEditFolder(oldName, color)
+                            },
+                            onDeleteClick = { folderName ->
+                                deleteType = "folder"
+                                itemToDelete = folderName
+                                showDeleteDialog = true
                             }
                         )
                     }
@@ -158,14 +172,42 @@ fun HomeScreen(
                         DeckItemView(
                             data = deck,
                             onClick = { onDeckClick(deck.deckName) },
-                            onEditDeck = { deckName -> onEditDeck(deckName)}
+                            onEditDeck = { deckName -> onEditDeck(deckName)},
+                            onDeleteDeck = { deckName ->
+                                deleteType = "deck"
+                                itemToDelete = deckName
+                                showDeleteDialog = true
+                            }
                         )
                     }
                 }
             }
         }
     }
+    // Popup Delete
+    if (showDeleteDialog) {
+        DeleteConfirmDialog(
+            onCancel = {
+                showDeleteDialog = false
+            },
+            onDelete = {
+                showDeleteDialog = false
+
+                // delete folder atau deck sesuai type
+                when (deleteType) {
+                    "folder" -> folderViewModel.deleteFolder(itemToDelete)
+                    "deck" -> deckViewModel.deleteDeck(itemToDelete)
+                }
+
+                // reset agar lebih aman
+                itemToDelete = ""
+                deleteType = ""
+            }
+        )
+    }
+
 }
+
 
 /* =========================
         EMPTY VIEW
@@ -289,7 +331,8 @@ fun FolderItemView(
     data: FolderItemData,
     bgColor: Color,
     onClick: () -> Unit,
-    onEditClick: (String, String) -> Unit
+    onEditClick: (String, String) -> Unit,
+    onDeleteClick: (String) -> Unit
 ) {
 
     var expanded by remember { mutableStateOf(false) }
@@ -368,7 +411,10 @@ fun FolderItemView(
                                 Text("Delete")
                             }
                         },
-                        onClick = { expanded = false }
+                        onClick = {
+                            expanded = false
+                            onDeleteClick(data.name)
+                        }
                     )
                 }
             }
@@ -389,7 +435,8 @@ fun Color.toHex(): String {
 fun DeckItemView(
     data: DeckItemData,
     onClick: () -> Unit,
-    onEditDeck: (String) -> Unit   // <-- harus menerima String
+    onEditDeck: (String) -> Unit,   // <-- harus menerima String
+    onDeleteDeck: (String) -> Unit
 ) {
 
     var expanded by remember { mutableStateOf(false) }
@@ -397,6 +444,9 @@ fun DeckItemView(
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color(0xFFFDFDFE) // ♻️ tampilan putih bersih
+        ),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
 
@@ -452,7 +502,10 @@ fun DeckItemView(
 
                     DropdownMenuItem(
                         text = { Text("Delete") },
-                        onClick = { expanded = false }
+                        onClick = {
+                            expanded = false
+                            onDeleteDeck(data.deckName)
+                        }
                     )
                 }
             }

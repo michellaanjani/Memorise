@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import com.mobile.memorise.ui.component.DeleteConfirmDialog
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -67,6 +68,10 @@ fun DeckScreen(
             e.printStackTrace()
         }
     }
+// --- TAMBAHAN DELETE DIALOG STATE ---
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var deckToDelete by remember { mutableStateOf<DeckItemData?>(null) }
+
 
     Scaffold(
         containerColor = Color(0xFFF8F9FB),
@@ -169,7 +174,15 @@ fun DeckScreen(
                     items(deckList) { deck ->
                         DeckItemView(
                             data = deck,
-                            onClick = { onDeckClick(deck.deckName) }
+                            onClick = { onDeckClick(deck.deckName) },
+                            onEditClicked = {
+                                onNavigate(MainRoute.EditDeck.createRoute(deck.deckName))
+                            },
+                            // --- TAMBAHAN: handler untuk delete ---
+                            onDeleteClicked = {
+                                deckToDelete = deck   // simpan deck yang mau dihapus
+                                showDeleteDialog = true
+                            }
                         )
                     }
                 }
@@ -194,6 +207,20 @@ fun DeckScreen(
                     }
                 )
             }
+        }
+
+        if (showDeleteDialog && deckToDelete != null) {
+            DeleteConfirmDialog(
+                onCancel = {
+                    showDeleteDialog = false
+                    deckToDelete = null
+                },
+                onDelete = {
+                    deckList = deckList.filter { it.deckName != deckToDelete!!.deckName }
+                    showDeleteDialog = false
+                    deckToDelete = null
+                }
+            )
         }
     }
 }
@@ -286,7 +313,10 @@ fun DeckItemView(
                                 Text("Edit", fontSize = 14.sp, color = TextBlack)
                             }
                         },
-                        onClick = { expanded = false }
+                        onClick = { expanded = false
+                            onEditClicked()
+                        }
+
                     )
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -301,7 +331,9 @@ fun DeckItemView(
                                 Text("Delete", fontSize = 14.sp, color = TextBlack)
                             }
                         },
-                        onClick = { expanded = false }
+                        onClick = { expanded = false
+                            onDeleteClicked()
+                        }
                     )
                 }
             }

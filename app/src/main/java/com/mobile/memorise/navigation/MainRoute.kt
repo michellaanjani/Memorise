@@ -85,8 +85,6 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
     ) {
         fun createRoute(oldName: String) = "edit_deck/$oldName"
     }
-
-
 }
 
 
