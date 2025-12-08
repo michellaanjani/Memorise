@@ -5,7 +5,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.ui.graphics.vector.ImageVector
+import android.net.Uri
+
 
 // MainRoute requires (route, title, icon)
 sealed class MainRoute(val route: String, val title: String, val icon: ImageVector) {
@@ -59,12 +62,31 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
         icon = Icons.Filled.Folder
     )
 
-    // ✅ FIXED: CreateDeck must also provide title and icon
     object CreateDeck : MainRoute(
         route = "create_deck",
         title = "Create Deck",
         icon = Icons.Filled.Add
     )
+
+    object EditFolder : MainRoute(
+        route = "edit_folder/{oldName}/{color}",
+        title = "Edit Folder",
+        icon = Icons.Filled.Edit
+    ) {
+        fun createRoute(oldName: String, color: String): String {
+            return "edit_folder/${Uri.encode(oldName)}/${Uri.encode(color)}"
+        }
+    }
+
+    object EditDeck : MainRoute(
+        route = "edit_deck/{oldName}",
+        title = "Edit Deck",
+        icon = Icons.Default.Edit
+    ) {
+        fun createRoute(oldName: String) = "edit_deck/$oldName"
+    }
+
+
 }
 
 

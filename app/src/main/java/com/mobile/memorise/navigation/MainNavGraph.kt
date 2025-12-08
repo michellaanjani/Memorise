@@ -23,11 +23,15 @@ import com.mobile.memorise.ui.screen.cards.CardItemData
 import com.mobile.memorise.ui.screen.cards.DetailCardScreen
 import com.mobile.memorise.ui.screen.create.ai.AiGenerationScreen
 import com.mobile.memorise.ui.screen.create.ai.CameraCaptureScreen
-import com.mobile.memorise.ui.screen.createnew.CreateFolderScreen
-import com.mobile.memorise.ui.screen.createnew.FolderViewModel
-import com.mobile.memorise.ui.screen.createnew.CreateDeckScreen
-import com.mobile.memorise.ui.screen.createnew.DeckViewModel
+import com.mobile.memorise.ui.screen.createnew.folder.CreateFolderScreen
+import com.mobile.memorise.ui.screen.createnew.folder.EditFolderScreen
+import com.mobile.memorise.ui.screen.createnew.folder.FolderViewModel
+import com.mobile.memorise.ui.screen.createnew.deck.EditDeckScreen
+import com.mobile.memorise.ui.screen.createnew.deck.CreateDeckScreen
+import com.mobile.memorise.ui.screen.createnew.deck.DeckViewModel
 import kotlinx.serialization.json.Json
+import android.net.Uri
+
 
 @Composable
 fun NavGraph(
@@ -53,7 +57,6 @@ fun NavGraph(
 
         // ============================================================
         // 1. Home Screen — sekarang menerima folderViewModel
-        // ============================================================
         composable(route = MainRoute.Home.route) {
             HomeScreen(
                 onFolderClick = { folderName ->
@@ -61,9 +64,16 @@ fun NavGraph(
                 },
                 onDeckClick = { deckName ->
                     navController.navigate(MainRoute.Cards.createRoute(deckName))
+                },
+                onEditFolder = { folderName, color ->
+                    navController.navigate(MainRoute.EditFolder.createRoute(folderName, color))
+                },
+                onEditDeck = { deckName ->
+                    navController.navigate(MainRoute.EditDeck.createRoute(deckName))
                 }
             )
         }
+
 
         // ============================================================
         // 2. Profile Screen
@@ -251,6 +261,40 @@ fun NavGraph(
                 onBackClick = { navController.popBackStack() }
             )
         }
+
+        composable(
+            route = "edit_folder/{oldName}/{color}",
+            arguments = listOf(
+                navArgument("oldName") { type = NavType.StringType },
+                navArgument("color") { type = NavType.StringType },
+            )
+        ) { backStackEntry ->
+
+            val oldName = Uri.decode(backStackEntry.arguments?.getString("oldName") ?: "")
+            val color = Uri.decode(backStackEntry.arguments?.getString("color") ?: "#FFFFFF")
+
+            EditFolderScreen(
+                oldName = oldName,
+                initialColor = color,
+
+                folderViewModel = folderViewModel,       // WAJIB DITAMBAH
+                onBackClick = { navController.popBackStack() } // WAJIB DITAMBAH
+            )
+        }
+
+        composable(
+            route = MainRoute.EditDeck.route,
+            arguments = listOf(navArgument("oldName") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val oldName = backStackEntry.arguments?.getString("oldName") ?: ""
+
+            EditDeckScreen(
+                oldName = oldName,
+                deckViewModel = deckViewModel,
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
 
 
     }

@@ -1,4 +1,4 @@
-package com.mobile.memorise.ui.screen.createnew
+package com.mobile.memorise.ui.screen.createnew.deck
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
@@ -15,4 +15,13 @@ class DeckViewModel : ViewModel() {
     fun addDeck(name: String) {
         deckList.add(DeckItem(name))
     }
+
+    fun updateDeck(oldName: String, newName: String) {
+        val index = deckList.indexOfFirst { it.name.equals(oldName, ignoreCase = true) }
+        if (index != -1) {
+            deckList[index] = DeckItem(newName)
+        }
+    }
+
+
 }

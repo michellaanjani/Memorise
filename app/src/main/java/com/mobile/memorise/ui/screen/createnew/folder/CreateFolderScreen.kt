@@ -1,4 +1,4 @@
-package com.mobile.memorise.ui.screen.createnew
+package com.mobile.memorise.ui.screen.createnew.folder
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background

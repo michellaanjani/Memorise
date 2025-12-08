@@ -1,4 +1,4 @@
-package com.mobile.memorise.ui.screen.createnew
+package com.mobile.memorise.ui.screen.createnew.folder
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
@@ -22,5 +22,13 @@ class FolderViewModel : ViewModel() {
                 color = color
             )
         )
+    }
+
+    fun updateFolder(oldName: String, newName: String, newColor: String) {
+        val idx = folderList.indexOfFirst { it.name == oldName }
+        if (idx >= 0) {
+            // replace with updated FolderItem
+            folderList[idx] = FolderItem(name = newName, color = newColor)
+        }
     }
 }
