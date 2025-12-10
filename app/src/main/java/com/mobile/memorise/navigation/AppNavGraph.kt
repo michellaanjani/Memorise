@@ -9,7 +9,7 @@ import com.mobile.memorise.ui.screen.main.MainScreenContent
 import com.mobile.memorise.ui.screen.landing.LandingScreen
 import com.mobile.memorise.ui.screen.sigin.SignInScreen
 import com.mobile.memorise.ui.screen.signup.SignUpScreen
-import com.mobile.memorise.ui.screen.signup.VerificationInfoScreen
+import com.mobile.memorise.ui.screen.signup.OtpVerificationScreen
 import com.mobile.memorise.ui.screen.signup.VerificationSuccessPopup
 import com.mobile.memorise.ui.screen.password.forgot.ResetPwScreen
 import com.mobile.memorise.ui.screen.password.sent.ResetLinkSentScreen
@@ -141,11 +141,16 @@ fun AppNavGraph(
         }
 
         // =============== VERIFICATION ==================
+        // =============== VERIFICATION (OTP) ==================
         composable("verification_info") {
-            VerificationInfoScreen(
-                onContinue = { navController.navigate("verification_success") }
+            OtpVerificationScreen(
+                onBack = { navController.popBackStack() },
+                onVerified = {
+                    navController.navigate("verification_success")
+                }
             )
         }
+
 
         composable("verification_success") {
             VerificationSuccessPopup(
