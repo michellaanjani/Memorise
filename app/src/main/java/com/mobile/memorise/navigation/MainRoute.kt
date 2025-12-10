@@ -85,6 +85,15 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
     ) {
         fun createRoute(oldName: String) = "edit_deck/$oldName"
     }
+
+    object AddCard : MainRoute(
+        route = "add_card/{deckName}",
+        title = "Add Card",
+        icon = Icons.Default.Add
+    ) {
+        fun createRoute(deckName: String) = "add_card/$deckName"
+    }
+
 }
 
 

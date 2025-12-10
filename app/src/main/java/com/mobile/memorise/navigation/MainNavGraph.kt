@@ -24,6 +24,7 @@ import com.mobile.memorise.ui.screen.cards.DetailCardScreen
 import com.mobile.memorise.ui.screen.create.ai.AiGenerationScreen
 import com.mobile.memorise.ui.screen.create.ai.CameraCaptureScreen
 import com.mobile.memorise.ui.screen.createnew.folder.CreateFolderScreen
+import com.mobile.memorise.ui.screen.createnew.card.AddCardScreen
 import com.mobile.memorise.ui.screen.createnew.folder.EditFolderScreen
 import com.mobile.memorise.ui.screen.createnew.folder.FolderViewModel
 import com.mobile.memorise.ui.screen.createnew.deck.EditDeckScreen
@@ -143,7 +144,11 @@ fun NavGraph(
                 onQuizClick = { encodedJson ->
                     navController.navigate(MainRoute.Quiz.createRoute(deckName, encodedJson))
                 },
-                onAddCardClick = {},
+                onAddCardClick = {
+                    // ⬅️ INI YANG PENTING
+                    navController.navigate(MainRoute.AddCard.createRoute(deckName))
+
+                },
                 onCardClick = { encodedJson, index ->
                     navController.navigate(MainRoute.CardDetail.createRoute(encodedJson, index))
                 }
@@ -296,6 +301,22 @@ fun NavGraph(
                 onBackClick = { navController.popBackStack() }
             )
         }
+
+        composable(
+            route = MainRoute.AddCard.route,
+            arguments = listOf(navArgument("deckName") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val deckName = backStackEntry.arguments?.getString("deckName") ?: "Unknown"
+
+            AddCardScreen(
+                deckName = deckName,
+                onBackClick = { navController.popBackStack() },
+                onCardSaved = { newCard ->
+                    // TODO: nanti kamu tentukan logic simpan ke JSON / DB
+                }
+            )
+        }
+
 
 
 

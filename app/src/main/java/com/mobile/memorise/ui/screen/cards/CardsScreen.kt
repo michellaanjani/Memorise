@@ -110,7 +110,7 @@ fun CardsScreen(
                         contentDescription = "Logo",
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
-                            .height(28.dp)
+                            .height(20.dp)
                             .padding(end = 16.dp)
                     )
                 },
