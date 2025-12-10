@@ -138,6 +138,7 @@ fun HomeScreen(
                             data = folder,
                             bgColor = bgColor,
                             onClick = { onFolderClick(folder.name) },
+                            onMoveClicked = { /*TODO*/ },
                             onEditClick = { oldName, color ->
                                 onEditFolder(oldName, color)
                             },
@@ -172,6 +173,7 @@ fun HomeScreen(
                         DeckItemView(
                             data = deck,
                             onClick = { onDeckClick(deck.deckName) },
+                            onMoveClicked = { /*TODO*/ },
                             onEditDeck = { deckName -> onEditDeck(deckName)},
                             onDeleteDeck = { deckName ->
                                 deleteType = "deck"
@@ -331,6 +333,7 @@ fun FolderItemView(
     data: FolderItemData,
     bgColor: Color,
     onClick: () -> Unit,
+    onMoveClicked: () -> Unit,
     onEditClick: (String, String) -> Unit,
     onDeleteClick: (String) -> Unit
 ) {
@@ -376,48 +379,79 @@ fun FolderItemView(
                 Text(data.date, fontSize = 12.sp, color = TextGray)
                 Text("${data.deckCount} decks", fontSize = 14.sp, color = BrightBlue)
             }
-
+            // 5. Menu Titik Tiga (Edit & Delete)
             Box {
                 IconButton(onClick = { expanded = true }) {
-                    Icon(Icons.Default.MoreVert, contentDescription = null, tint = Color.Gray)
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Options",
+                        tint = Color.Gray
+                    )
                 }
 
                 DropdownMenu(
                     expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.background(Color.White)
                 ) {
-
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Edit, null, tint = Color(0xFFFF9800))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Edit")
+                                Icon(
+                                    painterResource(R.drawable.move),
+                                    contentDescription = "Move",
+                                    tint = Color(0xFF0961F5)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Move", fontSize = 14.sp, color = TextBlack)
                             }
                         },
-                        onClick = {
+                        onClick = { expanded = false
+                            onMoveClicked()
+                        }
+
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = DividerDefaults.Thickness,
+                        color = Color.Gray.copy(alpha = 0.3f)
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFFFF9800))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Edit", fontSize = 14.sp, color = TextBlack)
+                            }
+                        },
+                        onClick = { expanded = false
                             expanded = false
                             onEditClick(data.name, bgColor.toHex())
                         }
+
                     )
-
-                    HorizontalDivider()
-
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = DividerDefaults.Thickness,
+                        color = Color.Gray.copy(alpha = 0.3f)
+                    )
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Delete, null, tint = Color.Red)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Delete")
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Delete", fontSize = 14.sp, color = TextBlack)
                             }
                         },
-                        onClick = {
+                        onClick = { expanded = false
                             expanded = false
                             onDeleteClick(data.name)
                         }
                     )
                 }
             }
+
+
         }
     }
 }
@@ -435,6 +469,7 @@ fun Color.toHex(): String {
 fun DeckItemView(
     data: DeckItemData,
     onClick: () -> Unit,
+    onMoveClicked: () -> Unit,
     onEditDeck: (String) -> Unit,   // <-- harus menerima String
     onDeleteDeck: (String) -> Unit
 ) {
@@ -479,36 +514,108 @@ fun DeckItemView(
                 Text("${data.cardCount} Cards", fontSize = 12.sp, color = Color.Gray)
             }
 
+            // 5. Menu Titik Tiga (Edit & Delete)
             Box {
                 IconButton(onClick = { expanded = true }) {
-                    Icon(Icons.Default.MoreVert, null, tint = Color.Gray)
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Options",
+                        tint = Color.Gray
+                    )
                 }
 
                 DropdownMenu(
                     expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.background(Color.White)
                 ) {
-
                     DropdownMenuItem(
-                        text = { Text("Edit") },
-                        onClick =
-                            {
-                                expanded = false
-                                onEditDeck(data.deckName)
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    painterResource(R.drawable.move),
+                                    contentDescription = "Move",
+                                    tint = Color(0xFF0961F5)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Move", fontSize = 14.sp, color = TextBlack)
+                            }
+                        },
+                        onClick = { expanded = false
+                            onMoveClicked()
                         }
+
                     )
-
-                    HorizontalDivider()
-
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = DividerDefaults.Thickness,
+                        color = Color.Gray.copy(alpha = 0.3f)
+                    )
                     DropdownMenuItem(
-                        text = { Text("Delete") },
-                        onClick = {
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFFFF9800))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Edit", fontSize = 14.sp, color = TextBlack)
+                            }
+                        },
+                        onClick = { expanded = false
+                            expanded = false
+                            onEditDeck(data.deckName)
+                        }
+
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = DividerDefaults.Thickness,
+                        color = Color.Gray.copy(alpha = 0.3f)
+                    )
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Delete", fontSize = 14.sp, color = TextBlack)
+                            }
+                        },
+                        onClick = { expanded = false
                             expanded = false
                             onDeleteDeck(data.deckName)
                         }
                     )
                 }
             }
+
+//            Box {
+//                IconButton(onClick = { expanded = true }) {
+//                    Icon(Icons.Default.MoreVert, null, tint = Color.Gray)
+//                }
+//
+//                DropdownMenu(
+//                    expanded = expanded,
+//                    onDismissRequest = { expanded = false }
+//                ) {
+//
+//                    DropdownMenuItem(
+//                        text = { Text("Edit") },
+//                        onClick =
+//                            {
+//                                expanded = false
+//                                onEditDeck(data.deckName)
+//                        }
+//                    )
+//
+//                    HorizontalDivider()
+//
+//                    DropdownMenuItem(
+//                        text = { Text("Delete") },
+//                        onClick = {
+//                            expanded = false
+//                            onDeleteDeck(data.deckName)
+//                        }
+//                    )
+//                }
+//            }
         }
     }
 }

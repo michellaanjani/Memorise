@@ -57,15 +57,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = AppBackgroundColor
                 ) {
-                    AppNavGraph(
-                        navController = navController,
-                        onLogout = {
-                            navController.navigate("landing") {
-                                popUpTo("main_entry") { inclusive = true }
-                            }
-                        }
-                    )
-//                    MainScreenContent(
+//                    AppNavGraph(
 //                        navController = navController,
 //                        onLogout = {
 //                            navController.navigate("landing") {
@@ -73,6 +65,14 @@ class MainActivity : ComponentActivity() {
 //                            }
 //                        }
 //                    )
+                    MainScreenContent(
+                        navController = navController,
+                        onLogout = {
+                            navController.navigate("landing") {
+                                popUpTo("main_entry") { inclusive = true }
+                            }
+                        }
+                    )
                 }
             }
         }

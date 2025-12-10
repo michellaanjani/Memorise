@@ -229,6 +229,7 @@ fun DeckScreen(
 fun DeckItemView(
     data: DeckItemData,
     onClick: () -> Unit,
+    onMoveClicked: () -> Unit = {},
     onEditClicked: () -> Unit = {},
     onDeleteClicked: () -> Unit = {}
 ) {
@@ -305,6 +306,28 @@ fun DeckItemView(
                     onDismissRequest = { expanded = false },
                     modifier = Modifier.background(Color.White)
                 ) {
+                    DropdownMenuItem(
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    painterResource(R.drawable.move),
+                                    contentDescription = "Move",
+                                    tint = Color(0xFF0961F5)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Move", fontSize = 14.sp, color = TextBlack)
+                            }
+                        },
+                        onClick = { expanded = false
+                            onMoveClicked()
+                        }
+
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        thickness = DividerDefaults.Thickness,
+                        color = Color.Gray.copy(alpha = 0.3f)
+                    )
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
