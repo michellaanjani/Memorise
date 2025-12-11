@@ -1,4 +1,4 @@
-package com.mobile.memorise.ui.screen.signup
+package com.mobile.memorise.ui.screen.password.successupdatepassword
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -7,7 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -18,13 +18,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mobile.memorise.R
 
-
 @Composable
-fun VerificationSuccessPopup(
+fun PasswordUpdateSuccessPopup(
     onDone: () -> Unit
 ) {
 
-    // Background semi-transparent
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -32,7 +30,6 @@ fun VerificationSuccessPopup(
         contentAlignment = Alignment.Center
     ) {
 
-        // Popup card
         Column(
             modifier = Modifier
                 .width(300.dp)
@@ -41,19 +38,17 @@ fun VerificationSuccessPopup(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // Blue circle + checkmark icon
             Image(
                 painter = painterResource(id = R.drawable.centang),
                 contentDescription = "Success Icon",
-                modifier = Modifier
-                    .size(65.dp),
+                modifier = Modifier.size(65.dp),
                 contentScale = ContentScale.Fit
             )
 
             Spacer(modifier = Modifier.height(18.dp))
 
             Text(
-                text = "Success",
+                text = "Password Updated",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color(0xFF1F1F1F)
@@ -62,7 +57,7 @@ fun VerificationSuccessPopup(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "Congratulations, you have\ncompleted your registration!",
+                text = "Your password has been\nupdated successfully!",
                 fontSize = 14.sp,
                 color = Color(0xFF6B7280),
                 lineHeight = 20.sp
@@ -70,9 +65,8 @@ fun VerificationSuccessPopup(
 
             Spacer(modifier = Modifier.height(26.dp))
 
-            // Tombol Done (sementara)
             Button(
-                onClick = { onDone() },
+                onClick = onDone,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),
