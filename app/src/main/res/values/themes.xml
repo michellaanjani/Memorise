@@ -1,10 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Memorise" parent="Theme.SplashScreen">
+    <!-- 1. TEMA UTAMA APLIKASI (Dipakai setelah Splash Screen selesai) -->
+    <!-- PERHATIKAN: Parent menggunakan .NoActionBar -->
+    <style name="Theme.Memorise" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Opsional: Mengatur warna status bar menjadi transparan -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+
+    <!-- 2. TEMA KHUSUS SPLASH SCREEN (Dipakai saat aplikasi baru dibuka) -->
+    <style name="Theme.Memorise.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/blue</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/logo</item>
         <item name="windowSplashScreenAnimationDuration">200</item>
+
+        <!-- KUNCI PERBAIKAN: Setelah splash selesai, pindah ke tema utama di atas -->
         <item name="postSplashScreenTheme">@style/Theme.Memorise</item>
     </style>
+
 </resources>

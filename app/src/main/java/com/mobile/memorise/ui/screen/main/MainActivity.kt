@@ -27,8 +27,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+//import androidx.lifecycle.ViewModel
+//import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -40,55 +40,13 @@ import com.mobile.memorise.navigation.MainRoute
 import com.mobile.memorise.navigation.NavGraph
 import com.mobile.memorise.ui.theme.*
 import dagger.hilt.android.AndroidEntryPoint
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+//import dagger.hilt.android.lifecycle.HiltViewModel
+//import kotlinx.coroutines.flow.MutableStateFlow
+//import kotlinx.coroutines.flow.StateFlow
+//import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import javax.inject.Inject
-import com.mobile.memorise.domain.repository.AuthRepository
-
-
-// --- 1. VIEWMODEL (Simulasi/Placeholder) ---
-// Sesuaikan bagian AuthRepository dengan kode aslimu
-@HiltViewModel
-class MainViewModel @Inject constructor(
-    private val repository: AuthRepository // Uncomment jika Repository sudah ada
-) : ViewModel() {
-
-    // State: null = loading, true = logged in, false = not logged in
-    private val _isLoggedIn = MutableStateFlow<Boolean?>(null)
-    val isLoggedIn: StateFlow<Boolean?> = _isLoggedIn.asStateFlow()
-
-    init {
-        checkLoginStatus()
-    }
-
-    private fun checkLoginStatus() {
-        viewModelScope.launch {
-            // SIMULASI LOGIKA: Ganti dengan repository.isUserLoggedIn.collect { ... }
-            // Contoh: membaca token dari DataStore
-            // delay(1000) // Simulasi delay loading
-
-            // Logika Asli (Uncomment dan sesuaikan):
-            /*
-            repository.isUserLoggedIn.collect { loggedIn ->
-                _isLoggedIn.value = loggedIn
-            }
-            */
-
-            // DEFAULT UNTUK TES (Ganti ke false jika ingin tes login, true jika tes home)
-            _isLoggedIn.value = false
-        }
-    }
-
-    fun logout() {
-        viewModelScope.launch {
-            // repository.clearToken() // Panggil fungsi logout di repo
-            _isLoggedIn.value = false // Update state ke false agar UI kembali ke Login
-        }
-    }
-}
+//import javax.inject.Inject
+//import com.mobile.memorise.domain.repository.AuthRepository
 
 // --- 2. MAIN ACTIVITY ---
 @AndroidEntryPoint
