@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    kotlin("kapt")
+    alias(libs.plugins.hilt)
 }
 
 android {
@@ -75,5 +77,25 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.6.1")
     implementation("com.airbnb.android:lottie-compose:6.0.0")
 
+    // --- SECURITY & STORAGE ---
+    // Untuk EncryptedSharedPreferences (Standard industri untuk simpan token)
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    // DataStore (Opsional jika ingin mengganti SharedPreferences, tapi prompt meminta EncryptedSharedPrefsTokenStore)
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
 
+    // --- NETWORKING ---
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0") // Atau kotlinx.serialization
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    // --- DI (HILT) ---
+    implementation("com.google.dagger:hilt-android:2.51")
+    kapt("com.google.dagger:hilt-compiler:2.51")
+    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+
+    // --- TESTING ---
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    testImplementation("io.mockk:mockk:1.13.9")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
 }

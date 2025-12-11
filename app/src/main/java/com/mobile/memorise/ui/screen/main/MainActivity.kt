@@ -3,6 +3,8 @@ package com.mobile.memorise.ui.screen.main
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels // Untuk inisialisasi ViewModel
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -24,70 +26,151 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.mobile.memorise.ui.theme.*
-import com.mobile.memorise.navigation.AppNavGraph
-// Import yang diperlukan
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.navigation.NavHostController
-import com.mobile.memorise.navigation.NavGraph
 import com.mobile.memorise.R
+import com.mobile.memorise.navigation.AppNavGraph
 import com.mobile.memorise.navigation.MainRoute
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-//import androidx.activity.compose.setContent
+import com.mobile.memorise.navigation.NavGraph
+import com.mobile.memorise.ui.theme.*
+import dagger.hilt.android.AndroidEntryPoint
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
+import com.mobile.memorise.domain.repository.AuthRepository
 
+
+// --- 1. VIEWMODEL (Simulasi/Placeholder) ---
+// Sesuaikan bagian AuthRepository dengan kode aslimu
+@HiltViewModel
+class MainViewModel @Inject constructor(
+    private val repository: AuthRepository // Uncomment jika Repository sudah ada
+) : ViewModel() {
+
+    // State: null = loading, true = logged in, false = not logged in
+    private val _isLoggedIn = MutableStateFlow<Boolean?>(null)
+    val isLoggedIn: StateFlow<Boolean?> = _isLoggedIn.asStateFlow()
+
+    init {
+        checkLoginStatus()
+    }
+
+    private fun checkLoginStatus() {
+        viewModelScope.launch {
+            // SIMULASI LOGIKA: Ganti dengan repository.isUserLoggedIn.collect { ... }
+            // Contoh: membaca token dari DataStore
+            // delay(1000) // Simulasi delay loading
+
+            // Logika Asli (Uncomment dan sesuaikan):
+            /*
+            repository.isUserLoggedIn.collect { loggedIn ->
+                _isLoggedIn.value = loggedIn
+            }
+            */
+
+            // DEFAULT UNTUK TES (Ganti ke false jika ingin tes login, true jika tes home)
+            _isLoggedIn.value = false
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            // repository.clearToken() // Panggil fungsi logout di repo
+            _isLoggedIn.value = false // Update state ke false agar UI kembali ke Login
+        }
+    }
+}
+
+// --- 2. MAIN ACTIVITY ---
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
 
-        enableEdgeToEdge()// 1. Wajib untuk HP modern agar status bar & nav bar transparan/responsif
-        // Panggil ini untuk menginstal layar peluncuran
-        installSplashScreen()
+    // Inisialisasi ViewModel dengan delegate
+    private val mainViewModel: MainViewModel by viewModels()
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        // Handle Splash Screen
+        val splashScreen = installSplashScreen()
+
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+
+        // Tahan Splash Screen sampai status login (true/false) didapatkan (tidak null)
+        // Ini mencegah layar berkedip saat mengecek DataStore
+        splashScreen.setKeepOnScreenCondition {
+            mainViewModel.isLoggedIn.value == null
+        }
 
         setContent {
             MemoriseTheme {
-                val navController = rememberNavController()
-                // Tambahkan Modifier.fillMaxSize() agar background pas
+                // Ambil state login dari ViewModel
+                val isLoggedIn by mainViewModel.isLoggedIn.collectAsState()
+
+                // Gunakan Surface agar background sesuai tema
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = AppBackgroundColor
                 ) {
-//                    AppNavGraph(
-//                        navController = navController,
-//                        onLogout = {
-//                            navController.navigate("landing") {
-//                                popUpTo("main_entry") { inclusive = true }
-//                            }
-//                        }
-//                    )
-                    MainScreenContent(
-                        navController = navController,
-                        onLogout = {
-                            navController.navigate("landing") {
-                                popUpTo("main_entry") { inclusive = true }
+                    // --- LOGIKA PERPINDAHAN ROOT SCREEN ---
+                    when (isLoggedIn) {
+                        true -> {
+                            // SUDAH LOGIN -> Masuk ke Main Screen (Home)
+                            // Kita buat NavController baru khusus untuk sesi Main
+                            val mainNavController = rememberNavController()
+
+                            MainScreenContent(
+                                navController = mainNavController,
+                                onLogout = {
+                                    // Panggil fungsi logout di ViewModel
+                                    // State akan berubah jadi false, dan UI otomatis pindah ke AppNavGraph
+                                    mainViewModel.logout()
+                                }
+                            )
+                        }
+                        false -> {
+                            // BELUM LOGIN -> Masuk ke AppNavGraph (Landing/SignIn/SignUp)
+                            val authNavController = rememberNavController()
+
+                            AppNavGraph(
+                                navController = authNavController,
+                                onLogout = {
+                                    // Callback ini mungkin tidak terpakai di sini karena AppNavGraph
+                                    // biasanya flow masuk, tapi disiapkan saja.
+                                }
+                            )
+                        }
+                        null -> {
+                            // Loading State (Biasanya tertutup Splash Screen,
+                            // tapi bisa tampilkan Loading Indicator jika perlu)
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
                             }
                         }
-                    )
+                    }
                 }
             }
         }
     }
 }
 
+// --- 3. MAIN SCREEN CONTENT (Kode UI Kamu) ---
+// Tidak ada logika yang diubah, hanya memastikan parameter navController benar
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreenContent(
-    navController: NavHostController, // Gunakan parameter ini
+    navController: NavHostController,
     onLogout: () -> Unit
 ) {
-    // HAPUS BARIS DI BAWAH INI (Ini penyebab bug fatal)
-    // val navController = rememberNavController()
-
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val currentRoute = currentDestination?.route
@@ -96,10 +179,8 @@ fun MainScreenContent(
     var showBottomSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
 
-    // Scope untuk menjalankan animasi menutup sheet
     val scope = rememberCoroutineScope()
 
-    // Fungsi helper untuk menutup sheet lalu navigasi
     val closeSheetAndNavigate: (String) -> Unit = { route ->
         scope.launch { sheetState.hide() }.invokeOnCompletion {
             if (!sheetState.isVisible) {
@@ -112,7 +193,6 @@ fun MainScreenContent(
     Scaffold(
         containerColor = AppBackgroundColor,
         bottomBar = {
-            // Logika showBottomBar tetap sama
             val showBottomBar = currentRoute == MainRoute.Home.route || currentRoute == MainRoute.Account.route
 
             if (showBottomBar) {
@@ -217,7 +297,6 @@ fun MainScreenContent(
                 shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             ) {
                 CreateBottomSheetContent(
-                    // Pass fungsi navigasi yang sudah otomatis menutup sheet
                     onNavigate = closeSheetAndNavigate
                 )
             }
@@ -227,7 +306,7 @@ fun MainScreenContent(
 
 @Composable
 fun CreateBottomSheetContent(
-    onNavigate: (String) -> Unit // Ganti parameter navController dengan callback string
+    onNavigate: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -267,21 +346,16 @@ fun CreateBottomSheetContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // UPDATE BAGIAN INI
         CreateOptionItem(
             painter = painterResource(id = R.drawable.cai),
             title = "Generate With AI",
             subtitle = "Create cards with AI",
             onClick = {
-                // Panggil fungsi onNavigate agar sheet tertutup dulu baru pindah
                 onNavigate(MainRoute.AiGeneration.route)
             }
         )
     }
 }
-
-// PASTIKAN MENAMBAHKAN IMPORT INI DI ATAS FILE:
-// import kotlinx.coroutines.launch
 
 @Composable
 fun CreateOptionItem(

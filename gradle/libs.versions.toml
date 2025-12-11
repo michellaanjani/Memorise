@@ -12,6 +12,8 @@ composeBom = "2024.09.00"
 # --- TAMBAHAN UNTUK FITUR KAMU (NAV & JSON) ---
 navigationCompose = "2.8.0"
 kotlinxSerialization = "1.7.3"
+# --- TAMBAHKAN VERSI HILT ---
+hilt = "2.51"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -40,3 +42,5 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 
 # --- TAMBAHAN PLUGIN ---
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+# --- TAMBAHKAN PLUGIN HILT ---
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }

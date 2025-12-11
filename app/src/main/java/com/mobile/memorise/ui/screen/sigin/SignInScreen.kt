@@ -1,5 +1,6 @@
 package com.mobile.memorise.ui.screen.sigin
-import com.mobile.memorise.R
+
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -11,33 +12,44 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.style.TextDecoration
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.mobile.memorise.R // Pastikan import R sesuai package Anda
 
 @Composable
 fun SignInScreen(
     onSignInSuccess: () -> Unit = {},
     onSignUpClick: () -> Unit = {},
-    onForgotPasswordClick: () -> Unit = {}
+    onForgotPasswordClick: () -> Unit = {},
+    viewModel: AuthViewModel = hiltViewModel() // Inject ViewModel di sini
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    val context = LocalContext.current
 
-    // Error states
-    var emailError by remember { mutableStateOf(false) }
-    var passwordError by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") }
-
+    // State UI lokal (hanya visual, data tetap di ViewModel)
     var passwordVisible by remember { mutableStateOf(false) }
     val deepBlue = Color(0xFF0C3DF4)
 
-    val correctEmail = "user01@gmail.com"
-    val correctPassword = "01user"
+    // Efek untuk mendengarkan respon API (Sukses/Gagal)
+    LaunchedEffect(key1 = true) {
+        viewModel.authEvent.collect { event ->
+            when(event) {
+                is AuthEvent.Success -> {
+                    Toast.makeText(context, "Login Successful!", Toast.LENGTH_SHORT).show()
+                    onSignInSuccess()
+                }
+                is AuthEvent.Error -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -59,7 +71,7 @@ fun SignInScreen(
 
         Spacer(modifier = Modifier.height(18.dp))
 
-        // ========== HEADER SUPER BOLD ==========
+        // ========== HEADER ==========
         Text(
             text = "Log In",
             fontSize = 28.sp,
@@ -82,29 +94,20 @@ fun SignInScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             OutlinedTextField(
-                value = email,
+                value = viewModel.email, // Ambil dari ViewModel
                 onValueChange = {
-                    email = it
-                    emailError = false
-                    errorMessage = ""
+                    viewModel.email = it
+                    viewModel.isError = false // Reset visual error saat mengetik
                 },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
-                isError = emailError,
+                isError = viewModel.isError, // Visual error (merah) jika gagal
                 textStyle = LocalTextStyle.current.copy(
                     fontSize = 14.sp,
                     color = Color.Black
-                )
+                ),
+                singleLine = true
             )
-
-            if (emailError) {
-                Text(
-                    text = errorMessage,
-                    color = Color(0xFFFF6A00),
-                    fontSize = 11.sp,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
-            }
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -113,17 +116,17 @@ fun SignInScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             OutlinedTextField(
-                value = password,
+                value = viewModel.password, // Ambil dari ViewModel
                 onValueChange = {
-                    password = it
-                    passwordError = false
-                    errorMessage = ""
+                    viewModel.password = it
+                    viewModel.isError = false
                 },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
-                isError = passwordError,
+                isError = viewModel.isError,
                 textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                singleLine = true,
                 trailingIcon = {
                     Image(
                         painter = painterResource(id = R.drawable.mata),
@@ -135,19 +138,20 @@ fun SignInScreen(
                 }
             )
 
-            if (passwordError) {
+            // Pesan Error Text di bawah input (Opsional)
+            if (viewModel.isError) {
                 Text(
-                    text = errorMessage,
+                    text = "Invalid email or password",
                     color = Color(0xFFFF6A00),
                     fontSize = 11.sp,
-                    modifier = Modifier.padding(top = 2.dp)
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ========== FORGOT PASSWORD (underline) ==========
+        // ========== FORGOT PASSWORD ==========
         Text(
             text = "Forgot password?",
             fontSize = 12.sp,
@@ -163,43 +167,37 @@ fun SignInScreen(
 
         // ========== LOGIN BUTTON ==========
         Button(
-            onClick = {
-                val isEmailCorrect = email == correctEmail
-                val isPasswordCorrect = password == correctPassword
-
-                when {
-                    isEmailCorrect && isPasswordCorrect -> {
-                        onSignInSuccess()
-                    }
-
-                    !isEmailCorrect -> {
-                        emailError = true
-                        errorMessage = "Email not found!"
-                    }
-
-                    !isPasswordCorrect -> {
-                        passwordError = true
-                        errorMessage = "Password is incorrect!"
-                    }
-                }
-            },
+            onClick = { viewModel.onSignInClick() },
+            enabled = !viewModel.isLoading, // Matikan tombol saat loading
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp),
             shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = deepBlue)
-        ) {
-            Text(
-                text = "Log In",
-                fontSize = 16.sp,
-                color = Color.White,
-                fontWeight = FontWeight.SemiBold
+            colors = ButtonDefaults.buttonColors(
+                containerColor = deepBlue,
+                disabledContainerColor = deepBlue.copy(alpha = 0.7f)
             )
+        ) {
+            if (viewModel.isLoading) {
+                // Tampilkan Loading Spinner
+                CircularProgressIndicator(
+                    color = Color.White,
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(
+                    text = "Log In",
+                    fontSize = 16.sp,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // ========== SIGN UP (underline) ==========
+        // ========== SIGN UP ==========
         Row {
             Text("Don’t have an account? ", color = Color.Gray, fontSize = 13.sp)
             Text(
@@ -213,5 +211,3 @@ fun SignInScreen(
         }
     }
 }
-
-
