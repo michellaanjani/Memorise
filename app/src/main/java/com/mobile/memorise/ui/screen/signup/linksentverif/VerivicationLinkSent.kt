@@ -1,11 +1,9 @@
-package com.mobile.memorise.ui.screen.password.sent
+package com.mobile.memorise.ui.screen.signup.linksentverif
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,7 +20,7 @@ import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.delay
 
 @Composable
-fun ResetLinkSentScreen(
+fun VerivicationLinkSentScreen(
     onContinue: () -> Unit,
 ) {
 

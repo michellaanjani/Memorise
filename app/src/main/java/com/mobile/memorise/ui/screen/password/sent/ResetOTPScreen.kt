@@ -1,4 +1,4 @@
-package com.mobile.memorise.ui.screen.signup
+package com.mobile.memorise.ui.screen.password.sent
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -9,6 +9,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
@@ -22,7 +23,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
@@ -31,7 +34,7 @@ import com.mobile.memorise.R
 import kotlinx.coroutines.delay
 
 @Composable
-fun OtpVerificationScreen(
+fun ResetOtpScreen(
     onBack: () -> Unit,
     onVerified: () -> Unit
 ) {
@@ -172,15 +175,15 @@ fun OtpVerificationScreen(
                                 }
                             }
                         },
-                        textStyle = androidx.compose.ui.text.TextStyle(
+                        textStyle = TextStyle(
                             color = Color.Black,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
                         ),
                         singleLine = true,
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number
                         ),
                         modifier = Modifier
                             .width(52.dp)
