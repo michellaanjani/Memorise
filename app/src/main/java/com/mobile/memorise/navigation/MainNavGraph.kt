@@ -66,8 +66,9 @@ fun NavGraph(
                 onDeckClick = { deckName ->
                     navController.navigate(MainRoute.Cards.createRoute(deckName))
                 },
-                onEditFolder = { folderName, color ->
-                    navController.navigate(MainRoute.EditFolder.createRoute(folderName, color))
+                onEditFolder = { id, name, color ->
+                    // Navigasi dengan format: edit_folder/{id}/{name}/{color}
+                    navController.navigate("edit_folder/$id/$name/$color")
                 },
                 onEditDeck = { deckName ->
                     navController.navigate(MainRoute.EditDeck.createRoute(deckName))
@@ -270,22 +271,28 @@ fun NavGraph(
         }
 
         composable(
-            route = "edit_folder/{oldName}/{color}",
+            route = "edit_folder/{folderId}/{folderName}/{folderColor}",
             arguments = listOf(
-                navArgument("oldName") { type = NavType.StringType },
-                navArgument("color") { type = NavType.StringType },
+                navArgument("folderId") { type = NavType.StringType },
+                navArgument("folderName") { type = NavType.StringType },
+                navArgument("folderColor") { type = NavType.StringType }
             )
         ) { backStackEntry ->
 
-            val oldName = Uri.decode(backStackEntry.arguments?.getString("oldName") ?: "")
-            val color = Uri.decode(backStackEntry.arguments?.getString("color") ?: "#FFFFFF")
+            // 1. Ambil data dari argument
+            val folderId = backStackEntry.arguments?.getString("folderId") ?: ""
+            val oldName = backStackEntry.arguments?.getString("folderName") ?: ""
+            val rawColor  = backStackEntry.arguments?.getString("folderColor") ?: "#FFFFFF"
 
+            val initialColor = "#$rawColor"
+
+            // 2. Panggil Screen dengan folderId
             EditFolderScreen(
+                folderId = folderId, // <--- TAMBAHKAN INI
                 oldName = oldName,
-                initialColor = color,
-
-                folderViewModel = folderViewModel,       // WAJIB DITAMBAH
-                onBackClick = { navController.popBackStack() } // WAJIB DITAMBAH
+                initialColor = initialColor,
+                folderViewModel = folderViewModel,
+                onBackClick = { navController.popBackStack() }
             )
         }
 

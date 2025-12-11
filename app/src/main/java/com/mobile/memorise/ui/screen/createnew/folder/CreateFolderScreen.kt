@@ -1,244 +1,267 @@
 package com.mobile.memorise.ui.screen.createnew.folder
 
-import androidx.compose.foundation.Image
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.mobile.memorise.R
+import androidx.core.graphics.toColorInt
 
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateFolderScreen(
     navController: NavHostController,
     folderViewModel: FolderViewModel,
     onBackClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val apiState = folderViewModel.createFolderState
 
     var folderName by remember { mutableStateOf("") }
-    var selectedColor by remember { mutableStateOf<String?>(null) }
-    var folderError by remember { mutableStateOf<String?>(null) }
+    // Default pilih warna pertama agar user tidak bingung
+    var selectedColor by remember { mutableStateOf<String?>("#E1FFBF") }
+    var localError by remember { mutableStateOf<String?>(null) }
 
-    val colorOptions = listOf("#E1FFBF", "#E8E9FE", "#FFF3CD")
+    val colorOptions = listOf("#E1FFBF", "#E8E9FE", "#FFF3CD", "#FFE4E1", "#E0F7FA")
 
-    val isFormValid =
-        folderName.isNotBlank() &&
-                selectedColor != null &&
-                folderError == null
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp)
-    ) {
-
-        Spacer(modifier = Modifier.height(52.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.back),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(28.dp)
-                    .clickable { onBackClick() }
-            )
-
-            Text(
-                "Add New Folder",
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.Center,
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp
-            )
-            Spacer(modifier = Modifier.size(28.dp))
+    // --- Logic API ---
+    LaunchedEffect(apiState) {
+        when (apiState) {
+            is CreateFolderState.Success -> {
+                Toast.makeText(context, "✨ Folder created successfully!", Toast.LENGTH_SHORT).show()
+                folderViewModel.resetState()
+                navController.popBackStack()
+            }
+            is CreateFolderState.Error -> {
+                if (apiState.field == null) {
+                    Toast.makeText(context, apiState.message, Toast.LENGTH_LONG).show()
+                    folderViewModel.resetState()
+                }
+            }
+            else -> {}
         }
+    }
 
-        Spacer(modifier = Modifier.height(26.dp))
+    val isFormValid = folderName.isNotBlank() && selectedColor != null && localError == null
+    val isLoading = apiState is CreateFolderState.Loading
 
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(80.dp)
-        ) {
-            ImageFolderCard(
-                drawableId = R.drawable.memorize,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(16.dp))
-            )
-            ImageFolderCard(
-                drawableId = R.drawable.learn,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(16.dp))
+    Scaffold(
+        containerColor = BgColor,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        "New Folder",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = TextBlack
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = { onBackClick() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = "Back",
+                            modifier = Modifier.size(24.dp),
+                            tint = TextBlack
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = BgColor
+                )
             )
         }
-
-        Spacer(modifier = Modifier.height(20.dp))
+    ) { paddingValues ->
 
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(Color(0xFFF3F3FA))
-                .padding(26.dp)
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 24.dp)
         ) {
+            Spacer(modifier = Modifier.height(10.dp))
 
-            Row {
-                Text("Folder Name", fontWeight = FontWeight.SemiBold)
-                Text("*", color = Color(0xFFC53636))
-            }
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // --- FORM INPUT NAME ---
+            Text(
+                text = "Folder Name",
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp,
+                color = TextGray
+            )
             Spacer(modifier = Modifier.height(8.dp))
+
+            val displayError = if (apiState is CreateFolderState.Error && apiState.field == "name") {
+                apiState.message
+            } else {
+                localError
+            }
+            val isError = displayError != null
 
             OutlinedTextField(
                 value = folderName,
                 onValueChange = {
                     folderName = it
-                    val trimmed = it.trim()
-
-                    folderError =
-                        if (trimmed.isNotEmpty() &&
-                            folderViewModel.folderList.any { f ->
-                                f.name.equals(trimmed, ignoreCase = true)
-                            }
-                        ) {
-                            "Folder name already exists!"
-                        } else null
+                    if (apiState is CreateFolderState.Error) folderViewModel.resetState()
+                    localError = if (it.trim().isEmpty()) "Name is required" else null
                 },
+                placeholder = { Text("e.g. Biology 101", color = Color.LightGray) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
-                isError = folderError != null,
+                isError = isError,
+                // PERBAIKAN PENTING: Warna Teks Hitam
+                textStyle = LocalTextStyle.current.copy(
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextBlack
+                ),
                 colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor =
-                        if (folderError != null) Color.Red else Color(0xFFDBE1F3),
-                    focusedBorderColor =
-                        if (folderError != null) Color.Red else Color(0xFF0961F5),
-                    cursorColor = Color(0xFF0961F5)
+                    focusedBorderColor = PrimaryBlue,
+                    unfocusedBorderColor = Color(0xFFE5E7EB),
+                    errorBorderColor = Color.Red,
+                    cursorColor = PrimaryBlue,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color(0xFFFAFAFA)
                 )
             )
 
-            if (folderError != null) {
+            // Error Message Animation
+            AnimatedVisibility(
+                visible = isError,
+                enter = fadeIn() + slideInVertically(),
+                exit = fadeOut()
+            ) {
                 Text(
-                    folderError!!,
-                    color = Color(0xFFFF6905),
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(top = 6.dp)
+                    text = displayError ?: "",
+                    color = Color(0xFFEF4444),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 4.dp, start = 4.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            Row {
-                Text("Icon & color", fontWeight = FontWeight.SemiBold)
-                Text("*", color = Color(0xFFC53636))
-            }
-
+            // --- COLOR PICKER (Redesigned) ---
+            Text(
+                text = "Folder Color",
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp,
+                color = TextGray
+            )
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween, // Ratakan spasi
                 verticalAlignment = Alignment.CenterVertically
             ) {
-
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(
-                            Color(
-                                android.graphics.Color.parseColor(
-                                    selectedColor ?: "#C4C4C4"
-                                )
-                            )
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.folder),
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
                 colorOptions.forEach { hex ->
-                    val color = Color(android.graphics.Color.parseColor(hex))
+                    val isSelected = selectedColor == hex
+                    val colorInt = Color(hex.toColorInt())
+
                     Box(
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(50.dp)
                             .clip(CircleShape)
-                            .background(color)
-                            .clickable { selectedColor = hex }
-                            .border(
-                                width = if (selectedColor == hex) 3.dp else 1.dp,
-                                color = if (selectedColor == hex) Color(0xFF0035A0)
-                                else Color.Transparent,
-                                shape = CircleShape
-                            )
+                            .background(colorInt)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { selectedColor = hex }
+                            .border(1.dp, Color.Black.copy(0.1f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Animasi Centang (Fix RowScope Error dengan enter/exit explisit)
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = isSelected,
+                            enter = scaleIn() + fadeIn(),
+                            exit = scaleOut() + fadeOut()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .background(Color.Black.copy(0.2f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // --- SUBMIT BUTTON ---
+            Button(
+                onClick = { folderViewModel.addFolder(folderName.trim(), selectedColor!!) },
+                enabled = isFormValid && !isLoading,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .shadow(
+                        elevation = if (isFormValid) 4.dp else 0.dp,
+                        shape = RoundedCornerShape(16.dp),
+                        spotColor = PrimaryBlue.copy(0.4f)
+                    ),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = PrimaryBlue,
+                    contentColor = Color.White,
+                    // Warna saat tombol mati (disabled) lebih terlihat
+                    disabledContainerColor = Color(0xFFE5E7EB),
+                    disabledContentColor = Color(0xFF9CA3AF)
+                )
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.5.dp
+                    )
+                } else {
+                    Text(
+                        "Create Folder",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
                     )
                 }
             }
-        }
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        Button(
-            onClick = {
-                folderViewModel.addFolder(folderName.trim(), selectedColor!!)
-                navController.popBackStack()
-            },
-            enabled = isFormValid,
-            modifier = Modifier
-                .width(200.dp)
-                .height(50.dp)
-                .align(Alignment.CenterHorizontally),
-            shape = RoundedCornerShape(40.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor =
-                    if (isFormValid) Color(0xFF0961F5) else Color(0xFFB9C4FF)
-            )
-        ) {
-            Text(
-                "Add New Folder",
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 16.sp
-            )
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
 
-@Composable
-fun ImageFolderCard(
-    drawableId: Int,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier.clip(RoundedCornerShape(12.dp))
-    ) {
-        Image(
-            painter = painterResource(id = drawableId),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize()
-        )
-    }
-}

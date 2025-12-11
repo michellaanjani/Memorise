@@ -3,8 +3,12 @@ package com.mobile.memorise.di
 import com.mobile.memorise.data.local.token.TokenStore
 import com.mobile.memorise.data.remote.AuthApi
 import com.mobile.memorise.data.remote.AuthInterceptor
+import com.mobile.memorise.data.remote.api.FolderApi
+import com.mobile.memorise.data.remote.api.HomeApi
 import com.mobile.memorise.data.repository.AuthRepositoryImpl
+import com.mobile.memorise.data.repository.HomeRepositoryImpl
 import com.mobile.memorise.domain.repository.AuthRepository
+import com.mobile.memorise.domain.repository.HomeRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -28,19 +32,48 @@ object AppModule {
             .build()
     }
 
+    // INI ADALAH SATU-SATUNYA PENYEDIA RETROFIT
+    // Pastikan fungsi serupa di NetworkModule SUDAH DIHAPUS
     @Provides
     @Singleton
-    fun provideAuthApi(client: OkHttpClient): AuthApi {
+    fun provideRetrofit(client: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            // Ganti sesuai request
             .baseUrl("https://memorise-backend-production.up.railway.app/api/")
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-            .create(AuthApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAuthApi(retrofit: Retrofit): AuthApi {
+        return retrofit.create(AuthApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideHomeApi(retrofit: Retrofit): HomeApi {
+        return retrofit.create(HomeApi::class.java)
     }
 
     @Provides
     @Singleton
     fun provideAuthRepository(impl: AuthRepositoryImpl): AuthRepository = impl
+
+    @Provides
+    @Singleton
+    fun provideHomeRepository(
+        api: HomeApi,
+        tokenStore: TokenStore
+    ): HomeRepository {
+        return HomeRepositoryImpl(api, tokenStore)
+    }
+
+    @Provides
+    @Singleton
+    fun provideFolderApi(retrofit: Retrofit): FolderApi {
+        return retrofit.create(FolderApi::class.java)
+    }
+
+
 }
