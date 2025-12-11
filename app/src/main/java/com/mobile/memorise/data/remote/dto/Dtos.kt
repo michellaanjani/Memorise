@@ -51,6 +51,10 @@ data class UserWrapperDto(
     val user: UserDto
 )
 
+data class EmailVerificationStatusDataDto(
+    val isEmailVerified: Boolean
+)
+
 // Mapping User dari JSON yang rumit ke object DTO
 data class UserDto(
     @SerializedName("_id") val id: String, // API login pakai "_id"

@@ -128,7 +128,7 @@ fun AppNavGraph(
         composable("verification_success") {
             VerificationSuccessPopup(
                 onDone = {
-                    navController.navigate("signin") {
+                    navController.navigate("main_entry") {
                         popUpTo("signup") { inclusive = true }
                     }
                 }
