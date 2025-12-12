@@ -105,6 +105,10 @@ fun AiGenerationScreen(
             selectedFileName = getFileName(context, uri)
         }
     }
+    // --- BUTTON ACTIVE CONDITION ---
+    val isGenerateEnabled =
+        (selectedTab == 0 && capturedImageUri != null) ||
+                (selectedTab == 1 && selectedFileUri != null)
 
     // Logic Validasi
     fun validateCardAmount() {
@@ -133,16 +137,33 @@ fun AiGenerationScreen(
             )
         },
         bottomBar = {
-            Button(
-                onClick = {
-                    validateCardAmount()
-                    if (!isAmountError) onGenerateClick()
-                },
-                modifier = Modifier.fillMaxWidth().padding(24.dp).height(56.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = if (isGenerateEnabled) Color.White else Color(0xFFE0E0E0), // disabled look
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
+                    .height(46.dp)
             ) {
-                Text("Generate", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                TextButton(
+                    onClick = {
+                        if (!isGenerateEnabled) return@TextButton
+
+                        validateCardAmount()
+                        if (!isAmountError) onGenerateClick()
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    enabled = isGenerateEnabled,
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = if (isGenerateEnabled) PrimaryBlue else Color(0xFF9E9E9E) // disabled text
+                    )
+                ) {
+                    Text(
+                        "Generate",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
     ) { innerPadding ->

@@ -124,7 +124,10 @@ fun SignInScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
                 isError = viewModel.isError,
-                textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    fontSize = 14.sp,
+                    color = Color.Black
+                ),
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 singleLine = true,
                 trailingIcon = {

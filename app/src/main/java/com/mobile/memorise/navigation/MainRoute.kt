@@ -106,6 +106,39 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
             return "edit_card/$deckName/$index/$encodedJson"
         }
     }
+
+    // ==============================
+// AI GENERATION ROUTES (FINAL FIX)
+// ==============================
+    object AiDraft : MainRoute(
+        route = "ai_draft/{deckName}/{cardsJson}",
+        title = "AI Draft",
+        icon = Icons.Filled.Home
+    ) {
+        fun createRoute(deckName: String, cardsJson: String): String {
+            return "ai_draft/${Uri.encode(deckName)}/${Uri.encode(cardsJson)}"
+        }
+    }
+
+    object AiCardDetail : MainRoute(
+        route = "ai_card_detail/{index}/{cardsJson}",
+        title = "AI Card Detail",
+        icon = Icons.Filled.Home
+    ) {
+        fun createRoute(index: Int, cardsJson: String): String {
+            return "ai_card_detail/$index/${Uri.encode(cardsJson)}"
+        }
+    }
+
+    object AiEditCard : MainRoute(
+        route = "ai_edit_card/{index}/{cardsJson}",
+        title = "AI Edit Card",
+        icon = Icons.Filled.Edit
+    ) {
+        fun createRoute(index: Int, cardsJson: String): String {
+            return "ai_edit_card/$index/${Uri.encode(cardsJson)}"
+        }
+    }
 }
 
 

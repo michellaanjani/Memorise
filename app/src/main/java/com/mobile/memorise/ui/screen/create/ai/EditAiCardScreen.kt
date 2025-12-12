@@ -1,9 +1,11 @@
-package com.mobile.memorise.ui.screen.createnew.card
+package com.mobile.memorise.ui.screen.create.ai
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,39 +18,45 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mobile.memorise.R
-import com.mobile.memorise.ui.screen.cards.CardItemData
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import androidx.compose.ui.draw.clip
-import kotlin.math.abs
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 
 @Composable
-fun AddCardScreen(
-    deckName: String,
+fun EditAiCardScreen(
+    card: AiDraftCard,
     onBackClick: () -> Unit,
-    onCardSaved: (CardItemData) -> Unit
+    onCardUpdated: (AiDraftCard) -> Unit
 ) {
-    var front by remember { mutableStateOf(TextFieldValue("")) }
-    var back by remember { mutableStateOf(TextFieldValue("")) }
+    val originalFront = card.frontSide
+    val originalBack = card.backSide
+
+    var front by remember { mutableStateOf(TextFieldValue(card.frontSide)) }
+    var back by remember { mutableStateOf(TextFieldValue(card.backSide)) }
+
+    val isEdited = front.text != originalFront || back.text != originalBack
+
     var showSuccessPopup by remember { mutableStateOf(false) }
 
-    val coroutine = rememberCoroutineScope()
-    val isFormValid = front.text.isNotBlank() && back.text.isNotBlank()
+    // Auto-close popup
+    LaunchedEffect(showSuccessPopup) {
+        if (showSuccessPopup) {
+            delay(1500)
+            showSuccessPopup = false
+        }
+    }
 
-
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())  // <<< SCROLL WORKS
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(top = 20.dp)
         ) {
 
-            // ---------- TOP BAR ----------
+            // TOP BAR
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -64,118 +72,88 @@ fun AddCardScreen(
                 )
 
                 Text(
-                    text = "Add Cards",
+                    text = "Edit AI Card",
                     modifier = Modifier
                         .weight(1f)
                         .padding(end = 28.dp),
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 22.sp
+                    fontSize = 18.sp
                 )
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // ---------- FORM CONTAINER ----------
+            // FORM BOX
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(Color.White)
+                    .background(Color.White, RoundedCornerShape(18.dp))
                     .padding(20.dp)
             ) {
 
-                // FRONT SIDE
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Front Side", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Text("Front Side (AI)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     Text("*", color = Color.Red, fontSize = 15.sp)
                 }
-
                 Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedTextField(
                     value = front,
                     onValueChange = { front = it },
-                    placeholder = { Text("Enter front text...") },
+                    placeholder = { Text("Enter AI front text...") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 20.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = Color(0xFFE7ECF5),
-                        focusedBorderColor = Color(0xFF3D5CFF),
-                        cursorColor = Color(0xFF3D5CFF)
-                    )
+                    shape = RoundedCornerShape(12.dp)
                 )
 
-                // BACK SIDE
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Back Side", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Text("Back Side (AI)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     Text("*", color = Color.Red, fontSize = 15.sp)
                 }
-
                 Spacer(modifier = Modifier.height(8.dp))
 
                 OutlinedTextField(
                     value = back,
                     onValueChange = { back = it },
-                    placeholder = { Text("Enter back text...") },
+                    placeholder = { Text("Enter AI back text...") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 100.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = Color(0xFFE7ECF5),
-                        focusedBorderColor = Color(0xFF3D5CFF),
-                        cursorColor = Color(0xFF3D5CFF)
-                    )
+                    shape = RoundedCornerShape(12.dp)
                 )
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // ---------- BUTTON (reduced width) ----------
+            // BUTTON
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center
             ) {
                 Button(
                     onClick = {
-                        val generatedId = abs(System.currentTimeMillis().toInt())
-                        val newCard = CardItemData(
-                            id = generatedId,
-                            front = front.text.trim(),
-                            back = back.text.trim()
+                        onCardUpdated(
+                            AiDraftCard(
+                                frontSide = front.text.trim(),
+                                backSide = back.text.trim()
+                            )
                         )
-
-                        onCardSaved(newCard)
-
-                        // Reset form
-                        front = TextFieldValue("")
-                        back = TextFieldValue("")
                         showSuccessPopup = true
-
-                        coroutine.launch {
-                            delay(1200)
-                            showSuccessPopup = false
-                        }
                     },
-                    enabled = isFormValid,
+                    enabled = isEdited,
                     modifier = Modifier
                         .widthIn(min = 160.dp)
                         .height(48.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isFormValid) Color(0xFF3D5CFF) else Color(0xFFB9C4FF),
-                        contentColor = Color.White
-                    )
+                    shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Add Card", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Update Card", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
         }
 
-        // ---------- POPUP SUCCESS ----------
+        // POPUP SUCCESS
         if (showSuccessPopup) {
             Box(
                 modifier = Modifier
@@ -190,7 +168,7 @@ fun AddCardScreen(
                         .padding(horizontal = 20.dp, vertical = 10.dp)
                 ) {
                     Text(
-                        "Card added!",
+                        "AI Card Updated!",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.Black
