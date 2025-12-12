@@ -37,11 +37,13 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
         fun createRoute(deckName: String, cardListJson: String) = "quiz/$deckName/$cardListJson"
     }
 
-    object CardDetail : MainRoute("detail_card/{cardList}/{index}", "Detail", Icons.Filled.Home) {
-        fun createRoute(encodedJson: String, index: Int): String {
-            return "detail_card/$encodedJson/$index"
+    object CardDetail : MainRoute("detail_card/{deckName}/{cardList}/{index}", "Detail", Icons.Filled.Home) {
+        fun createRoute(deckName: String, encodedJson: String, index: Int): String {
+            return "detail_card/$deckName/$encodedJson/$index"
         }
     }
+
+
 
     object AiGeneration : MainRoute(
         route = "ai_generation",
@@ -94,6 +96,16 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
         fun createRoute(deckName: String) = "add_card/$deckName"
     }
 
+    object EditCard : MainRoute(
+        route = "edit_card/{deckName}/{index}/{json}",
+        title = "Edit Card",
+        icon = Icons.Default.Edit
+    ) {
+        fun createRoute(deckName: String, index: Int, json: String): String {
+            val encodedJson = Uri.encode(json)
+            return "edit_card/$deckName/$index/$encodedJson"
+        }
+    }
 }
 
 

@@ -25,10 +25,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import com.mobile.memorise.ui.component.DeleteConfirmDialog
 import com.mobile.memorise.ui.theme.*
-import kotlinx.coroutines.launch // Tambah import ini
+import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import android.net.Uri
 
-// Warna khusus (Sama seperti sebelumnya)
+// Warna
 private val BgColor = Color(0xFFF8F9FB)
 private val LabelBgColor = Color(0xFFE3F2FD)
 private val LabelTextColor = Color(0xFF2196F3)
@@ -36,42 +41,61 @@ private val TextDark = Color(0xFF1A1C24)
 
 @Composable
 fun DetailCardScreen(
+    deckName: String,
     cards: List<CardItemData>,
     initialIndex: Int = 0,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onEditCard: (Int, String) -> Unit,
+    onDeleteCard: (Int) -> Unit // tidak dipakai lagi tapi biarkan untuk kompatibilitas
 ) {
-    // 1. Setup Pager State
-    // pageCount memberitahu pager berapa banyak kartu yang ada
+
+    // 👉 STATE LOKAL LIST KARTU (bukan pakai cards langsung)
+    val cardList = remember { mutableStateListOf<CardItemData>().apply { addAll(cards) } }
+
+    // 👉 STATE INDEX HALAMAN
+    var currentIndex by remember { mutableStateOf(initialIndex) }
+
+    // 👉 Kalau list kosong setelah delete → keluar otomatis
+    if (cardList.isEmpty()) {
+        LaunchedEffect(Unit) { onClose() }
+        return
+    }
+
     val pagerState = rememberPagerState(
-        initialPage = initialIndex,
-        pageCount = { cards.size }
+        initialPage = currentIndex,
+        pageCount = { cardList.size }
     )
 
-    // 2. Coroutine Scope untuk animasi tombol Next/Prev
     val scope = rememberCoroutineScope()
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = BgColor,
         topBar = {
             DetailTopBar(
-                // Mengambil index langsung dari pagerState
                 currentIndex = pagerState.currentPage,
-                totalCards = cards.size,
-                onClose = onClose
+                totalCards = cardList.size,
+                onClose = onClose,
+                onEditClick = { index ->
+                    val json = Json.encodeToString(cardList.toList())
+                    val encodedJson = Uri.encode(json)
+                    onEditCard(index, encodedJson)
+                },
+                onDeleteClick = {
+                    showDeleteDialog = true
+                }
             )
         },
         bottomBar = {
             DetailBottomBar(
                 currentIndex = pagerState.currentPage,
-                totalCards = cards.size,
+                totalCards = cardList.size,
                 onPrevClick = {
-                    // Animasi geser ke kiri
                     scope.launch {
                         pagerState.animateScrollToPage(pagerState.currentPage - 1)
                     }
                 },
                 onNextClick = {
-                    // Animasi geser ke kanan
                     scope.launch {
                         pagerState.animateScrollToPage(pagerState.currentPage + 1)
                     }
@@ -80,71 +104,76 @@ fun DetailCardScreen(
         }
     ) { innerPadding ->
 
-        // 3. Horizontal Pager (Area Swipe)
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(vertical = 16.dp), // Hapus padding horizontal di container utama agar swipe lebih luas
+                .padding(vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (cards.isNotEmpty()) {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.weight(1f), // Isi sisa ruang
-                    contentPadding = PaddingValues(horizontal = 24.dp), // Beri jarak antar kartu tetangga (opsional)
-                    pageSpacing = 16.dp // Jarak antar kartu
-                ) { pageIndex ->
-                    // Ambil data berdasarkan index halaman
-                    val currentCard = cards[pageIndex]
-
-                    // Render Tampilan Kartu
-                    CardContentView(currentCard = currentCard)
-                }
-            } else {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No cards available")
-                }
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(horizontal = 24.dp),
+                pageSpacing = 16.dp
+            ) { pageIndex ->
+                val currentCard = cardList[pageIndex]
+                CardContentView(currentCard)
             }
         }
     }
+
+    // 👉 DIALOG HAPUS
+    if (showDeleteDialog) {
+        DeleteConfirmDialog(
+            onCancel = { showDeleteDialog = false },
+            onDelete = {
+
+                // 🔥 HAPUS DARI STATE LOKAL, BUKAN PAKAI onDeleteCard()
+                cardList.removeAt(pagerState.currentPage)
+
+                if (cardList.isNotEmpty()) {
+                    currentIndex = pagerState.currentPage.coerceAtMost(cardList.lastIndex)
+                } else {
+                    onClose()
+                }
+
+                showDeleteDialog = false
+            }
+        )
+    }
 }
 
-// Saya pisahkan UI Kartu ke fungsi sendiri agar kode di atas lebih rapi
+
 @Composable
 fun CardContentView(currentCard: CardItemData) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = Modifier.fillMaxSize()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // --- FRONT SIDE ---
-            SideLabel(text = "Front Side")
 
-            Spacer(modifier = Modifier.height(24.dp))
+            SideLabel(text = "Front Side")
+            Spacer(Modifier.height(24.dp))
 
             Text(
                 text = currentCard.front,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextDark,
-                textAlign = TextAlign.Center,
-                lineHeight = 30.sp
+                textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(Modifier.height(32.dp))
 
-            // Divider
             HorizontalDivider(
                 thickness = 4.dp,
                 color = BgColor,
@@ -153,36 +182,31 @@ fun CardContentView(currentCard: CardItemData) {
                     .clip(RoundedCornerShape(2.dp))
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(Modifier.height(32.dp))
 
-            // --- BACK SIDE ---
             SideLabel(text = "Back Side")
-
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(Modifier.height(24.dp))
 
             Text(
                 text = currentCard.back,
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Normal,
                 color = TextDark.copy(alpha = 0.8f),
-                textAlign = TextAlign.Center,
-                lineHeight = 24.sp
+                textAlign = TextAlign.Center
             )
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
-
-// --- KOMPONEN PENDUKUNG (Tidak Berubah) ---
 
 @Composable
 fun DetailTopBar(
     currentIndex: Int,
     totalCards: Int,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onEditClick: (Int) -> Unit,
+    onDeleteClick: (Int) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -191,13 +215,9 @@ fun DetailTopBar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
+
         IconButton(onClick = onClose) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Close",
-                tint = Color.Gray,
-                modifier = Modifier.size(28.dp)
-            )
+            Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.Gray)
         }
 
         Box(
@@ -216,11 +236,7 @@ fun DetailTopBar(
 
         Box {
             IconButton(onClick = { expanded = true }) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Options",
-                    tint = Color.Gray
-                )
+                Icon(Icons.Default.MoreVert, contentDescription = "Options", tint = Color.Gray)
             }
 
             DropdownMenu(
@@ -228,30 +244,35 @@ fun DetailTopBar(
                 onDismissRequest = { expanded = false },
                 modifier = Modifier.background(Color.White)
             ) {
+
                 DropdownMenuItem(
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFFFF9800))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Edit", fontSize = 14.sp, color = TextBlack)
+                            Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFFFF9800))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Edit", color = Color.Black)
                         }
                     },
-                    onClick = { expanded = false }
+                    onClick = {
+                        expanded = false
+                        onEditClick(currentIndex)
+                    }
                 )
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    thickness = DividerDefaults.Thickness,
-                    color = Color.Gray.copy(alpha = 0.3f)
-                )
+
+                HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+
                 DropdownMenuItem(
                     text = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Delete", fontSize = 14.sp, color = TextBlack)
+                            Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Delete", color = Color.Black)
                         }
                     },
-                    onClick = { expanded = false }
+                    onClick = {
+                        expanded = false
+                        onDeleteClick(currentIndex)
+                    }
                 )
             }
         }
@@ -278,7 +299,7 @@ fun DetailBottomBar(
             onClick = onPrevClick
         )
 
-        Spacer(modifier = Modifier.width(24.dp))
+        Spacer(Modifier.width(24.dp))
 
         NavigationButton(
             icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,

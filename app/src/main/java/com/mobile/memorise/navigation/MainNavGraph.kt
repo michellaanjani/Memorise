@@ -10,6 +10,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.mobile.memorise.navigation.MainRoute.EditCard
 import com.mobile.memorise.ui.screen.deck.DeckScreen
 import com.mobile.memorise.ui.screen.home.HomeScreen
 import com.mobile.memorise.ui.screen.profile.UpdatePasswordScreen
@@ -25,6 +26,7 @@ import com.mobile.memorise.ui.screen.create.ai.AiGenerationScreen
 import com.mobile.memorise.ui.screen.create.ai.CameraCaptureScreen
 import com.mobile.memorise.ui.screen.createnew.folder.CreateFolderScreen
 import com.mobile.memorise.ui.screen.createnew.card.AddCardScreen
+import com.mobile.memorise.ui.screen.createnew.card.EditCardScreen
 import com.mobile.memorise.ui.screen.createnew.folder.EditFolderScreen
 import com.mobile.memorise.ui.screen.createnew.folder.FolderViewModel
 import com.mobile.memorise.ui.screen.createnew.deck.EditDeckScreen
@@ -149,8 +151,14 @@ fun NavGraph(
                     navController.navigate(MainRoute.AddCard.createRoute(deckName))
 
                 },
+//                onCardClick = { encodedJson, index ->
+//                    navController.navigate(MainRoute.CardDetail.createRoute(encodedJson, index))
+//                },
                 onCardClick = { encodedJson, index ->
-                    navController.navigate(MainRoute.CardDetail.createRoute(encodedJson, index))
+                    navController.navigate(MainRoute.CardDetail.createRoute(deckName, encodedJson, index))
+                },
+                        onEditCardClick = { encodedJson, index ->
+                    navController.navigate(EditCard.createRoute(deckName, index, encodedJson))
                 }
             )
         }
@@ -158,25 +166,41 @@ fun NavGraph(
         // ============================================================
         // 7. Card Detail
         // ============================================================
+        // ===================== 7. Card Detail =====================
         composable(
             route = MainRoute.CardDetail.route,
             arguments = listOf(
+                navArgument("deckName") { type = NavType.StringType },
                 navArgument("cardList") { type = NavType.StringType },
                 navArgument("index") { type = NavType.IntType }
             )
         ) { backStackEntry ->
+
+            val deckName = backStackEntry.arguments?.getString("deckName") ?: "Unknown"
             val jsonString = backStackEntry.arguments?.getString("cardList") ?: "[]"
             val index = backStackEntry.arguments?.getInt("index") ?: 0
 
-            val cardList = try { Json.decodeFromString<List<CardItemData>>(jsonString) }
-            catch (e: Exception) { emptyList() }
+            val cards = try {
+                Json.decodeFromString<List<CardItemData>>(Uri.decode(jsonString))
+            } catch (e: Exception) {
+                emptyList()
+            }
 
             DetailCardScreen(
-                cards = cardList,
+                deckName = deckName,
+                cards = cards,
                 initialIndex = index,
-                onClose = { navController.popBackStack() }
+                onClose = { navController.popBackStack() },
+                onEditCard = { idx, encodedJson ->
+                    val encoded = Uri.encode(encodedJson)
+                    navController.navigate("edit_card/$deckName/$idx/$encoded")
+                },
+                onDeleteCard = { idx -> /* ... */ }
             )
+
         }
+
+
 
         // ============================================================
         // 8. Study
@@ -317,8 +341,33 @@ fun NavGraph(
             )
         }
 
+        composable(
+            route = "edit_card/{deckName}/{index}/{json}",
+            arguments = listOf(
+                navArgument("deckName") { type = NavType.StringType },
+                navArgument("index") { type = NavType.IntType },
+                navArgument("json") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+
+            val deckName = backStackEntry.arguments?.getString("deckName") ?: ""
+            val index = backStackEntry.arguments?.getInt("index") ?: 0
+            val raw = backStackEntry.arguments?.getString("json") ?: ""
+            val decoded = Uri.decode(raw)
+            val cards: List<CardItemData> = Json.decodeFromString(decoded)
 
 
+            // card yg mau diedit
+            val card = cards[index]
 
+            EditCardScreen(
+                deckName = deckName,
+                card = card,
+                onBackClick = { navController.popBackStack() },
+                onCardUpdated = { updatedCard ->
+                    navController.popBackStack()
+                }
+            )
+        }
     }
 }

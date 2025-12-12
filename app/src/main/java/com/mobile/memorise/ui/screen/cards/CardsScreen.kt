@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.mobile.memorise.ui.component.DeleteConfirmDialog
 import com.mobile.memorise.R
 import com.mobile.memorise.ui.theme.BrightBlue
 import com.mobile.memorise.ui.theme.TextBlack
@@ -71,7 +72,10 @@ fun CardsScreen(
     onStudyClick: (String) -> Unit,
     onQuizClick: (String) -> Unit,
     onAddCardClick: () -> Unit = {},
-            onCardClick: (String, Int) -> Unit // <--- TAMBAHAN BARU (Kirim JSON list & Index)
+    onCardClick: (String, Int) -> Unit, // <--- TAMBAHAN BARU (Kirim JSON list & Index)
+    onEditCardClick: (String, Int) -> Unit
+
+
 ) {
     val context = LocalContext.current
     var cardData by remember { mutableStateOf(CardListResponse()) }
@@ -79,6 +83,9 @@ fun CardsScreen(
     // State untuk Popup
     var showQuizAlert by remember { mutableStateOf(false) }
     var showStudyAlert by remember { mutableStateOf(false) } // Popup baru untuk Study
+
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var selectedIndex by remember { mutableStateOf(-1) }
 
     // Load JSON
     LaunchedEffect(Unit) {
@@ -236,18 +243,29 @@ fun CardsScreen(
                         color = TextDark
                     )
                 }
-
                 itemsIndexed(cardData.cards) { index, card ->
                     CardItemView(
                         card = card,
                         onClick = {
-                            // Saat item diklik, kita kirim List Kartu (sebagai JSON) dan Indexnya
                             val jsonList = Json.encodeToString(cardData.cards)
-                            val encodedJson = Uri.encode(jsonList) // Encode agar aman di URL
+                            val encodedJson = Uri.encode(jsonList)
                             onCardClick(encodedJson, index)
+                        },
+                        onEditClick = {
+                            val jsonList = Json.encodeToString(cardData.cards)
+                            val encodedJson = Uri.encode(jsonList)
+
+                            // Navigate ke EditCardScreen
+                                onEditCardClick(encodedJson, index)   // ← ini yang benar
+                        },
+                        onDeleteClick = {
+                            selectedIndex = index   // simpan index kartu
+                            showDeleteDialog = true // buka dialog
                         }
                     )
                 }
+
+
             } else {
                 // B. Jika KOSONG: Tampilkan Empty State UI (Sesuai Request)
                 item {
@@ -309,14 +327,31 @@ fun CardsScreen(
             )
         }
     }
+    if (showDeleteDialog) {
+        DeleteConfirmDialog(
+            onCancel = { showDeleteDialog = false },
+            onDelete = {
+                // Hapus kartu dari list
+                cardData = cardData.copy(
+                    cards = cardData.cards.toMutableList().apply { removeAt(selectedIndex) }
+                )
+
+                showDeleteDialog = false
+            }
+        )
+    }
+
 }
 
 @Composable
 fun CardItemView(
     card: CardItemData,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -336,21 +371,18 @@ fun CardItemView(
                     text = card.front,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = TextDark,
-                    lineHeight = 22.sp
+                    color = TextDark
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = card.back,
                     fontSize = 14.sp,
                     color = TextGray,
-                    lineHeight = 20.sp,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            // 5. Menu Titik Tiga (Edit & Delete)
+
             Box {
                 IconButton(onClick = { expanded = true }) {
                     Icon(
@@ -362,33 +394,36 @@ fun CardItemView(
 
                 DropdownMenu(
                     expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                    modifier = Modifier.background(Color.White)
+                    onDismissRequest = { expanded = false }
                 ) {
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFFFF9800))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Edit", fontSize = 14.sp, color = TextBlack)
+                                Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFFFF9800))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Edit", color = TextBlack)
                             }
                         },
-                        onClick = { expanded = false }
+                        onClick = {
+                            expanded = false
+                            onEditClick()
+                        }
                     )
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        thickness = DividerDefaults.Thickness,
-                        color = Color.Gray.copy(alpha = 0.3f)
-                    )
+
+                    HorizontalDivider(color = Color.Gray.copy(alpha = 0.2f))
+
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Delete", fontSize = 14.sp, color = TextBlack)
+                                Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Delete", color = TextBlack)
                             }
                         },
-                        onClick = { expanded = false }
+                        onClick = {
+                            expanded = false
+                            onDeleteClick()
+                        }
                     )
                 }
             }
