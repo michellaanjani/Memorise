@@ -35,4 +35,7 @@ interface FolderApi {
     ): Response<FolderResponse>
     @DELETE("folders/{id}")
     suspend fun deleteFolder(@Path("id") id: String): Response<Unit>
+
+    @GET("folders")
+    suspend fun getFolders(): Response<com.mobile.memorise.domain.model.FolderListResponse>
 }

@@ -18,20 +18,32 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.mobile.memorise.R
 import androidx.compose.foundation.clickable
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.mobile.memorise.ui.viewmodel.DeckRemoteViewModel
+import com.mobile.memorise.util.Resource
 
 @Composable
 fun CreateDeckScreen(
     navController: NavHostController,
-    deckViewModel: DeckViewModel,
-    onBackClick: () -> Unit
+    folderId: String? = null,
+    onBackClick: () -> Unit,
+    deckRemoteViewModel: DeckRemoteViewModel = hiltViewModel()
 ) {
 
     var deckName by remember { mutableStateOf("") }
     var deckError by remember { mutableStateOf<String?>(null) }
+    val mutationState by deckRemoteViewModel.deckMutationState.collectAsState()
+
+    LaunchedEffect(mutationState) {
+        if (mutationState is Resource.Success) {
+            navController.popBackStack()
+        }
+    }
 
     val isFormValid =
         deckName.isNotBlank() &&
-                deckError == null
+                deckError == null &&
+                mutationState !is Resource.Loading
 
     Column(
         modifier = Modifier
@@ -110,16 +122,7 @@ fun CreateDeckScreen(
                 value = deckName,
                 onValueChange = {
                     deckName = it
-                    val trimmed = it.trim()
-
-                    deckError =
-                        if (trimmed.isNotEmpty() &&
-                            deckViewModel.deckList.any {
-                                    d -> d.name.equals(trimmed, ignoreCase = true)
-                            }
-                        ) {
-                            "Deck name already exists!"
-                        } else null
+                    deckError = null
                 },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
@@ -149,8 +152,11 @@ fun CreateDeckScreen(
         // BUTTON — sama persis, hanya ganti text
         Button(
             onClick = {
-                deckViewModel.addDeck(deckName.trim())
-                navController.popBackStack()
+                deckRemoteViewModel.createDeck(
+                    name = deckName.trim(),
+                    description = null,
+                    folderId = folderId
+                )
             },
             enabled = isFormValid,
             modifier = Modifier

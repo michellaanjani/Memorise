@@ -118,20 +118,25 @@ fun FolderIconWithColor(
 @OptIn(ExperimentalMaterial3Api::class) // Wajib untuk PullToRefresh
 @Composable
 fun HomeScreen(
-    onFolderClick: (String) -> Unit,
-    onDeckClick: (String) -> Unit,
+    onFolderClick: (String, String) -> Unit,
+    onDeckClick: (String, String) -> Unit,
     onEditFolder: (String, String, String) -> Unit,
-    onEditDeck: (String) -> Unit,
+    onEditDeck: (String, String) -> Unit,
     folderViewModel: FolderViewModel,
     deckViewModel: DeckViewModel,
+    deckRemoteViewModel: com.mobile.memorise.ui.viewmodel.DeckRemoteViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
     homeViewModel: HomeViewModel = hiltViewModel()
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deleteId  by remember { mutableStateOf("") }
     var deleteType by remember { mutableStateOf("") }
+    var showMoveDialog by remember { mutableStateOf(false) }
+    var selectedMoveDeckId by remember { mutableStateOf("") }
+    var selectedTargetFolderId by remember { mutableStateOf<String?>(null) }
 
     // State dari API
     val homeState by homeViewModel.homeState.collectAsState()
+    val deckMutationState by deckRemoteViewModel.deckMutationState.collectAsState()
 
     var homeData by remember { mutableStateOf(HomeData()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -154,6 +159,18 @@ fun HomeScreen(
                 isLoading = false
                 errorMessage = result.message
             }
+            is Resource.Idle -> {
+                isLoading = false
+            }
+        }
+    }
+
+    LaunchedEffect(deckMutationState) {
+        if (showMoveDialog && deckMutationState is Resource.Success) {
+            showMoveDialog = false
+            selectedMoveDeckId = ""
+            selectedTargetFolderId = null
+            homeViewModel.getHomeData()
         }
     }
 
@@ -176,7 +193,10 @@ fun HomeScreen(
             contentPadding = PaddingValues(bottom = 100.dp)
         ) {
 
-            item { HeaderSection() }
+            item { 
+                val firstName by homeViewModel.firstName.collectAsState()
+                HeaderSection(firstName = firstName)
+            }
 
             // LOGIKA LOADING:
             // Tampilkan spinner tengah HANYA jika data kosong (load pertama).
@@ -237,7 +257,7 @@ fun HomeScreen(
                                 FolderItemView(
                                     data = folder,
                                     bgColor = bgColor,
-                                    onClick = { onFolderClick(folder.name) },
+                                    onClick = { onFolderClick(folder.id, folder.name) },
                                     onMoveClicked = { /*TODO*/ },
                                     onEditClick = { oldName, color ->
                                         val encodedName = Uri.encode(oldName)
@@ -272,10 +292,15 @@ fun HomeScreen(
                             Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
                                 DeckItemView(
                                     data = deck,
-                                    onClick = { onDeckClick(deck.deckName) },
-                                    onMoveClicked = { /*TODO*/ },
+                                    onClick = { onDeckClick(deck.id, deck.deckName) },
+                                    onMoveClicked = {
+                                        selectedMoveDeckId = deck.id
+                                        // preselect first folder if exists
+                                        selectedTargetFolderId = homeData.folders.firstOrNull()?.id
+                                        showMoveDialog = true
+                                    },
                                     onEditDeck = { deckName ->
-                                        onEditDeck(Uri.encode(deckName))
+                                        onEditDeck(deck.id, Uri.encode(deckName))
                                     },
                                     onDeleteDeck = {
                                         deleteType = "deck"
@@ -299,13 +324,58 @@ fun HomeScreen(
                 showDeleteDialog = false
                 when (deleteType) {
                     "folder" -> folderViewModel.deleteFolder(deleteId)
-                    "deck" -> deckViewModel.deleteDeck(deleteId)
+                    "deck" -> deckRemoteViewModel.deleteDeck(deleteId)
                 }
                 // Refresh data setelah hapus
                 homeViewModel.getHomeData()
 
                 deleteId = ""
                 deleteType = ""
+            }
+        )
+    }
+
+    if (showMoveDialog) {
+        AlertDialog(
+            onDismissRequest = { showMoveDialog = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        deckRemoteViewModel.moveDeck(
+                            id = selectedMoveDeckId,
+                            folderId = selectedTargetFolderId
+                        )
+                    },
+                    enabled = selectedTargetFolderId != null && deckMutationState !is Resource.Loading
+                ) { Text("Move") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMoveDialog = false }) { Text("Cancel") }
+            },
+            title = { Text("Move to folder") },
+            text = {
+                if (homeData.folders.isEmpty()) {
+                    Text("No folders available.")
+                } else {
+                    Column {
+                        homeData.folders.forEach { folder ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { selectedTargetFolderId = folder.id }
+                                    .padding(vertical = 6.dp)
+                            ) {
+                                RadioButton(
+                                    selected = selectedTargetFolderId == folder.id,
+                                    onClick = { selectedTargetFolderId = folder.id }
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(folder.name)
+                            }
+                        }
+                    }
+                }
             }
         )
     }
@@ -433,7 +503,7 @@ fun EmptyView() {
 }
 
 @Composable
-fun HeaderSection() {
+fun HeaderSection(firstName: String? = null) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -443,7 +513,7 @@ fun HeaderSection() {
     ) {
 
         Text(
-            text = "Hi, Reynard",
+            text = "Hi, ${firstName ?: "User"}",
             color = White,
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold

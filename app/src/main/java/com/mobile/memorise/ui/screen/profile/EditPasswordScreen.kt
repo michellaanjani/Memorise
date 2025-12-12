@@ -18,18 +18,19 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobile.memorise.R
+import com.mobile.memorise.util.Resource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.text.isNotBlank
 
 @Composable
 fun UpdatePasswordScreen(
-    navController: NavHostController
+    navController: NavHostController,
+    viewModel: ProfileViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
     val scope = rememberCoroutineScope()
-
-    val backendPassword = "passwordBE"
 
     // Text state
     var currentPassword by remember { mutableStateOf("") }
@@ -41,11 +42,34 @@ fun UpdatePasswordScreen(
 
     // Error state for current password from BE
     var wrongPasswordError by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // Popup success
     var showSuccessPopup by remember { mutableStateOf(false) }
 
+    val changePasswordState by viewModel.changePasswordState.collectAsState()
+
     val isFormFilled = currentPassword.isNotBlank() && newPassword.isNotBlank()
+
+    // Handle change password result
+    LaunchedEffect(changePasswordState) {
+        when (val state = changePasswordState) {
+            is Resource.Success -> {
+                showSuccessPopup = true
+                currentPassword = ""
+                newPassword = ""
+                wrongPasswordError = false
+                errorMessage = null
+                delay(5000)
+                showSuccessPopup = false
+            }
+            is Resource.Error -> {
+                wrongPasswordError = true
+                errorMessage = state.message
+            }
+            else -> {}
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -95,6 +119,7 @@ fun UpdatePasswordScreen(
             onValueChange = {
                 currentPassword = it
                 wrongPasswordError = false
+                errorMessage = null
             },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(10.dp),
@@ -113,7 +138,7 @@ fun UpdatePasswordScreen(
 
         if (wrongPasswordError) {
             Text(
-                text = "The password you entered is invalid!",
+                text = errorMessage ?: "The password you entered is invalid!",
                 color = Color(0xFFFF6A00),
                 fontSize = 11.sp,
                 modifier = Modifier.padding(top = 2.dp)
@@ -161,27 +186,7 @@ fun UpdatePasswordScreen(
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Button(
                 onClick = {
-                    scope.launch {
-
-                        // SIMULASI BACKEND VALIDATION
-                        if (currentPassword != backendPassword) {
-                            wrongPasswordError = true
-                            return@launch
-                        }
-
-                        // SUCCESS POPUP
-                        showSuccessPopup = true
-
-                        // RESET FORM LANGSUNG
-                        currentPassword = ""
-                        newPassword = ""
-                        wrongPasswordError = false
-
-                        // Tahan popup 5 detik
-                        delay(5000)
-
-                        showSuccessPopup = false
-                    }
+                    viewModel.changePassword(currentPassword, newPassword)
                 },
                 enabled = isFormFilled && newPassword.length >= 8,
                 shape = RoundedCornerShape(50),

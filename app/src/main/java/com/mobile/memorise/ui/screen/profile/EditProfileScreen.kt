@@ -25,16 +25,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.mobile.memorise.R
 import com.mobile.memorise.navigation.MainRoute
+import com.mobile.memorise.util.Resource
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.BorderStroke
 
 @Composable
 fun EditProfileScreen(
     navController: NavHostController,
-    viewModel: ProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    viewModel: ProfileViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
     var showSuccessPopup by remember { mutableStateOf(false) }
 
@@ -46,16 +48,34 @@ fun EditProfileScreen(
     }
 
     val userState by viewModel.userProfile.collectAsState()
+    val updateState by viewModel.updateState.collectAsState()
 
-    var firstName by remember { mutableStateOf(userState.firstName) }
-    var lastName by remember { mutableStateOf(userState.lastName) }
-    var email by remember { mutableStateOf(userState.email) }
-    var avatarUri by remember { mutableStateOf(userState.avatarUri?.let { Uri.parse(it) }) }
+    // Load profile when screen is displayed
+    LaunchedEffect(Unit) {
+        viewModel.loadUserProfile()
+    }
+
+    // Update local state when userState changes
+    var firstName by remember(userState.firstName) { mutableStateOf(userState.firstName) }
+    var lastName by remember(userState.lastName) { mutableStateOf(userState.lastName) }
+    var email by remember(userState.email) { mutableStateOf(userState.email) }
+    var avatarUri by remember(userState.avatarUri) { mutableStateOf(userState.avatarUri?.let { Uri.parse(it) }) }
+
+    // Show success popup when update is successful
+    LaunchedEffect(updateState) {
+        if (updateState is com.mobile.memorise.util.Resource.Success) {
+            showSuccessPopup = true
+            viewModel.loadUserProfile() // Reload to get updated data
+        }
+    }
 
     val pickImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        avatarUri = uri
+        if (uri != null) {
+            // Hanya ubah state lokal; penyimpanan dilakukan saat klik Update
+            avatarUri = uri
+        }
     }
 
     Box(
@@ -199,7 +219,8 @@ fun EditProfileScreen(
 
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { email = it },
+                    onValueChange = { }, // Disabled - tidak bisa diedit
+                    enabled = false, // Lock email field
                     placeholder = { Text("Email") },
                     leadingIcon = {
                         Image(
@@ -214,7 +235,10 @@ fun EditProfileScreen(
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedBorderColor = Color(0xFFE7ECF5),
-                        focusedBorderColor = Color(0xFF0961F5),
+                        focusedBorderColor = Color(0xFFE7ECF5),
+                        disabledBorderColor = Color(0xFFE7ECF5),
+                        disabledTextColor = Color(0xFF9E9E9E),
+                        disabledPlaceholderColor = Color(0xFF9E9E9E),
                         cursorColor = Color(0xFF0961F5)
                     )
                 )
@@ -223,11 +247,11 @@ fun EditProfileScreen(
             Spacer(modifier = Modifier.height(18.dp))
 
             /** UPDATE BUTTON */
-            val isFormFilled = firstName.isNotBlank() && lastName.isNotBlank() && email.isNotBlank()
+            val isFormFilled = firstName.isNotBlank() && lastName.isNotBlank()
+            // Only check firstName, lastName, and avatar changes (not email since it's disabled)
             val isChanged =
                 firstName != userState.firstName ||
                         lastName != userState.lastName ||
-                        email != userState.email ||
                         avatarUri?.toString() != userState.avatarUri
 
             Box(
@@ -238,18 +262,17 @@ fun EditProfileScreen(
                     onClick = {
                         if (isChanged) {
                             viewModel.updateProfile(
-                                firstName, lastName, email, avatarUri?.toString()
+                                firstName, lastName, avatarUri?.toString()
                             )
-                            showSuccessPopup = true
                         }
                     },
-                    enabled = isFormFilled,
+                    enabled = isFormFilled && isChanged,
                     modifier = Modifier
                         .height(46.dp)
                         .widthIn(min = 150.dp),
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF0961F5),
+                        containerColor = if (isFormFilled && isChanged) Color(0xFF0961F5) else Color(0xFFBFD4FF),
                         disabledContainerColor = Color(0xFFBFD4FF)
                     )
                 ) {

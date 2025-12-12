@@ -47,9 +47,29 @@ private val GreenText = Color(0xFF4CAF50)
 fun StudyScreen(
     deckName: String,
     cardList: List<CardItemData>,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    deckId: String? = null,
+    deckRemoteViewModel: com.mobile.memorise.ui.viewmodel.DeckRemoteViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
-    val pagerState = rememberPagerState(pageCount = { cardList.size })
+    val cardsState by deckRemoteViewModel.cardsState.collectAsState()
+    val loadedCards = when (val res = cardsState) {
+        is com.mobile.memorise.util.Resource.Success -> res.data?.map { CardItemData(id = it.id, front = it.front, back = it.back) } ?: emptyList()
+        else -> emptyList()
+    }
+    val displayCards = if (loadedCards.isNotEmpty()) loadedCards else cardList
+
+    LaunchedEffect(deckId) {
+        if (deckId != null) {
+            deckRemoteViewModel.loadCards(deckId)
+        }
+    }
+
+    if (deckId != null && cardsState is com.mobile.memorise.util.Resource.Loading && displayCards.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        return
+    }
+
+    val pagerState = rememberPagerState(pageCount = { displayCards.size })
     val scope = rememberCoroutineScope() // Untuk animasi scroll button
 
     Scaffold(
@@ -106,7 +126,7 @@ fun StudyScreen(
                     .fillMaxWidth()
                     .weight(1f) // Mengambil space terbesar
             ) { page ->
-                val cardData = cardList[page]
+                val cardData = displayCards[page]
                 FlipCardItem(card = cardData)
             }
 
@@ -146,7 +166,7 @@ fun StudyScreen(
                             pagerState.animateScrollToPage(pagerState.currentPage + 1)
                         }
                     },
-                    enabled = pagerState.currentPage < cardList.size - 1, // Disable jika di akhir
+                        enabled = pagerState.currentPage < displayCards.size - 1, // Disable jika di akhir
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = BlueText, // Warna biru biar menonjol
                         disabledContainerColor = Color.LightGray

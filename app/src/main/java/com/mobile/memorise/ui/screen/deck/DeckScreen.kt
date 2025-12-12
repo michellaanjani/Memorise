@@ -6,7 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape // Tambah import ini
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,12 +35,12 @@ import com.mobile.memorise.navigation.MainRoute
 import com.mobile.memorise.ui.screen.main.CreateOptionItem
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import com.mobile.memorise.ui.theme.*
 
 // Model Data Deck (Sesuai JSON)
 @Serializable
 data class DeckItemData(
+    @SerialName("id") val id: String,
     @SerialName("deck_name") val deckName: String,
     @SerialName("card_count") val cardCount: Int
 )
@@ -48,26 +48,51 @@ data class DeckItemData(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeckScreen(
+    folderId: String,
     folderName: String,
     onBackClick: () -> Unit,
-    onDeckClick: (String) -> Unit = {},
-    onNavigate: (String) -> Unit = {}
+    onDeckClick: (String, String) -> Unit = { _, _ -> },
+    onNavigate: (String) -> Unit = {},
+    deckRemoteViewModel: com.mobile.memorise.ui.viewmodel.DeckRemoteViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
     val context = LocalContext.current
+    val deckState by deckRemoteViewModel.deckListState.collectAsState()
     var deckList by remember { mutableStateOf(listOf<DeckItemData>()) }
     // --- TAMBAHAN 1: State untuk Bottom Sheet ---
     val sheetState = rememberModalBottomSheetState()
     var showBottomSheet by remember { mutableStateOf(false) }
+    var showMoveDialog by remember { mutableStateOf(false) }
+    var selectedMoveDeck by remember { mutableStateOf<DeckItemData?>(null) }
+    var selectedTargetFolderId by remember { mutableStateOf<String?>(null) }
+    val foldersState by deckRemoteViewModel.foldersState.collectAsState()
+    val deckMutationState by deckRemoteViewModel.deckMutationState.collectAsState()
 
-    // Load JSON
-    LaunchedEffect(Unit) {
-        try {
-            val jsonString = context.assets.open("deckname.json").bufferedReader().use { it.readText() }
-            deckList = Json.decodeFromString(jsonString)
-        } catch (e: Exception) {
-            e.printStackTrace()
+    LaunchedEffect(folderId) {
+        deckRemoteViewModel.loadDecks(folderId = folderId)
+        deckRemoteViewModel.loadFolders()
+    }
+
+    LaunchedEffect(deckState) {
+        if (deckState is com.mobile.memorise.util.Resource.Success) {
+            deckList = deckState.data?.map {
+                DeckItemData(
+                    id = it.id,
+                    deckName = it.name,
+                    cardCount = it.cardsCount ?: 0
+                )
+            } ?: emptyList()
         }
     }
+
+    LaunchedEffect(deckMutationState) {
+        if (showMoveDialog && deckMutationState is com.mobile.memorise.util.Resource.Success) {
+            showMoveDialog = false
+            selectedMoveDeck = null
+            selectedTargetFolderId = null
+            deckRemoteViewModel.loadDecks(folderId = folderId)
+        }
+    }
+
 // --- TAMBAHAN DELETE DIALOG STATE ---
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deckToDelete by remember { mutableStateOf<DeckItemData?>(null) }
@@ -174,9 +199,16 @@ fun DeckScreen(
                     items(deckList) { deck ->
                         DeckItemView(
                             data = deck,
-                            onClick = { onDeckClick(deck.deckName) },
+                            onClick = { onDeckClick(deck.id, deck.deckName) },
                             onEditClicked = {
-                                onNavigate(MainRoute.EditDeck.createRoute(deck.deckName))
+                                onNavigate(MainRoute.EditDeck.createRoute(deck.id, deck.deckName))
+                            },
+                            onMoveClicked = {
+                                selectedMoveDeck = deck
+                                val folderOptions = (foldersState as? com.mobile.memorise.util.Resource.Success)?.data.orEmpty()
+                                    .filter { it.id != folderId }
+                                selectedTargetFolderId = folderOptions.firstOrNull()?.id
+                                showMoveDialog = true
                             },
                             // --- TAMBAHAN: handler untuk delete ---
                             onDeleteClicked = {
@@ -203,7 +235,10 @@ fun DeckScreen(
                         // Tutup sheet dulu
                         showBottomSheet = false
                         // Lalu navigasi
-                        onNavigate(route)
+                        val finalRoute = if (route.startsWith(MainRoute.CreateDeck.route.substringBefore("?"))) {
+                            "create_deck?folderId=$folderId&folderName=$folderName"
+                        } else route
+                        onNavigate(finalRoute)
                     }
                 )
             }
@@ -216,9 +251,71 @@ fun DeckScreen(
                     deckToDelete = null
                 },
                 onDelete = {
+                    deckRemoteViewModel.deleteDeck(deckToDelete!!.id, folderId)
                     deckList = deckList.filter { it.deckName != deckToDelete!!.deckName }
                     showDeleteDialog = false
                     deckToDelete = null
+                }
+            )
+        }
+
+        if (showMoveDialog) {
+            val folders = (foldersState as? com.mobile.memorise.util.Resource.Success)?.data.orEmpty()
+                .filter { it.id != folderId }
+            AlertDialog(
+                onDismissRequest = { showMoveDialog = false },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            deckRemoteViewModel.moveDeck(
+                                id = selectedMoveDeck?.id ?: return@TextButton,
+                                folderId = selectedTargetFolderId
+                            )
+                        },
+                        enabled = deckMutationState !is com.mobile.memorise.util.Resource.Loading
+                    ) { Text("Move") }
+                },
+                dismissButton = { TextButton(onClick = { showMoveDialog = false }) { Text("Cancel") } },
+                title = { Text("Move deck") },
+                text = {
+                    Column {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedTargetFolderId = null
+                                }
+                                .padding(vertical = 6.dp)
+                        ) {
+                            RadioButton(
+                                selected = selectedTargetFolderId == null,
+                                onClick = { selectedTargetFolderId = null }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Unassigned")
+                        }
+                        if (folders.isEmpty()) {
+                            Text("No other folders available.")
+                        } else {
+                            folders.forEach { folder ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { selectedTargetFolderId = folder.id }
+                                        .padding(vertical = 6.dp)
+                                ) {
+                                    RadioButton(
+                                        selected = selectedTargetFolderId == folder.id,
+                                        onClick = { selectedTargetFolderId = folder.id }
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(folder.name)
+                                }
+                            }
+                        }
+                    }
                 }
             )
         }

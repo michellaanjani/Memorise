@@ -18,13 +18,17 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
 import com.mobile.memorise.R
 import com.mobile.memorise.ui.screen.cards.CardItemData
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.mobile.memorise.ui.viewmodel.DeckRemoteViewModel
+import com.mobile.memorise.util.Resource
 
 @Composable
 fun EditCardScreen(
+    deckId: String,
     deckName: String,
     card: CardItemData,
     onBackClick: () -> Unit,
-    onCardUpdated: (CardItemData) -> Unit
+    deckRemoteViewModel: DeckRemoteViewModel = hiltViewModel()
 ) {
     // ORIGINAL VALUES
     val originalFront = card.front
@@ -35,7 +39,14 @@ fun EditCardScreen(
     var back by remember { mutableStateOf(TextFieldValue(card.back)) }
 
     // BUTTON ENABLED CONDITION
-    val isEdited = front.text != originalFront || back.text != originalBack
+    val mutationState by deckRemoteViewModel.cardMutationState.collectAsState()
+    val isEdited = (front.text != originalFront || back.text != originalBack) && mutationState !is Resource.Loading
+
+    LaunchedEffect(mutationState) {
+        if (mutationState is Resource.Success) {
+            onBackClick()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -135,11 +146,12 @@ fun EditCardScreen(
         ) {
             Button(
                 onClick = {
-                    val updatedCard = card.copy(
+                    deckRemoteViewModel.updateCard(
+                        id = card.id,
+                        deckId = deckId,
                         front = front.text.trim(),
                         back = back.text.trim()
                     )
-                    onCardUpdated(updatedCard)
                 },
                 enabled = isEdited,
                 modifier = Modifier

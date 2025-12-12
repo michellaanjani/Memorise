@@ -41,6 +41,7 @@ private val TextDark = Color(0xFF1A1C24)
 
 @Composable
 fun DetailCardScreen(
+    deckId: String,
     deckName: String,
     cards: List<CardItemData>,
     initialIndex: Int = 0,
@@ -128,6 +129,7 @@ fun DetailCardScreen(
         DeleteConfirmDialog(
             onCancel = { showDeleteDialog = false },
             onDelete = {
+                onDeleteCard(pagerState.currentPage)
 
                 // 🔥 HAPUS DARI STATE LOKAL, BUKAN PAKAI onDeleteCard()
                 cardList.removeAt(pagerState.currentPage)

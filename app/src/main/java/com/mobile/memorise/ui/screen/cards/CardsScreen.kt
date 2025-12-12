@@ -27,11 +27,12 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog as Dialog
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import com.mobile.memorise.ui.component.DeleteConfirmDialog
 import com.mobile.memorise.R
 import com.mobile.memorise.ui.theme.BrightBlue
@@ -44,16 +45,11 @@ import kotlinx.serialization.json.Json
 
 // --- 1. DATA MODELS ---
 @Serializable
-data class CardListResponse(
-    @SerialName("card_count") val count: Int = 0,
-    @SerialName("cards") val cards: List<CardItemData> = emptyList()
-)
-
-@Serializable
 data class CardItemData(
-    val id: Int,
+    val id: String,
     val front: String,
-    val back: String
+    val back: String,
+    val explanation: String? = null
 )
 
 // --- 2. COLORS ---
@@ -67,18 +63,20 @@ private val TextGray = Color(0xFF757575)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardsScreen(
+    deckId: String,
     deckName: String,
     onBackClick: () -> Unit,
-    onStudyClick: (String) -> Unit,
-    onQuizClick: (String) -> Unit,
+    onStudyClick: () -> Unit,
+    onQuizClick: () -> Unit,
     onAddCardClick: () -> Unit = {},
     onCardClick: (String, Int) -> Unit, // <--- TAMBAHAN BARU (Kirim JSON list & Index)
-    onEditCardClick: (String, Int) -> Unit
+    onEditCardClick: (String, Int) -> Unit,
+    deckRemoteViewModel: com.mobile.memorise.ui.viewmodel.DeckRemoteViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 
 
 ) {
     val context = LocalContext.current
-    var cardData by remember { mutableStateOf(CardListResponse()) }
+    val cardsState by deckRemoteViewModel.cardsState.collectAsState()
 
     // State untuk Popup
     var showQuizAlert by remember { mutableStateOf(false) }
@@ -87,14 +85,15 @@ fun CardsScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var selectedIndex by remember { mutableStateOf(-1) }
 
-    // Load JSON
-    LaunchedEffect(Unit) {
-        try {
-            val jsonString = context.assets.open("cards.json").bufferedReader().use { it.readText() }
-            cardData = Json.decodeFromString(jsonString)
-        } catch (e: Exception) {
-            e.printStackTrace()
+    LaunchedEffect(deckId) {
+        deckRemoteViewModel.loadCards(deckId)
+    }
+
+    val cardList: List<CardItemData> = when (val result = cardsState) {
+        is com.mobile.memorise.util.Resource.Success -> {
+            result.data?.map { CardItemData(id = it.id, front = it.front, back = it.back, explanation = it.notes) } ?: emptyList()
         }
+        else -> emptyList()
     }
 
     Scaffold(
@@ -170,7 +169,7 @@ fun CardsScreen(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "${cardData.cards.size}", // Menggunakan size real
+                            text = "${deckRemoteViewModel.cardsState.value.data?.size ?: 0}", // Using cards state
                             fontSize = 64.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -194,12 +193,10 @@ fun CardsScreen(
                     Button(
                         onClick = {
                             // VALIDASI: Minimal 1 Kartu
-                            if (cardData.cards.isEmpty()) {
+                            if (cardList.isEmpty()) {
                                 showStudyAlert = true
                             } else {
-                                val jsonList = Json.encodeToString(cardData.cards)
-                                val encodedJson = Uri.encode(jsonList)
-                                onStudyClick(encodedJson)
+                                onStudyClick()
                             }
                         },
                         modifier = Modifier.weight(1f).height(50.dp),
@@ -212,13 +209,10 @@ fun CardsScreen(
                     // Tombol Quiz (Biru)
                     Button(
                         onClick = {
-                            // VALIDASI: Minimal 3 Kartu
-                            if (cardData.cards.size < 3) {
+                            if (cardList.size < 3) {
                                 showQuizAlert = true
                             } else {
-                                val jsonList = Json.encodeToString(cardData.cards)
-                                val encodedJson = Uri.encode(jsonList)
-                                onQuizClick(encodedJson)
+                                onQuizClick()
                             }
                         },
                         modifier = Modifier.weight(1f).height(50.dp),
@@ -232,27 +226,27 @@ fun CardsScreen(
 
             // --- LOGIKA TAMPILAN LIST VS EMPTY STATE ---
 
-            if (cardData.cards.isNotEmpty()) {
+            if (cardList.isNotEmpty()) {
                 // A. Jika Ada Kartu: Tampilkan Header List & Item Kartu
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Cards in deck (${cardData.cards.size})",
+                        text = "Cards in deck (${cardList.size})",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = TextDark
                     )
                 }
-                itemsIndexed(cardData.cards) { index, card ->
+                itemsIndexed(cardList) { index, card ->
                     CardItemView(
                         card = card,
                         onClick = {
-                            val jsonList = Json.encodeToString(cardData.cards)
+                            val jsonList = Json.encodeToString(cardList)
                             val encodedJson = Uri.encode(jsonList)
                             onCardClick(encodedJson, index)
                         },
                         onEditClick = {
-                            val jsonList = Json.encodeToString(cardData.cards)
+                            val jsonList = Json.encodeToString(cardList)
                             val encodedJson = Uri.encode(jsonList)
 
                             // Navigate ke EditCardScreen
@@ -331,11 +325,10 @@ fun CardsScreen(
         DeleteConfirmDialog(
             onCancel = { showDeleteDialog = false },
             onDelete = {
-                // Hapus kartu dari list
-                cardData = cardData.copy(
-                    cards = cardData.cards.toMutableList().apply { removeAt(selectedIndex) }
-                )
-
+                val targetId = cardList.getOrNull(selectedIndex)?.id
+                if (targetId != null) {
+                    deckRemoteViewModel.deleteCard(targetId, deckId)
+                }
                 showDeleteDialog = false
             }
         )
@@ -432,6 +425,7 @@ fun CardItemView(
 }
 
 // --- KOMPONEN DIALOG REUSABLE ---
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ValidationDialog(
     iconRes: Int,

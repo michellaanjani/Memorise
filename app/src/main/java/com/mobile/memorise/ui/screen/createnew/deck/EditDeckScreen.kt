@@ -22,14 +22,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mobile.memorise.R
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.mobile.memorise.ui.viewmodel.DeckRemoteViewModel
+import com.mobile.memorise.util.Resource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
 fun EditDeckScreen(
+    deckId: String,
     oldName: String,
-    deckViewModel: DeckViewModel,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    deckRemoteViewModel: DeckRemoteViewModel = hiltViewModel()
 ) {
 
     var deckName by remember { mutableStateOf(oldName) }
@@ -37,11 +41,25 @@ fun EditDeckScreen(
 
     var showSuccessPopup by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val mutationState by deckRemoteViewModel.deckMutationState.collectAsState()
+
+    LaunchedEffect(mutationState) {
+        if (mutationState is Resource.Success) {
+            showSuccessPopup = true
+            scope.launch {
+                delay(1200)
+                showSuccessPopup = false
+                delay(200)
+                onBackClick()
+            }
+        }
+    }
 
     val isFormValid =
         deckName.isNotBlank() &&
                 deckError == null &&
-                deckName.trim() != oldName.trim()
+                deckName.trim() != oldName.trim() &&
+                mutationState !is Resource.Loading
 
     Column(
         modifier = Modifier
@@ -117,15 +135,7 @@ fun EditDeckScreen(
                     deckName = it
                     val trimmed = it.trim()
 
-                    deckError =
-                        if (trimmed.isNotEmpty() &&
-                            trimmed != oldName &&
-                            deckViewModel.deckList.any { d ->
-                                d.name.equals(trimmed, ignoreCase = true)
-                            }
-                        ) {
-                            "Deck name already exists!"
-                        } else null
+                    deckError = null
                 },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
@@ -156,16 +166,7 @@ fun EditDeckScreen(
         /* BUTTON UPDATE */
         Button(
             onClick = {
-                deckViewModel.updateDeck(oldName, deckName.trim())
-                showSuccessPopup = true
-
-                // auto close then back
-                scope.launch {
-                    delay(1200)
-                    showSuccessPopup = false
-                    delay(200)
-                    onBackClick()
-                }
+                deckRemoteViewModel.updateDeck(deckId, deckName.trim(), null)
             },
             enabled = isFormValid,
             modifier = Modifier

@@ -16,24 +16,31 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mobile.memorise.R
-import com.mobile.memorise.ui.screen.cards.CardItemData
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import androidx.compose.ui.draw.clip
-import kotlin.math.abs
+import kotlinx.coroutines.delay
 
 @Composable
 fun AddCardScreen(
+    deckId: String,
     deckName: String,
     onBackClick: () -> Unit,
-    onCardSaved: (CardItemData) -> Unit
+    deckRemoteViewModel: com.mobile.memorise.ui.viewmodel.DeckRemoteViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
     var front by remember { mutableStateOf(TextFieldValue("")) }
     var back by remember { mutableStateOf(TextFieldValue("")) }
     var showSuccessPopup by remember { mutableStateOf(false) }
 
-    val coroutine = rememberCoroutineScope()
-    val isFormValid = front.text.isNotBlank() && back.text.isNotBlank()
+    val mutationState by deckRemoteViewModel.cardMutationState.collectAsState()
+
+    LaunchedEffect(mutationState) {
+        if (mutationState is com.mobile.memorise.util.Resource.Success) {
+            showSuccessPopup = true
+            delay(800)
+            onBackClick()
+        }
+    }
+
+    val isFormValid = front.text.isNotBlank() && back.text.isNotBlank() && mutationState !is com.mobile.memorise.util.Resource.Loading
 
     Box(modifier = Modifier.fillMaxSize()) {
 
@@ -137,24 +144,11 @@ fun AddCardScreen(
             ) {
                 Button(
                     onClick = {
-                        val generatedId = abs(System.currentTimeMillis().toInt())
-                        val newCard = CardItemData(
-                            id = generatedId,
+                        deckRemoteViewModel.createCard(
+                            deckId = deckId,
                             front = front.text.trim(),
                             back = back.text.trim()
                         )
-
-                        onCardSaved(newCard)
-
-                        // Reset form
-                        front = TextFieldValue("")
-                        back = TextFieldValue("")
-                        showSuccessPopup = true
-
-                        coroutine.launch {
-                            delay(1200)
-                            showSuccessPopup = false
-                        }
                     },
                     enabled = isFormValid,
                     modifier = Modifier

@@ -48,68 +48,114 @@ private val BgDefault = Color(0xFFF5F6F8)
 
 @Composable
 fun QuizScreen(
+    deckId: String,
     deckName: String,
-    cardList: List<CardItemData>,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    quizViewModel: com.mobile.memorise.ui.viewmodel.QuizViewModel = androidx.hilt.navigation.compose.hiltViewModel()
 ) {
+    val startState by quizViewModel.startState.collectAsState()
+    val submitState by quizViewModel.submitState.collectAsState()
+
     var currentIndex by remember { mutableIntStateOf(0) }
     var correctCount by remember { mutableIntStateOf(0) }
-    var isQuizFinished by remember { mutableStateOf(false) }
+    var answers by remember { mutableStateOf(listOf<com.mobile.memorise.domain.model.quiz.QuizAnswerDetail>()) }
 
-    if (isQuizFinished) {
-        QuizResultContent(
-            totalQuestions = cardList.size,
-            correctAnswers = correctCount,
-            onBackClick = onBackClick
-        )
-    } else {
-        QuizQuestionContent(
-            currentCard = cardList[currentIndex],
-            currentNumber = currentIndex + 1,
-            totalNumber = cardList.size,
-            allCards = cardList,
-            onBackClick = onBackClick,
-            onAnswerSelected = { isCorrect ->
-                if (isCorrect) correctCount++
-            },
-            onNextClick = {
-                if (currentIndex < cardList.size - 1) {
-                    currentIndex++
+    LaunchedEffect(deckId) {
+        quizViewModel.resetStartState()
+        quizViewModel.resetSubmitState()
+        quizViewModel.startQuiz(deckId)
+    }
+
+    val questions = (startState as? com.mobile.memorise.util.Resource.Success)?.data?.questions ?: emptyList()
+    val totalQuestions = (startState as? com.mobile.memorise.util.Resource.Success)?.data?.totalQuestions ?: questions.size
+
+    when (startState) {
+        is com.mobile.memorise.util.Resource.Loading -> {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        }
+        is com.mobile.memorise.util.Resource.Error -> {
+            val msg = (startState as com.mobile.memorise.util.Resource.Error).message ?: "Failed to start quiz"
+            ErrorView(message = msg, onRetry = { quizViewModel.startQuiz(deckId) }, onBack = onBackClick)
+        }
+        is com.mobile.memorise.util.Resource.Success -> {
+            if (submitState is com.mobile.memorise.util.Resource.Success) {
+                val result = (submitState as com.mobile.memorise.util.Resource.Success).data!!
+                QuizResultContent(
+                    totalQuestions = result.totalQuestions,
+                    correctAnswers = result.correctAnswers,
+                    score = result.score,
+                    onBackClick = onBackClick
+                )
+            } else if (submitState is com.mobile.memorise.util.Resource.Error) {
+                val msg = (submitState as com.mobile.memorise.util.Resource.Error).message ?: "Failed to submit quiz"
+                ErrorView(message = msg, onRetry = {
+                    quizViewModel.submitQuiz(
+                        com.mobile.memorise.domain.model.quiz.QuizSubmitRequest(
+                            deckId = deckId,
+                            totalQuestions = totalQuestions,
+                            correctAnswers = correctCount,
+                            details = answers
+                        )
+                    )
+                }, onBack = onBackClick)
+            } else {
+                if (questions.isEmpty()) {
+                    ErrorView(message = "No questions available", onRetry = onBackClick, onBack = onBackClick)
                 } else {
-                    isQuizFinished = true
+                    QuizQuestionContent(
+                        question = questions[currentIndex],
+                        currentNumber = currentIndex + 1,
+                        totalNumber = totalQuestions,
+                        onBackClick = onBackClick,
+                        onAnswered = { detail ->
+                            answers = answers.filterNot { it.cardId == detail.cardId } + detail
+                            if (detail.isCorrect) correctCount++
+                        },
+                        onNextClick = {
+                            if (currentIndex < questions.size - 1) {
+                                currentIndex++
+                            } else {
+                                // submit
+                                quizViewModel.submitQuiz(
+                                    com.mobile.memorise.domain.model.quiz.QuizSubmitRequest(
+                                        deckId = deckId,
+                                        totalQuestions = totalQuestions,
+                                        correctAnswers = correctCount,
+                                        details = answers
+                                    )
+                                )
+                            }
+                        },
+                        isLastQuestion = currentIndex == questions.size - 1,
+                        submitState = submitState
+                    )
                 }
             }
-        )
+        }
+        else -> {}
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuizQuestionContent(
-    currentCard: CardItemData,
+    question: com.mobile.memorise.domain.model.quiz.QuizQuestion,
     currentNumber: Int,
     totalNumber: Int,
-    allCards: List<CardItemData>,
     onBackClick: () -> Unit,
-    onAnswerSelected: (Boolean) -> Unit,
-    onNextClick: () -> Unit
+    onAnswered: (com.mobile.memorise.domain.model.quiz.QuizAnswerDetail) -> Unit,
+    onNextClick: () -> Unit,
+    isLastQuestion: Boolean,
+    submitState: com.mobile.memorise.util.Resource<com.mobile.memorise.domain.model.quiz.QuizSubmitData>
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
     var selectedAnswer by remember { mutableStateOf<String?>(null) }
     var isAnswered by remember { mutableStateOf(false) }
-    val isLastQuestion = currentNumber == totalNumber
+    var showExplain by remember { mutableStateOf(false) }
 
-    val options = remember(currentCard) {
-        val correctAnswer = currentCard.back
-        val wrongAnswers = allCards
-            .filter { it.id != currentCard.id }
-            .map { it.back }
-            .shuffled()
-            .take(2)
-        (wrongAnswers + correctAnswer).shuffled()
-    }
+    val options = remember(question) { question.options.take(4) }
 
     Scaffold(
         containerColor = Color.White,
@@ -141,17 +187,9 @@ fun QuizQuestionContent(
                 ){
                     Button(
                         onClick = {
-                            if (isLastQuestion) {
-                                try {
-                                    val mediaPlayer = MediaPlayer.create(context, R.raw.done)
-                                    mediaPlayer.start()
-                                    mediaPlayer.setOnCompletionListener { it.release() }
-                                } catch (e: Exception) {
-                                    e.printStackTrace()
-                                }
-                            }
                             selectedAnswer = null
                             isAnswered = false
+                            showExplain = false
                             onNextClick()
                         },
                         modifier = Modifier
@@ -159,11 +197,13 @@ fun QuizQuestionContent(
                             .height(56.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isLastQuestion) CorrectGreen else BluePrimary
-                        )
+                            containerColor = if (isLastQuestion) CorrectGreen else BluePrimary,
+                            disabledContainerColor = Color(0xFFB9C4FF)
+                        ),
+                        enabled = submitState !is com.mobile.memorise.util.Resource.Loading,
                     ){
                         Text(
-                            text = if (isLastQuestion) "Selesai" else "Next Question",
+                            text = if (isLastQuestion) "Submit" else "Next Question",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -189,7 +229,7 @@ fun QuizQuestionContent(
             )
             Spacer(modifier = Modifier.height(32.dp))
             Text(
-                text = currentCard.front,
+                text = question.question,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextDark,
@@ -199,7 +239,7 @@ fun QuizQuestionContent(
             Spacer(modifier = Modifier.height(40.dp))
 
             options.forEach { option ->
-                val isCorrectOption = option == currentCard.back
+                val isCorrectOption = option == question.correctAnswer
                 val isSelected = option == selectedAnswer
 
                 var borderColor = BorderDefault
@@ -230,7 +270,15 @@ fun QuizQuestionContent(
                         .clickable(enabled = !isAnswered) {
                             selectedAnswer = option
                             isAnswered = true
-                            onAnswerSelected(isCorrectOption)
+                            onAnswered(
+                                com.mobile.memorise.domain.model.quiz.QuizAnswerDetail(
+                                    cardId = question.cardId,
+                                    isCorrect = isCorrectOption,
+                                    userAnswer = option,
+                                    correctAnswer = question.correctAnswer,
+                                    explanation = question.explanation
+                                )
+                            )
 
                             if (isCorrectOption) {
                                 val mp = MediaPlayer.create(context, R.raw.correct)
@@ -261,6 +309,36 @@ fun QuizQuestionContent(
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = { showExplain = !showExplain },
+                enabled = isAnswered,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isAnswered) Color(0xFFE0E7FF) else Color(0xFFE5E7EB),
+                    contentColor = TextDark
+                )
+            ) {
+                Text("Explain", fontWeight = FontWeight.SemiBold)
+            }
+            if (showExplain && question.explanation != null) {
+                Spacer(Modifier.height(12.dp))
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF6F8FF)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = question.explanation,
+                        color = TextDark,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(24.dp))
         }
     }
@@ -271,11 +349,10 @@ fun QuizQuestionContent(
 fun QuizResultContent(
     totalQuestions: Int,
     correctAnswers: Int,
+    score: Int,
     onBackClick: () -> Unit
 ) {
-    val targetPercentage = if (totalQuestions > 0) {
-        ((correctAnswers.toFloat() / totalQuestions.toFloat()) * 100)
-    } else 0f
+    val targetPercentage = score.toFloat()
     val wrongAnswers = totalQuestions - correctAnswers
 
     val animatedProgress = remember { Animatable(0f) }

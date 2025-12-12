@@ -4,6 +4,9 @@ import com.mobile.memorise.data.local.token.TokenStore
 import com.mobile.memorise.data.remote.AuthApi
 import com.mobile.memorise.data.remote.AuthInterceptor
 import com.mobile.memorise.data.remote.api.FolderApi
+import com.mobile.memorise.data.remote.api.DeckApi
+import com.mobile.memorise.data.remote.api.CardApi
+import com.mobile.memorise.data.remote.api.QuizApi
 import com.mobile.memorise.data.remote.api.HomeApi
 import com.mobile.memorise.data.repository.AuthRepositoryImpl
 import com.mobile.memorise.data.repository.HomeRepositoryImpl
@@ -58,6 +61,24 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideDeckApi(retrofit: Retrofit): DeckApi {
+        return retrofit.create(DeckApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCardApi(retrofit: Retrofit): CardApi {
+        return retrofit.create(CardApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideQuizApi(retrofit: Retrofit): QuizApi {
+        return retrofit.create(QuizApi::class.java)
+    }
+
+    @Provides
+    @Singleton
     fun provideAuthRepository(impl: AuthRepositoryImpl): AuthRepository = impl
 
     @Provides
@@ -74,6 +95,5 @@ object AppModule {
     fun provideFolderApi(retrofit: Retrofit): FolderApi {
         return retrofit.create(FolderApi::class.java)
     }
-
 
 }

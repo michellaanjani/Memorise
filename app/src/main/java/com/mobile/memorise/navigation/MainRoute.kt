@@ -19,27 +19,26 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
     object EditPassword : MainRoute("edit_password", "Edit Password", Icons.Filled.Person)
 
     // Rute Khusus (Tidak ada di Navbar)
-    object DeckDetail : MainRoute("deck_detail/{folderName}", "Deck Detail", Icons.Filled.Home) {
-        fun createRoute(folderName: String) = "deck_detail/$folderName"
+    object DeckDetail : MainRoute("deck_detail/{folderId}/{folderName}", "Deck Detail", Icons.Filled.Home) {
+        fun createRoute(folderId: String, folderName: String) = "deck_detail/$folderId/$folderName"
     }
 
-    object Cards : MainRoute("cards/{deckName}", "Cards", Icons.Filled.Home) {
-        fun createRoute(deckName: String) = "cards/$deckName"
+    object Cards : MainRoute("cards/{deckId}/{deckName}", "Cards", Icons.Filled.Home) {
+        fun createRoute(deckId: String, deckName: String) = "cards/$deckId/$deckName"
     }
 
     // --- TAMBAHAN BARU ---
-    object Study : MainRoute("study/{deckName}/{cardList}", "Study", Icons.Filled.Home) {
-        // Fungsi ini dipakai saat tombol Study diklik
-        fun createRoute(deckName: String, cardListJson: String) = "study/$deckName/$cardListJson"
+    object Study : MainRoute("study/{deckId}/{deckName}", "Study", Icons.Filled.Home) {
+        fun createRoute(deckId: String, deckName: String) = "study/$deckId/$deckName"
     }
 
-    object Quiz : MainRoute("quiz/{deckName}/{cardList}", "Quiz", Icons.Filled.Home) {
-        fun createRoute(deckName: String, cardListJson: String) = "quiz/$deckName/$cardListJson"
+    object Quiz : MainRoute("quiz/{deckId}/{deckName}", "Quiz", Icons.Filled.Home) {
+        fun createRoute(deckId: String, deckName: String) = "quiz/$deckId/$deckName"
     }
 
-    object CardDetail : MainRoute("detail_card/{deckName}/{cardList}/{index}", "Detail", Icons.Filled.Home) {
-        fun createRoute(deckName: String, encodedJson: String, index: Int): String {
-            return "detail_card/$deckName/$encodedJson/$index"
+    object CardDetail : MainRoute("detail_card/{deckId}/{deckName}/{cardList}/{index}", "Detail", Icons.Filled.Home) {
+        fun createRoute(deckId: String, deckName: String, encodedJson: String, index: Int): String {
+            return "detail_card/$deckId/$deckName/$encodedJson/$index"
         }
     }
 
@@ -65,7 +64,7 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
     )
 
     object CreateDeck : MainRoute(
-        route = "create_deck",
+        route = "create_deck?folderId={folderId}&folderName={folderName}",
         title = "Create Deck",
         icon = Icons.Filled.Add
     )
@@ -81,29 +80,29 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
     }
 
     object EditDeck : MainRoute(
-        route = "edit_deck/{oldName}",
+        route = "edit_deck/{deckId}/{deckName}",
         title = "Edit Deck",
         icon = Icons.Default.Edit
     ) {
-        fun createRoute(oldName: String) = "edit_deck/$oldName"
+        fun createRoute(deckId: String, deckName: String) = "edit_deck/$deckId/$deckName"
     }
 
     object AddCard : MainRoute(
-        route = "add_card/{deckName}",
+        route = "add_card/{deckId}/{deckName}",
         title = "Add Card",
         icon = Icons.Default.Add
     ) {
-        fun createRoute(deckName: String) = "add_card/$deckName"
+        fun createRoute(deckId: String, deckName: String) = "add_card/$deckId/$deckName"
     }
 
     object EditCard : MainRoute(
-        route = "edit_card/{deckName}/{index}/{json}",
+        route = "edit_card/{deckId}/{deckName}/{index}/{json}",
         title = "Edit Card",
         icon = Icons.Default.Edit
     ) {
-        fun createRoute(deckName: String, index: Int, json: String): String {
+        fun createRoute(deckId: String, deckName: String, index: Int, json: String): String {
             val encodedJson = Uri.encode(json)
-            return "edit_card/$deckName/$index/$encodedJson"
+            return "edit_card/$deckId/$deckName/$index/$encodedJson"
         }
     }
 }

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobile.memorise.data.local.token.TokenStore
 import com.mobile.memorise.data.remote.api.HomeApi
+import com.mobile.memorise.domain.repository.UserRepository
 import com.mobile.memorise.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,14 +21,34 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val api: HomeApi,
-    private val tokenStore: TokenStore
+    private val tokenStore: TokenStore,
+    private val userRepository: com.mobile.memorise.domain.repository.UserRepository
 ) : ViewModel() {
 
     private val _homeState = MutableStateFlow<Resource<HomeData>>(Resource.Loading())
     val homeState: StateFlow<Resource<HomeData>> = _homeState.asStateFlow()
 
+    private val _firstName = MutableStateFlow<String?>(null)
+    val firstName: StateFlow<String?> = _firstName.asStateFlow()
+
     init {
         getHomeData()
+        loadUserFirstName()
+    }
+
+    private fun loadUserFirstName() {
+        viewModelScope.launch {
+            when (val result = userRepository.getUserProfile()) {
+                is Resource.Success -> {
+                    result.data?.let { user ->
+                        _firstName.value = user.firstName
+                    }
+                }
+                else -> {
+                    // Keep null if failed, will show default
+                }
+            }
+        }
     }
 
     fun getHomeData() {

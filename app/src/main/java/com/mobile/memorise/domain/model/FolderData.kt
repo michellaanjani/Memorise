@@ -22,6 +22,12 @@ data class FolderResponse(
     val data: FolderData?
 )
 
+data class FolderListResponse(
+    val success: Boolean,
+    val message: String,
+    val data: List<FolderData> = emptyList()
+)
+
 data class FolderData(
     @SerializedName("_id") val id: String,
     val name: String,
