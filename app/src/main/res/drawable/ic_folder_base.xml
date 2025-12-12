@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="282dp"
+    android:height="274dp"
+    android:viewportWidth="282"
+    android:viewportHeight="274">
+    <!-- Path Folder Utama (yang mau diwarnai) -->
+    <path
+        android:pathData="M248.15,0H33.09C14.81,0 0,14.34 0,32.02V240.14C0,257.83 14.81,272.16 33.09,272.16H248.15C266.43,272.16 281.24,257.83 281.24,240.14V32.02C281.24,14.34 266.43,0 248.15,0Z"
+        android:fillColor="#FFFFFF"/> <!-- Warna dasar putih, nanti ditimpa kodingan -->
+</vector>

@@ -16,14 +16,14 @@ object NetworkModule {
     // 1. Ganti dengan Base URL API Anda yang sebenarnya
     private const val BASE_URL = "https://memorise-backend-production.up.railway.app/api/"
 
-    @Provides
-    @Singleton
-    fun provideRetrofit(): Retrofit {
-        return Retrofit.Builder()
-            .baseUrl(BASE_URL)
-            .addConverterFactory(GsonConverterFactory.create()) // Pastikan library converter sudah ada di gradle
-            .build()
-    }
+//    @Provides
+//    @Singleton
+//    fun provideRetrofit(): Retrofit {
+//        return Retrofit.Builder()
+//            .baseUrl(BASE_URL)
+//            .addConverterFactory(GsonConverterFactory.create()) // Pastikan library converter sudah ada di gradle
+//            .build()
+//    }
 
     // 2. INI YANG MENYELESAIKAN ERROR ANDA
     @Provides
