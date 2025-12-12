@@ -1,179 +1,313 @@
 package com.mobile.memorise.ui.screen.createnew.deck
 
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.mobile.memorise.R
-import androidx.compose.foundation.clickable
+import kotlinx.coroutines.delay
 
+// --- Warna ---
+private val BgColor = Color.White
+private val TextBlack = Color(0xFF1F2937)
+private val TextGray = Color(0xFF6B7280)
+private val PrimaryBlue = Color(0xFF0961F5)
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateDeckScreen(
     navController: NavHostController,
-    deckViewModel: DeckViewModel,
-    onBackClick: () -> Unit
+    folderId: String?,
+    onBackClick: () -> Unit,
+    deckViewModel: DeckViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
 
+    // State Lokal
     var deckName by remember { mutableStateOf("") }
-    var deckError by remember { mutableStateOf<String?>(null) }
+    var localError by remember { mutableStateOf<String?>(null) }
+    var showSuccessPopup by remember { mutableStateOf(false) }
 
-    val isFormValid =
-        deckName.isNotBlank() &&
-                deckError == null
+    // State dari ViewModel
+    val createDeckState = deckViewModel.createDeckState
+// Cek apakah state saat ini adalah Loading dari Sealed Class
+    val isLoading = createDeckState is CreateDeckState.Loading
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 24.dp)
-    ) {
+    // Logic Validasi Form
+    val isFormValid = deckName.trim().isNotEmpty() && localError == null
 
-        Spacer(modifier = Modifier.height(52.dp))
-
-        // TOP BAR — sama persis Create Folder
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.back),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(28.dp)
-                    .clickable { onBackClick() }
-            )
-
-            Text(
-                "Add New Deck",
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.Center,
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp
-            )
-            Spacer(modifier = Modifier.size(28.dp))
-        }
-
-        Spacer(modifier = Modifier.height(26.dp))
-
-        // BANNER IMAGES — tetap sama
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(80.dp)
-        ) {
-            ImageDeckCard(
-                drawableId = R.drawable.memorize,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(16.dp))
-            )
-            ImageDeckCard(
-                drawableId = R.drawable.learn,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(16.dp))
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // FORM CONTAINER — sama persis, hanya ganti text
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(Color(0xFFF3F3FA))
-                .padding(26.dp)
-        ) {
-
-            Row {
-                Text("Deck Name", fontWeight = FontWeight.SemiBold)
-                Text("*", color = Color(0xFFC53636))
+    // --- SIDE EFFECT: Handle Success / Error ---
+    LaunchedEffect(createDeckState) {
+        when (createDeckState) {
+            is CreateDeckState.Success -> {
+                // 1. Tampilkan Popup Animasi
+                showSuccessPopup = true
+                // 2. Tunggu sebentar agar user lihat
+                delay(1500)
+                // 3. Reset state & Navigasi balik
+                deckViewModel.resetState()
+                onBackClick()
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            is CreateDeckState.Error -> {
+                // Tampilkan pesan error String (cegah "scientific code")
+                Toast.makeText(context, createDeckState.message, Toast.LENGTH_LONG).show()
+                // Jangan reset state disini agar user bisa perbaiki input
+            }
+            else -> {} // Idle atau Loading
+        }
+    }
 
-            OutlinedTextField(
-                value = deckName,
-                onValueChange = {
-                    deckName = it
-                    val trimmed = it.trim()
+    // Bungkus dengan Box agar Popup bisa muncul di atas (overlay)
+    Box(modifier = Modifier.fillMaxSize().background(BgColor)) {
+        Scaffold(
+            containerColor = BgColor,
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            "New Deck",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            color = TextBlack
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = "Back",
+                                tint = TextBlack
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = BgColor
+                    )
+                )
+            }
+        ) { padding ->
 
-                    deckError =
-                        if (trimmed.isNotEmpty() &&
-                            deckViewModel.deckList.any {
-                                    d -> d.name.equals(trimmed, ignoreCase = true)
-                            }
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(24.dp)
+            ) {
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // --- Banner Images (Diisi Gambar) ---
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(80.dp)
+                ) {
+                    ImageDeckCard(R.drawable.memorize, Modifier.weight(1f))
+                    ImageDeckCard(R.drawable.learn, Modifier.weight(1f))
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // --- Form Input ---
+                Text("Deck Name", fontSize = 14.sp, color = TextGray)
+                Spacer(Modifier.height(8.dp))
+
+                OutlinedTextField(
+                    value = deckName,
+                    onValueChange = { input ->
+                        deckName = input
+                        val trimmed = input.trim()
+
+                        // Reset error state global jika user mengetik ulang
+                        if (createDeckState is CreateDeckState.Error) {
+                            deckViewModel.resetState()
+                        }
+
+                        // Validasi Lokal (Duplicate Check)
+                        localError = when {
+                            trimmed.isEmpty() -> "Name is required"
+                            deckViewModel.decks.any { it.name.equals(trimmed, ignoreCase = true) } ->
+                                "Deck name already exists!"
+                            else -> null
+                        }
+                    },
+                    placeholder = { Text("e.g. English Vocab", color = Color.LightGray) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    isError = localError != null,
+                    shape = RoundedCornerShape(12.dp),
+                    textStyle = LocalTextStyle.current.copy(
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextBlack
+                    ),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = PrimaryBlue,
+                        unfocusedBorderColor = Color(0xFFE5E7EB),
+                        errorBorderColor = Color.Red,
+                        cursorColor = PrimaryBlue,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color(0xFFFAFAFA)
+                    )
+                )
+
+                // Error Message Animation
+                AnimatedVisibility(
+                    visible = localError != null,
+                    enter = fadeIn() + slideInVertically(),
+                    exit = fadeOut()
+                ) {
+                    Text(
+                        text = localError ?: "",
+                        color = Color(0xFFEF4444),
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                // --- Submit Button ---
+                Button(
+                    onClick = {
+                        deckViewModel.createDeck(
+                            name = deckName.trim(),
+                            description = "Created from app",
+                            folderId = folderId
+                        )
+                    },
+                    enabled = isFormValid && !isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .shadow(
+                            elevation = if (isFormValid) 4.dp else 0.dp,
+                            shape = RoundedCornerShape(16.dp),
+                            spotColor = PrimaryBlue.copy(0.5f)
+                        ),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PrimaryBlue,
+                        contentColor = Color.White,
+                        disabledContainerColor = Color(0xFFE5E7EB),
+                        disabledContentColor = Color(0xFF9CA3AF)
+                    )
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.5.dp
+                        )
+                    } else {
+                        Text("Create Deck", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+            }
+        }
+
+        // --- SUCCESS POPUP OVERLAY ---
+        if (showSuccessPopup) {
+            val alphaAnim by animateFloatAsState(
+                targetValue = if (showSuccessPopup) 1f else 0f,
+                animationSpec = tween(250), label = "alpha"
+            )
+            val scaleAnim by animateFloatAsState(
+                targetValue = if (showSuccessPopup) 1f else 0.95f,
+                animationSpec = tween(250), label = "scale"
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f * alphaAnim))
+                    .clickable(enabled = false) {}, // Block clicks behind
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    modifier = Modifier
+                        .padding(32.dp)
+                        .graphicsLayer {
+                            scaleX = scaleAnim
+                            scaleY = scaleAnim
+                        }
+                ) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 32.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFDCFCE7)),
+                            contentAlignment = Alignment.Center
                         ) {
-                            "Deck name already exists!"
-                        } else null
-                },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                isError = deckError != null,
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor =
-                        if (deckError != null) Color.Red else Color(0xFFDBE1F3),
-                    focusedBorderColor =
-                        if (deckError != null) Color.Red else Color(0xFF0961F5),
-                    cursorColor = Color(0xFF0961F5)
-                )
-            )
-
-            if (deckError != null) {
-                Text(
-                    deckError!!,
-                    color = Color(0xFFFF6905),
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(top = 6.dp)
-                )
+                            Icon(
+                                Icons.Default.Check,
+                                null,
+                                tint = Color(0xFF166534),
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "Success!",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextBlack
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Deck created successfully.",
+                            fontSize = 14.sp,
+                            color = TextGray,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
             }
-        }
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        // BUTTON — sama persis, hanya ganti text
-        Button(
-            onClick = {
-                deckViewModel.addDeck(deckName.trim())
-                navController.popBackStack()
-            },
-            enabled = isFormValid,
-            modifier = Modifier
-                .width(200.dp)
-                .height(50.dp)
-                .align(Alignment.CenterHorizontally),
-            shape = RoundedCornerShape(40.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor =
-                    if (isFormValid) Color(0xFF0961F5) else Color(0xFFB9C4FF)
-            )
-        ) {
-            Text(
-                "Add New Deck",
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 16.sp
-            )
         }
     }
 }
 
+// Helper Composable untuk Gambar
 @Composable
-fun ImageDeckCard(
+private fun ImageDeckCard(
     drawableId: Int,
     modifier: Modifier = Modifier
 ) {
@@ -183,7 +317,8 @@ fun ImageDeckCard(
         Image(
             painter = painterResource(id = drawableId),
             contentDescription = null,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
         )
     }
 }

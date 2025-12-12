@@ -6,14 +6,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-//import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
@@ -32,28 +30,24 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.mobile.memorise.ui.component.DeleteConfirmDialog
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobile.memorise.R
+import com.mobile.memorise.ui.component.DeleteConfirmDialog
+import com.mobile.memorise.ui.screen.createnew.deck.DeckViewModel
 import com.mobile.memorise.ui.theme.BrightBlue
 import com.mobile.memorise.ui.theme.TextBlack
 import com.mobile.memorise.ui.theme.WhitePurple
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 // --- 1. DATA MODELS ---
 @Serializable
-data class CardListResponse(
-    @SerialName("card_count") val count: Int = 0,
-    @SerialName("cards") val cards: List<CardItemData> = emptyList()
-)
-
-@Serializable
 data class CardItemData(
-    val id: Int,
+    val id: String,
     val front: String,
-    val back: String
+    val back: String,
+    val explanation: String? = null
 )
 
 // --- 2. COLORS ---
@@ -67,33 +61,43 @@ private val TextGray = Color(0xFF757575)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardsScreen(
+    deckId: String,
     deckName: String,
     onBackClick: () -> Unit,
-    onStudyClick: (String) -> Unit,
-    onQuizClick: (String) -> Unit,
+    onStudyClick: () -> Unit,
+    onQuizClick: () -> Unit,
     onAddCardClick: () -> Unit = {},
-    onCardClick: (String, Int) -> Unit, // <--- TAMBAHAN BARU (Kirim JSON list & Index)
-    onEditCardClick: (String, Int) -> Unit
-
-
+    onCardClick: (String, Int) -> Unit,
+    onEditCardClick: (String, Int) -> Unit,
+    // Menggunakan DeckViewModel (Hilt) untuk data real, bukan JSON aset
+    deckViewModel: DeckViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    var cardData by remember { mutableStateOf(CardListResponse()) }
 
     // State untuk Popup
     var showQuizAlert by remember { mutableStateOf(false) }
-    var showStudyAlert by remember { mutableStateOf(false) } // Popup baru untuk Study
-
+    var showStudyAlert by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var selectedIndex by remember { mutableStateOf(-1) }
 
-    // Load JSON
-    LaunchedEffect(Unit) {
-        try {
-            val jsonString = context.assets.open("cards.json").bufferedReader().use { it.readText() }
-            cardData = Json.decodeFromString(jsonString)
-        } catch (e: Exception) {
-            e.printStackTrace()
+    // 1. Load data dari Database saat pertama kali dibuka
+    LaunchedEffect(deckId) {
+        deckViewModel.loadCards(deckId)
+    }
+
+    // 2. Ambil data langsung dari List di ViewModel (SnapshotStateList)
+    val rawCards = deckViewModel.cards
+    val isLoading = deckViewModel.areCardsLoading
+
+    // 3. Mapping data domain ke UI Model (CardItemData)
+    val cardList = remember(rawCards.size, rawCards) {
+        rawCards.map {
+            CardItemData(
+                id = it.id,
+                front = it.front,
+                back = it.back,
+                explanation = null // Sesuaikan jika entity Card punya notes/explanation
+            )
         }
     }
 
@@ -132,7 +136,7 @@ fun CardsScreen(
                 shape = CircleShape,
                 modifier = Modifier.padding(bottom = 16.dp)
             ) {
-                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Deck", modifier = Modifier.size(28.dp))
+                Icon(imageVector = Icons.Default.Add, contentDescription = "Add Card", modifier = Modifier.size(28.dp))
             }
         }
     ) { innerPadding ->
@@ -168,18 +172,22 @@ fun CardsScreen(
                         .background(BlueHeader),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "${cardData.cards.size}", // Menggunakan size real
-                            fontSize = 64.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "Cards in deck",
-                            fontSize = 16.sp,
-                            color = Color.White.copy(alpha = 0.9f)
-                        )
+                    if (isLoading) {
+                        CircularProgressIndicator(color = Color.White)
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "${cardList.size}",
+                                fontSize = 64.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "Cards in deck",
+                                fontSize = 16.sp,
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
+                        }
                     }
                 }
             }
@@ -193,13 +201,10 @@ fun CardsScreen(
                     // Tombol Study (Orange)
                     Button(
                         onClick = {
-                            // VALIDASI: Minimal 1 Kartu
-                            if (cardData.cards.isEmpty()) {
+                            if (cardList.isEmpty()) {
                                 showStudyAlert = true
                             } else {
-                                val jsonList = Json.encodeToString(cardData.cards)
-                                val encodedJson = Uri.encode(jsonList)
-                                onStudyClick(encodedJson)
+                                onStudyClick()
                             }
                         },
                         modifier = Modifier.weight(1f).height(50.dp),
@@ -212,13 +217,10 @@ fun CardsScreen(
                     // Tombol Quiz (Biru)
                     Button(
                         onClick = {
-                            // VALIDASI: Minimal 3 Kartu
-                            if (cardData.cards.size < 3) {
+                            if (cardList.size < 3) {
                                 showQuizAlert = true
                             } else {
-                                val jsonList = Json.encodeToString(cardData.cards)
-                                val encodedJson = Uri.encode(jsonList)
-                                onQuizClick(encodedJson)
+                                onQuizClick()
                             }
                         },
                         modifier = Modifier.weight(1f).height(50.dp),
@@ -232,47 +234,44 @@ fun CardsScreen(
 
             // --- LOGIKA TAMPILAN LIST VS EMPTY STATE ---
 
-            if (cardData.cards.isNotEmpty()) {
+            if (cardList.isNotEmpty()) {
                 // A. Jika Ada Kartu: Tampilkan Header List & Item Kartu
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Cards in deck (${cardData.cards.size})",
+                        text = "Cards in deck (${cardList.size})",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = TextDark
                     )
                 }
-                itemsIndexed(cardData.cards) { index, card ->
+                itemsIndexed(cardList) { index, card ->
                     CardItemView(
                         card = card,
                         onClick = {
-                            val jsonList = Json.encodeToString(cardData.cards)
+                            val jsonList = Json.encodeToString(cardList)
                             val encodedJson = Uri.encode(jsonList)
                             onCardClick(encodedJson, index)
                         },
                         onEditClick = {
-                            val jsonList = Json.encodeToString(cardData.cards)
+                            val jsonList = Json.encodeToString(cardList)
                             val encodedJson = Uri.encode(jsonList)
-
-                            // Navigate ke EditCardScreen
-                                onEditCardClick(encodedJson, index)   // ← ini yang benar
+                            onEditCardClick(encodedJson, index)
                         },
                         onDeleteClick = {
-                            selectedIndex = index   // simpan index kartu
-                            showDeleteDialog = true // buka dialog
+                            selectedIndex = index
+                            showDeleteDialog = true
                         }
                     )
                 }
 
-
-            } else {
-                // B. Jika KOSONG: Tampilkan Empty State UI (Sesuai Request)
+            } else if (!isLoading) {
+                // B. Jika KOSONG (dan tidak loading): Tampilkan Empty State UI
                 item {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 40.dp), // Jarak dari tombol
+                            .padding(top = 40.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(
@@ -280,7 +279,7 @@ fun CardsScreen(
                             modifier = Modifier.padding(24.dp)
                         ) {
                             Image(
-                                painter = painterResource(id = R.drawable.empty), // Pastikan file ini ada
+                                painter = painterResource(id = R.drawable.empty),
                                 contentDescription = "No Cards",
                                 modifier = Modifier.size(200.dp),
                                 contentScale = ContentScale.Fit
@@ -307,40 +306,39 @@ fun CardsScreen(
 
         // --- DIALOG POPUPS ---
 
-        // Dialog untuk Quiz (Minimal 3)
         if (showQuizAlert) {
             ValidationDialog(
-                iconRes = R.drawable.threecard, // Icon 3 kartu
+                iconRes = R.drawable.threecard,
                 title = "Minimal 3 Kartu Diperlukan",
                 description = "Anda memerlukan minimal 3 kartu untuk memulai mode Quiz. Silakan tambah kartu.",
                 onDismiss = { showQuizAlert = false }
             )
         }
 
-        // Dialog untuk Study (Minimal 1)
         if (showStudyAlert) {
             ValidationDialog(
-                iconRes = R.drawable.empty, // Bisa pakai icon empty atau icon single card
+                iconRes = R.drawable.empty,
                 title = "Kartu Kosong",
                 description = "Anda harus memiliki minimal 1 kartu untuk mulai belajar. Yuk buat kartu barumu!",
                 onDismiss = { showStudyAlert = false }
             )
         }
     }
+
+    // --- CONFIRM DELETE DIALOG ---
     if (showDeleteDialog) {
         DeleteConfirmDialog(
             onCancel = { showDeleteDialog = false },
             onDelete = {
-                // Hapus kartu dari list
-                cardData = cardData.copy(
-                    cards = cardData.cards.toMutableList().apply { removeAt(selectedIndex) }
-                )
-
+                val targetId = cardList.getOrNull(selectedIndex)?.id
+                if (targetId != null) {
+                    // PANGGIL FUNGSI DELETE DARI VIEWMODEL (Real Database)
+                    deckViewModel.deleteCard(targetId)
+                }
                 showDeleteDialog = false
             }
         )
     }
-
 }
 
 @Composable
@@ -432,6 +430,7 @@ fun CardItemView(
 }
 
 // --- KOMPONEN DIALOG REUSABLE ---
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ValidationDialog(
     iconRes: Int,
@@ -451,7 +450,6 @@ fun ValidationDialog(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Icon Lingkaran Biru Muda
                 Box(
                     modifier = Modifier
                         .size(80.dp)
@@ -469,7 +467,6 @@ fun ValidationDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Judul
                 Text(
                     text = title,
                     fontSize = 18.sp,
@@ -480,7 +477,6 @@ fun ValidationDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Deskripsi
                 Text(
                     text = description,
                     fontSize = 14.sp,
@@ -491,7 +487,6 @@ fun ValidationDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Tombol Tutup
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier.fillMaxWidth().height(48.dp),
@@ -499,7 +494,7 @@ fun ValidationDialog(
                     colors = ButtonDefaults.buttonColors(containerColor = BlueButton)
                 ) {
                     Text(
-                        text = "Mengerti", // Atau "Tutup"
+                        text = "Mengerti",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White

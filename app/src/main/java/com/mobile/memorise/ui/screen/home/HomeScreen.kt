@@ -34,9 +34,11 @@ import com.mobile.memorise.R
 import com.mobile.memorise.ui.component.DeleteConfirmDialog
 import com.mobile.memorise.ui.screen.createnew.deck.DeckViewModel
 import com.mobile.memorise.ui.screen.createnew.folder.FolderViewModel
+import com.mobile.memorise.ui.screen.profile.ProfileViewModel // Import ProfileViewModel
 import com.mobile.memorise.ui.theme.*
 import com.mobile.memorise.util.Resource
 import kotlinx.serialization.Serializable
+import java.util.Locale
 
 /* =========================
         DATA MODELS
@@ -91,7 +93,7 @@ fun FolderIconWithColor(
     modifier: Modifier = Modifier
 ) {
     val folderColor = try {
-        Color(android.graphics.Color.parseColor(colorHex))
+        Color(colorHex.toColorInt())
     } catch (e: Exception) {
         Color(0xFFEAEAFF) // Default color
     }
@@ -115,23 +117,29 @@ fun FolderIconWithColor(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class) // Wajib untuk PullToRefresh
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onFolderClick: (String) -> Unit,
-    onDeckClick: (String) -> Unit,
+    onFolderClick: (FolderItemData) -> Unit,
+    onDeckClick: (DeckItemData) -> Unit,
     onEditFolder: (String, String, String) -> Unit,
     onEditDeck: (String) -> Unit,
+    onMoveDeck: (String) -> Unit,
     folderViewModel: FolderViewModel,
     deckViewModel: DeckViewModel,
-    homeViewModel: HomeViewModel = hiltViewModel()
+    homeViewModel: HomeViewModel = hiltViewModel(),
+    // Tambahkan ProfileViewModel
+    profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var deleteId  by remember { mutableStateOf("") }
+    var deleteId by remember { mutableStateOf("") }
     var deleteType by remember { mutableStateOf("") }
 
-    // State dari API
+    // State dari API Home
     val homeState by homeViewModel.homeState.collectAsState()
+
+    // State dari API Profile
+    val userProfile by profileViewModel.userProfile.collectAsState()
 
     var homeData by remember { mutableStateOf(HomeData()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -140,19 +148,31 @@ fun HomeScreen(
     // State untuk Pull To Refresh
     val pullRefreshState = rememberPullToRefreshState()
 
+    // Load User Profile saat layar dibuka
+    LaunchedEffect(Unit) {
+        profileViewModel.loadUserProfile()
+    }
+
     LaunchedEffect(homeState) {
-        when(val result = homeState) {
+        when (val result = homeState) {
             is Resource.Loading -> {
                 isLoading = true
                 errorMessage = null
             }
+
             is Resource.Success -> {
                 isLoading = false
                 result.data?.let { homeData = it }
             }
+
             is Resource.Error -> {
                 isLoading = false
                 errorMessage = result.message
+            }
+
+            is Resource.Idle -> {
+                isLoading = false
+                errorMessage = null
             }
         }
     }
@@ -164,8 +184,8 @@ fun HomeScreen(
         isRefreshing = isLoading,
         state = pullRefreshState,
         onRefresh = {
-            // Aksi saat di-swipe ke bawah
             homeViewModel.getHomeData()
+            profileViewModel.loadUserProfile() // Refresh profile juga jika ditarik
         },
         modifier = Modifier.fillMaxSize()
     ) {
@@ -176,14 +196,20 @@ fun HomeScreen(
             contentPadding = PaddingValues(bottom = 100.dp)
         ) {
 
-            item { HeaderSection() }
+            // PASS DATA NAMA KE HEADER
+            item {
+                HeaderSection(firstName = userProfile.firstName)
+            }
 
             // LOGIKA LOADING:
-            // Tampilkan spinner tengah HANYA jika data kosong (load pertama).
-            // Jika data sudah ada (pull to refresh), spinner dihandle oleh PullToRefreshBox.
             if (isLoading && homeData.folders.isEmpty() && homeData.decks.isEmpty()) {
                 item {
-                    Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         CircularProgressIndicator()
                     }
                 }
@@ -192,7 +218,9 @@ fun HomeScreen(
             else if (errorMessage != null && homeData.folders.isEmpty() && homeData.decks.isEmpty()) {
                 item {
                     Column(
-                        modifier = Modifier.fillMaxWidth().padding(24.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text("Gagal memuat data", color = Color.Red, fontWeight = FontWeight.Bold)
@@ -200,8 +228,7 @@ fun HomeScreen(
                         Button(onClick = { homeViewModel.getHomeData() }) { Text("Coba Lagi") }
                     }
                 }
-            }
-            else {
+            } else {
                 // TAMPILKAN DATA
                 if (homeData.folders.isEmpty() && homeData.decks.isEmpty()) {
                     item { EmptyView() }
@@ -225,10 +252,11 @@ fun HomeScreen(
                         val fallbackColors = listOf("#E1FFBF", "#E8E9FE", "#FFF3CD")
 
                         itemsIndexed(homeData.folders) { index, folder ->
-                            val colorString = folder.serverColor ?: fallbackColors[index % fallbackColors.size]
+                            val colorString =
+                                folder.serverColor ?: fallbackColors[index % fallbackColors.size]
 
                             val bgColor = try {
-                                Color(android.graphics.Color.parseColor(colorString))
+                                Color(colorString.toColorInt())
                             } catch (e: Exception) {
                                 Color(0xFFE8E9FE)
                             }
@@ -237,12 +265,12 @@ fun HomeScreen(
                                 FolderItemView(
                                     data = folder,
                                     bgColor = bgColor,
-                                    onClick = { onFolderClick(folder.name) },
-                                    onMoveClicked = { /*TODO*/ },
-                                    onEditClick = { oldName, color ->
+                                    onClick = { onFolderClick(folder) },
+                                    onMoveClicked = { /*TODO: Folder move logic if needed*/ },
+                                    onEditClick = { id, oldName, color ->
                                         val encodedName = Uri.encode(oldName)
                                         val safeColor = color.replace("#", "")
-                                        onEditFolder(folder.id, encodedName, safeColor)
+                                        onEditFolder(id, encodedName, safeColor)
                                     },
                                     onDeleteClick = {
                                         deleteType = "folder"
@@ -272,10 +300,12 @@ fun HomeScreen(
                             Box(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
                                 DeckItemView(
                                     data = deck,
-                                    onClick = { onDeckClick(deck.deckName) },
-                                    onMoveClicked = { /*TODO*/ },
-                                    onEditDeck = { deckName ->
-                                        onEditDeck(Uri.encode(deckName))
+                                    onClick = { onDeckClick(deck) },
+                                    onMoveClicked = {
+                                        onMoveDeck(deck.id)
+                                    },
+                                    onEditDeck = { deckId ->
+                                        onEditDeck(deckId)
                                     },
                                     onDeleteDeck = {
                                         deleteType = "deck"
@@ -289,7 +319,7 @@ fun HomeScreen(
                 }
             }
         }
-    } // End of PullToRefreshBox
+    }
 
     // Popup Delete
     if (showDeleteDialog) {
@@ -301,9 +331,7 @@ fun HomeScreen(
                     "folder" -> folderViewModel.deleteFolder(deleteId)
                     "deck" -> deckViewModel.deleteDeck(deleteId)
                 }
-                // Refresh data setelah hapus
                 homeViewModel.getHomeData()
-
                 deleteId = ""
                 deleteType = ""
             }
@@ -316,19 +344,87 @@ fun HomeScreen(
         COMPONENTS
    ========================= */
 
+// Update HeaderSection untuk menerima parameter nama
+@Composable
+fun HeaderSection(firstName: String?) {
+    // Format nama: Ambil nama depan, jadikan lowercase dulu, lalu first char Uppercase
+    val displayName = firstName?.let { name ->
+        name.lowercase().replaceFirstChar {
+            if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+        }
+    } ?: "User"
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(DeepBlue)
+            .statusBarsPadding()
+            .padding(24.dp)
+    ) {
+
+        Text(
+            text = "Hi, $displayName", // Gunakan variable display name
+            color = White,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Text(
+            text = "Let's train your memory!",
+            color = White.copy(alpha = 0.8f),
+            fontSize = 14.sp
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier
+                    .widthIn(max = 500.dp)
+                    .fillMaxWidth()
+            ) {
+                ImageActionCard(
+                    drawableId = R.drawable.memorize,
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(1.83f)
+                )
+                ImageActionCard(
+                    drawableId = R.drawable.learn,
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(1.83f)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+// ... Sisa kode komponen lain (FolderItemView, DeckItemView, EmptyView, ImageActionCard) tetap sama ...
+// Agar lebih ringkas saya tidak menulis ulang bagian bawah yang tidak berubah,
+// tapi pastikan Anda menyimpannya seperti di kode asal Anda.
+
 @Composable
 fun FolderItemView(
     data: FolderItemData,
     bgColor: Color,
     onClick: () -> Unit,
     onMoveClicked: () -> Unit,
-    onEditClick: (String, String) -> Unit,
+    onEditClick: (String, String, String) -> Unit,
     onDeleteClick: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFFDFDFE)),
         elevation = CardDefaults.cardElevation(2.dp)
@@ -377,9 +473,18 @@ fun FolderItemView(
                                 Text("Edit", fontSize = 14.sp, color = TextBlack)
                             }
                         },
-                        onClick = { expanded = false; onEditClick(data.name, bgColor.toHex()) }
+                        onClick = {
+                            expanded = false; onEditClick(
+                            data.id,
+                            data.name,
+                            bgColor.toHex()
+                        )
+                        }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color.Gray.copy(0.3f))
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = Color.Gray.copy(0.3f)
+                    )
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -433,60 +538,6 @@ fun EmptyView() {
 }
 
 @Composable
-fun HeaderSection() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(DeepBlue)
-            .statusBarsPadding()
-            .padding(24.dp)
-    ) {
-
-        Text(
-            text = "Hi, Reynard",
-            color = White,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Text(
-            text = "Let's train your memory!",
-            color = White.copy(alpha = 0.8f),
-            fontSize = 14.sp
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Box(
-            modifier = Modifier.fillMaxWidth(),
-            contentAlignment = Alignment.Center
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier
-                    .widthIn(max = 500.dp)
-                    .fillMaxWidth()
-            ) {
-                ImageActionCard(
-                    drawableId = R.drawable.memorize,
-                    modifier = Modifier
-                        .weight(1f)
-                        .aspectRatio(1.83f)
-                )
-                ImageActionCard(
-                    drawableId = R.drawable.learn,
-                    modifier = Modifier
-                        .weight(1f)
-                        .aspectRatio(1.83f)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-@Composable
 fun ImageActionCard(drawableId: Int, modifier: Modifier = Modifier) {
     Image(
         painter = painterResource(id = drawableId),
@@ -510,7 +561,9 @@ fun DeckItemView(
     var expanded by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = Color(0xFFFDFDFE)
@@ -560,14 +613,21 @@ fun DeckItemView(
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(painterResource(R.drawable.move), "Move", tint = Color(0xFF0961F5))
+                                Icon(
+                                    painterResource(R.drawable.move),
+                                    "Move",
+                                    tint = Color(0xFF0961F5)
+                                )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("Move", fontSize = 14.sp, color = TextBlack)
                             }
                         },
                         onClick = { expanded = false; onMoveClicked() }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color.Gray.copy(alpha = 0.3f))
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = Color.Gray.copy(alpha = 0.3f)
+                    )
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -576,9 +636,12 @@ fun DeckItemView(
                                 Text("Edit", fontSize = 14.sp, color = TextBlack)
                             }
                         },
-                        onClick = { expanded = false; onEditDeck(data.deckName) }
+                        onClick = { expanded = false; onEditDeck(data.id) }
                     )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color.Gray.copy(alpha = 0.3f))
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = Color.Gray.copy(alpha = 0.3f)
+                    )
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {

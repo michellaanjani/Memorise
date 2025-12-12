@@ -3,11 +3,14 @@ package com.mobile.memorise.ui.screen.createnew.card
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -15,53 +18,61 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.draw.clip
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobile.memorise.R
 import com.mobile.memorise.ui.screen.cards.CardItemData
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.runtime.LaunchedEffect
-
+import com.mobile.memorise.ui.screen.createnew.deck.CardOperationState
+import com.mobile.memorise.ui.screen.createnew.deck.DeckViewModel
+import kotlinx.coroutines.delay
 
 @Composable
 fun EditCardScreen(
+    deckId: String,
     deckName: String,
     card: CardItemData,
     onBackClick: () -> Unit,
-    onCardUpdated: (CardItemData) -> Unit
+    // Menggunakan DeckViewModel (Hilt) untuk update ke Database
+    deckViewModel: DeckViewModel = hiltViewModel()
 ) {
+    // ORIGINAL VALUES
     val originalFront = card.front
     val originalBack = card.back
 
+    // FORM VALUES
     var front by remember { mutableStateOf(TextFieldValue(card.front)) }
     var back by remember { mutableStateOf(TextFieldValue(card.back)) }
-
-    val isEdited = front.text != originalFront || back.text != originalBack
-
     var showSuccessPopup by remember { mutableStateOf(false) }
 
-    // FIX: Popup bekerja otomatis
-    LaunchedEffect(showSuccessPopup) {
-        if (showSuccessPopup) {
-            kotlinx.coroutines.delay(1500)
-            showSuccessPopup = false
+    // OBSERVE STATE DARI VIEWMODEL
+    val operationState = deckViewModel.cardOperationState
+
+    // BUTTON ENABLED CONDITION: Teks berubah DAN tidak loading
+    val isEdited = (front.text != originalFront || back.text != originalBack) &&
+            operationState !is CardOperationState.Loading
+
+    // HANDLE SUCCESS / NAVIGATION
+    LaunchedEffect(operationState) {
+        if (operationState is CardOperationState.Success) {
+            showSuccessPopup = true
+            delay(1000) // Tampilkan popup sebentar
+            deckViewModel.resetCardState() // Reset state agar bersih
+            onBackClick()
         }
     }
 
-    Box(   // <<< FIX: gunakan Box agar popup bisa overlay
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
+    // Root menggunakan Box agar Popup bisa overlay di tengah
+    Box(modifier = Modifier.fillMaxSize()) {
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                // Fitur scroll dari Upstream (Penting)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(top = 20.dp)
         ) {
 
-            // TOP BAR
+            // ---------- TOP BAR ----------
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -89,7 +100,7 @@ fun EditCardScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // FORM BOX
+            // ---------- FORM CONTAINER ----------
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -98,6 +109,7 @@ fun EditCardScreen(
                     .padding(20.dp)
             ) {
 
+                // FRONT SIDE
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Front Side", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     Text("*", color = Color.Red, fontSize = 15.sp)
@@ -111,9 +123,15 @@ fun EditCardScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 20.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color(0xFFE7ECF5),
+                        focusedBorderColor = Color(0xFF3D5CFF),
+                        cursorColor = Color(0xFF3D5CFF)
+                    )
                 )
 
+                // BACK SIDE
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Back Side", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     Text("*", color = Color.Red, fontSize = 15.sp)
@@ -127,39 +145,69 @@ fun EditCardScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 100.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color(0xFFE7ECF5),
+                        focusedBorderColor = Color(0xFF3D5CFF),
+                        cursorColor = Color(0xFF3D5CFF)
+                    )
                 )
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // BUTTON
+            // ---------- UPDATE BUTTON ----------
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center
             ) {
                 Button(
                     onClick = {
-                        onCardUpdated(
-                            card.copy(
-                                front = front.text.trim(),
-                                back = back.text.trim()
-                            )
+                        // Panggil fungsi updateCard dari ViewModel (Stashed Logic)
+                        deckViewModel.updateCard(
+                            cardId = card.id,
+                            front = front.text.trim(),
+                            back = back.text.trim()
                         )
-                        showSuccessPopup = true
                     },
                     enabled = isEdited,
                     modifier = Modifier
                         .widthIn(min = 160.dp)
                         .height(48.dp),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isEdited) Color(0xFF3D5CFF) else Color(0xFFB9C4FF),
+                        contentColor = Color.White
+                    )
                 ) {
-                    Text("Update Card", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    if (operationState is CardOperationState.Loading) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Update Card", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
                 }
             }
+
+            // Menampilkan error jika ada
+            if (operationState is CardOperationState.Error) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = operationState.message,
+                    color = Color.Red,
+                    fontSize = 14.sp,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+            }
+
+            // Spacer bawah agar scroll nyaman
+            Spacer(modifier = Modifier.height(50.dp))
         }
 
-        // POPUP (overlay)
+        // ---------- POPUP SUCCESS (Overlay) ----------
         if (showSuccessPopup) {
             Box(
                 modifier = Modifier
@@ -184,4 +232,3 @@ fun EditCardScreen(
         }
     }
 }
-

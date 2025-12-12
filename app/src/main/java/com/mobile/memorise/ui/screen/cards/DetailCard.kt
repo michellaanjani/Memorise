@@ -1,5 +1,6 @@
 package com.mobile.memorise.ui.screen.cards
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -25,13 +26,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
 import com.mobile.memorise.ui.component.DeleteConfirmDialog
-import com.mobile.memorise.ui.theme.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import android.net.Uri
 
 // Warna
 private val BgColor = Color(0xFFF8F9FB)
@@ -41,21 +39,23 @@ private val TextDark = Color(0xFF1A1C24)
 
 @Composable
 fun DetailCardScreen(
+    deckId: String, // Diperlukan untuk konteks database
     deckName: String,
     cards: List<CardItemData>,
     initialIndex: Int = 0,
     onClose: () -> Unit,
     onEditCard: (Int, String) -> Unit,
-    onDeleteCard: (Int) -> Unit // tidak dipakai lagi tapi biarkan untuk kompatibilitas
+    onDeleteCard: (Int) -> Unit
 ) {
 
-    // 👉 STATE LOKAL LIST KARTU (bukan pakai cards langsung)
+    // 👉 STATE LOKAL LIST KARTU
+    // Kita copy cards ke mutableStateListOf agar bisa dihapus secara UI instant
     val cardList = remember { mutableStateListOf<CardItemData>().apply { addAll(cards) } }
 
     // 👉 STATE INDEX HALAMAN
     var currentIndex by remember { mutableStateOf(initialIndex) }
 
-    // 👉 Kalau list kosong setelah delete → keluar otomatis
+    // Jika list kosong, langsung tutup
     if (cardList.isEmpty()) {
         LaunchedEffect(Unit) { onClose() }
         return
@@ -117,8 +117,11 @@ fun DetailCardScreen(
                 contentPadding = PaddingValues(horizontal = 24.dp),
                 pageSpacing = 16.dp
             ) { pageIndex ->
-                val currentCard = cardList[pageIndex]
-                CardContentView(currentCard)
+                // Pastikan index aman (cegah crash saat delete item terakhir)
+                val currentCard = cardList.getOrNull(pageIndex)
+                if (currentCard != null) {
+                    CardContentView(currentCard)
+                }
             }
         }
     }
@@ -128,12 +131,22 @@ fun DetailCardScreen(
         DeleteConfirmDialog(
             onCancel = { showDeleteDialog = false },
             onDelete = {
+                val currentPage = pagerState.currentPage
 
-                // 🔥 HAPUS DARI STATE LOKAL, BUKAN PAKAI onDeleteCard()
-                cardList.removeAt(pagerState.currentPage)
+                // 1. Panggil Callback ke Parent (untuk hapus di Database/ViewModel)
+                onDeleteCard(currentPage)
 
+                // 2. Hapus dari State UI Lokal (supaya hilang visualnya)
+                if (currentPage < cardList.size) {
+                    cardList.removeAt(currentPage)
+                }
+
+                // 3. Atur Navigasi
                 if (cardList.isNotEmpty()) {
-                    currentIndex = pagerState.currentPage.coerceAtMost(cardList.lastIndex)
+                    // Geser index jika perlu
+                    val newIndex = currentPage.coerceAtMost(cardList.lastIndex)
+                    currentIndex = newIndex
+                    // Paksa scroll jika index berubah drastis (opsional, pagerState handle otomatis biasanya)
                 } else {
                     onClose()
                 }
@@ -143,7 +156,6 @@ fun DetailCardScreen(
         )
     }
 }
-
 
 @Composable
 fun CardContentView(currentCard: CardItemData) {

@@ -1,9 +1,12 @@
 package com.mobile.memorise.data.repository
 
 import com.mobile.memorise.data.local.token.TokenStore
+import com.mobile.memorise.data.local.user.UserStore
 import com.mobile.memorise.data.remote.AuthApi
-import com.mobile.memorise.data.remote.dto.LoginRequest
-import com.mobile.memorise.data.remote.dto.RegisterRequest
+// --- PERHATIKAN IMPORT DI BAWAH INI ---
+import com.mobile.memorise.data.remote.dto.auth.LoginRequestDto
+import com.mobile.memorise.data.remote.dto.auth.RegisterRequestDto
+// ---------------------------------------
 import com.mobile.memorise.domain.repository.AuthRepository
 import com.mobile.memorise.util.Resource
 import kotlinx.coroutines.flow.Flow
@@ -12,7 +15,8 @@ import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
     private val api: AuthApi,
-    private val tokenStore: TokenStore
+    private val tokenStore: TokenStore,
+    private val userStore: UserStore
 ) : AuthRepository {
 
     override val isUserLoggedIn: Flow<Boolean> = tokenStore.accessToken
@@ -20,16 +24,23 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun signIn(email: String, pass: String): Resource<Unit> {
         return try {
-            val response = api.login(LoginRequest(email, pass))
+            // Karena AuthApi sudah diubah menerima LoginRequestDto, ini tidak akan merah lagi
+            val response = api.login(LoginRequestDto(email, pass))
             val body = response.body()
 
             if (response.isSuccessful && body != null && body.success && body.data != null) {
-                // Simpan Access Token (Refresh token diabaikan sesuai request awal)
-                tokenStore.saveToken(body.data.tokens.accessToken)
-                Resource.Success(Unit)
+                val authData = body.data
+                val tokens = authData.tokens
+
+                if (tokens != null) {
+                    tokenStore.saveTokens(tokens.accessToken, tokens.refreshToken)
+                    userStore.saveUser(authData.user)
+                    Resource.Success(Unit)
+                } else {
+                    Resource.Error("Token tidak ditemukan")
+                }
             } else {
-                // Ambil pesan error dari API jika ada, atau fallback
-                val msg = body?.message ?: body?.error ?: "Login failed"
+                val msg = body?.message ?: "Login failed"
                 Resource.Error(msg)
             }
         } catch (e: Exception) {
@@ -37,22 +48,29 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    // Update parameter sesuai kebutuhan API (Name)
     override suspend fun signUp(firstName: String, lastName: String, email: String, pass: String): Resource<Unit> {
         return try {
-            val request = RegisterRequest(firstName = firstName, lastName = lastName, email = email, password = pass)
+            // Karena AuthApi sudah diubah menerima RegisterRequestDto, ini aman
+            val request = RegisterRequestDto(
+                firstName = firstName,
+                lastName = lastName,
+                email = email,
+                password = pass
+            )
             val response = api.register(request)
             val body = response.body()
 
             if (response.isSuccessful && body != null && body.success) {
-                // API register ini mengembalikan token juga, jadi bisa auto-login
-                // Jika data token ada, simpan.
-                body.data?.tokens?.let {
-                    tokenStore.saveToken(it.accessToken)
+                val authData = body.data
+                val tokens = authData?.tokens
+
+                if (tokens != null && authData != null) {
+                    tokenStore.saveTokens(tokens.accessToken, tokens.refreshToken)
+                    userStore.saveUser(authData.user)
                 }
                 Resource.Success(Unit)
             } else {
-                val msg = body?.message ?: body?.error ?: "Registration failed"
+                val msg = body?.message ?: "Registration failed"
                 Resource.Error(msg)
             }
         } catch (e: Exception) {
@@ -62,13 +80,10 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun logout() {
         try {
-            // Optional: Beritahu server kita logout
-            api.logoutServer()
-        } catch (e: Exception) {
-            // Ignore network error saat logout
-        } finally {
-            // Hapus token lokal (Penting)
             tokenStore.clearToken()
+            userStore.clearUser()
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }

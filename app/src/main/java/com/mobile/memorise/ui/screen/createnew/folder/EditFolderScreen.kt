@@ -4,6 +4,10 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,23 +27,18 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mobile.memorise.R
+import com.mobile.memorise.util.Resource
 import kotlinx.coroutines.delay
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 
-// Warna Bantuan agar lebih konsisten
-val TextBlack = Color(0xFF111827) // Hitam Pekat untuk Judul/Input
-val TextGray = Color(0xFF6B7280)  // Abu-abu untuk Label
-val PrimaryBlue = Color(0xFF0961F5)
-val BgColor = Color(0xFFFFFFFF)   // Background Putih Bersih
+// --- Definisi Warna ---
+private val TextBlack = Color(0xFF111827)
+private val TextGray = Color(0xFF6B7280)
+private val PrimaryBlue = Color(0xFF0961F5)
+private val BgColor = Color(0xFFFFFFFF)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,12 +50,14 @@ fun EditFolderScreen(
     folderViewModel: FolderViewModel
 ) {
     val context = LocalContext.current
-    val editState = folderViewModel.editFolderState
 
-    // State Form
+    // Mengambil state edit dari ViewModel
+    val editState by folderViewModel.editFolderState.collectAsState()
+
+    // --- 1. State Form ---
     var folderName by remember { mutableStateOf(oldName) }
 
-    // Pastikan warna ada pagarnya
+    // Format warna aman (tambah # jika belum ada)
     val safeInitialColor = if (initialColor.startsWith("#")) initialColor else "#$initialColor"
     var selectedColor by remember { mutableStateOf(safeInitialColor) }
 
@@ -65,24 +66,30 @@ fun EditFolderScreen(
 
     val colorOptions = listOf("#E1FFBF", "#E8E9FE", "#FFF3CD", "#FFE4E1", "#E0F7FA")
 
-    // Logic Validasi
+    // --- 2. Logic Validasi ---
     val isChanged = folderName.trim() != oldName || selectedColor != safeInitialColor
     val isFormValid = folderName.isNotBlank() && localError == null && isChanged
-    val isLoading = editState is EditFolderState.Loading
 
+    // Cek Loading
+    val isLoading = editState is Resource.Loading
+
+    // --- 3. Side Effects (API Response) ---
     LaunchedEffect(editState) {
-        when (editState) {
-            is EditFolderState.Success -> {
+        when (val state = editState) {
+            is Resource.Success -> {
+                // 1. Munculkan Popup
                 showSuccessPopup = true
+                // 2. Tunggu
                 delay(1500)
+                // 3. Reset State & Balik
                 folderViewModel.resetEditState()
                 onBackClick()
             }
-            is EditFolderState.Error -> {
-                if (editState.field == null) {
-                    Toast.makeText(context, editState.message, Toast.LENGTH_LONG).show()
-                    folderViewModel.resetEditState()
-                }
+            is Resource.Error -> {
+                // Tampilkan pesan error bersih
+                Toast.makeText(context, state.message ?: "An error occurred", Toast.LENGTH_LONG).show()
+                // Reset state agar tidak stuck di error, tapi jangan keluar layar
+                folderViewModel.resetEditState()
             }
             else -> {}
         }
@@ -98,7 +105,7 @@ fun EditFolderScreen(
                             "Edit Folder",
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
-                            color = TextBlack // Pastikan Hitam
+                            color = TextBlack
                         )
                     },
                     navigationIcon = {
@@ -122,7 +129,7 @@ fun EditFolderScreen(
             ) {
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // --- 1. INPUT NAME SECTION ---
+                // --- INPUT NAME SECTION ---
                 Text(
                     text = "Folder Name",
                     fontWeight = FontWeight.Medium,
@@ -131,16 +138,13 @@ fun EditFolderScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                val displayError = if (editState is EditFolderState.Error && editState.field == "name") {
-                    editState.message
-                } else localError
-                val isError = displayError != null
+                val isError = localError != null
 
                 OutlinedTextField(
                     value = folderName,
                     onValueChange = {
                         folderName = it
-                        if (editState is EditFolderState.Error) folderViewModel.resetEditState()
+                        // Validasi lokal saat mengetik
                         localError = if (it.trim().isEmpty()) "Name cannot be empty" else null
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -149,7 +153,7 @@ fun EditFolderScreen(
                     isError = isError,
                     textStyle = LocalTextStyle.current.copy(
                         fontSize = 16.sp,
-                        color = TextBlack, // Teks Input Hitam Pekat
+                        color = TextBlack,
                         fontWeight = FontWeight.SemiBold
                     ),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -163,9 +167,10 @@ fun EditFolderScreen(
                     placeholder = { Text("Enter folder name", color = Color.LightGray) }
                 )
 
-                if (isError) {
+                // Error Message Animation
+                AnimatedVisibility(visible = isError) {
                     Text(
-                        text = displayError ?: "",
+                        text = localError ?: "",
                         color = Color.Red,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 4.dp, start = 4.dp)
@@ -174,7 +179,7 @@ fun EditFolderScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // --- 2. COLOR PICKER SECTION (Redesigned) ---
+                // --- COLOR PICKER SECTION ---
                 Text(
                     text = "Folder Color",
                     fontWeight = FontWeight.Medium,
@@ -185,12 +190,16 @@ fun EditFolderScreen(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween, // Ratakan lingkaran
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     colorOptions.forEach { hex ->
                         val isSelected = selectedColor == hex
-                        val colorInt = Color(android.graphics.Color.parseColor(hex))
+                        val colorInt = try {
+                            Color(android.graphics.Color.parseColor(hex))
+                        } catch (e: Exception) {
+                            Color.Gray
+                        }
 
                         Box(
                             modifier = Modifier
@@ -201,11 +210,13 @@ fun EditFolderScreen(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
                                 ) { selectedColor = hex }
-                                .border(1.dp, Color.Black.copy(alpha = 0.1f), CircleShape),
+                                .border(
+                                    width = if (isSelected) 2.dp else 1.dp,
+                                    color = if (isSelected) PrimaryBlue else Color.Black.copy(0.1f),
+                                    shape = CircleShape
+                                ),
                             contentAlignment = Alignment.Center
                         ) {
-                            // PERBAIKAN DI SINI:
-                            // Gunakan animasi explisit (scaleIn + fadeIn) agar tidak error scope
                             androidx.compose.animation.AnimatedVisibility(
                                 visible = isSelected,
                                 enter = scaleIn() + fadeIn(),
@@ -231,9 +242,10 @@ fun EditFolderScreen(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // --- 3. SAVE BUTTON (Bottom) ---
+                // --- SAVE BUTTON ---
                 Button(
                     onClick = {
+                        // Memanggil fungsi update di ViewModel
                         folderViewModel.updateFolder(folderId, folderName.trim(), selectedColor)
                     },
                     enabled = isFormValid && !isLoading,
@@ -248,13 +260,17 @@ fun EditFolderScreen(
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = PrimaryBlue,
-                        disabledContainerColor = Color(0xFFE5E7EB), // Abu-abu saat disabled
+                        disabledContainerColor = Color(0xFFE5E7EB),
                         contentColor = Color.White,
                         disabledContentColor = Color(0xFF9CA3AF)
                     )
                 ) {
                     if (isLoading) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.5.dp
+                        )
                     } else {
                         Text("Save Changes", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
@@ -263,15 +279,23 @@ fun EditFolderScreen(
             }
         }
 
-        // --- SUCCESS POPUP (Sama seperti sebelumnya) ---
+        // --- SUCCESS POPUP OVERLAY ---
         if (showSuccessPopup) {
-            val alphaAnim by animateFloatAsState(targetValue = if (showSuccessPopup) 1f else 0f, animationSpec = tween(250))
-            val scaleAnim by animateFloatAsState(targetValue = if (showSuccessPopup) 1f else 0.95f, animationSpec = tween(250))
+            val alphaAnim by animateFloatAsState(
+                targetValue = if (showSuccessPopup) 1f else 0f,
+                animationSpec = tween(250), label = "alpha"
+            )
+            val scaleAnim by animateFloatAsState(
+                targetValue = if (showSuccessPopup) 1f else 0.95f,
+                animationSpec = tween(250), label = "scale"
+            )
 
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.4f * alphaAnim)),
+                    .background(Color.Black.copy(alpha = 0.4f * alphaAnim))
+                    // Block clicks di belakang popup
+                    .clickable(enabled = false) {},
                 contentAlignment = Alignment.Center
             ) {
                 Card(
@@ -279,22 +303,43 @@ fun EditFolderScreen(
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     modifier = Modifier
                         .padding(32.dp)
-                        .graphicsLayer { scaleX = scaleAnim; scaleY = scaleAnim }
+                        .graphicsLayer {
+                            scaleX = scaleAnim
+                            scaleY = scaleAnim
+                        }
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 32.dp, vertical = 24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Box(
-                            modifier = Modifier.size(60.dp).clip(CircleShape).background(Color(0xFFDCFCE7)), // Hijau Muda Halus
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFDCFCE7)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Check, null, tint = Color(0xFF166534), modifier = Modifier.size(32.dp))
+                            Icon(
+                                Icons.Default.Check,
+                                null,
+                                tint = Color(0xFF166534),
+                                modifier = Modifier.size(32.dp)
+                            )
                         }
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("Success!", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextBlack)
+                        Text(
+                            "Success!",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextBlack
+                        )
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("Folder updated successfully.", fontSize = 14.sp, color = TextGray, textAlign = TextAlign.Center)
+                        Text(
+                            "Folder updated successfully.",
+                            fontSize = 14.sp,
+                            color = TextGray,
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
             }

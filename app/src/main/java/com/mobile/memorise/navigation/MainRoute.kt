@@ -1,49 +1,49 @@
 package com.mobile.memorise.navigation
 
+import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.ui.graphics.vector.ImageVector
-import android.net.Uri
-
 
 // MainRoute requires (route, title, icon)
 sealed class MainRoute(val route: String, val title: String, val icon: ImageVector) {
     object Home : MainRoute("home", "Home", Icons.Filled.Home)
-    object Create : MainRoute("create", "Create", Icons.Filled.Add) // Tombol Tambah di tengah
+    object Create : MainRoute("create", "Create", Icons.Filled.Add)
     object Account : MainRoute("account", "Account", Icons.Filled.Person)
     object EditProfile : MainRoute("edit_profile", "Edit Profile", Icons.Filled.Person)
     object EditPassword : MainRoute("edit_password", "Edit Password", Icons.Filled.Person)
 
     // Rute Khusus (Tidak ada di Navbar)
-    object DeckDetail : MainRoute("deck_detail/{folderName}", "Deck Detail", Icons.Filled.Home) {
-        fun createRoute(folderName: String) = "deck_detail/$folderName"
+    object DeckDetail : MainRoute(
+        "deck_detail/{folderName}/{folderId}",
+        "Deck Detail",
+        Icons.Filled.Home
+    ) {
+        fun createRoute(folderName: String, folderId: String) = "deck_detail/$folderName/$folderId"
     }
 
-    object Cards : MainRoute("cards/{deckName}", "Cards", Icons.Filled.Home) {
-        fun createRoute(deckName: String) = "cards/$deckName"
+    object Cards : MainRoute("cards/{deckId}/{deckName}", "Cards", Icons.Filled.Home) {
+        fun createRoute(deckId: String, deckName: String) = "cards/$deckId/$deckName"
     }
 
-    // --- TAMBAHAN BARU ---
-    object Study : MainRoute("study/{deckName}/{cardList}", "Study", Icons.Filled.Home) {
-        // Fungsi ini dipakai saat tombol Study diklik
-        fun createRoute(deckName: String, cardListJson: String) = "study/$deckName/$cardListJson"
+    object Study : MainRoute("study/{deckId}/{deckName}", "Study", Icons.Filled.Home) {
+        fun createRoute(deckId: String, deckName: String) = "study/$deckId/$deckName"
     }
 
-    object Quiz : MainRoute("quiz/{deckName}/{cardList}", "Quiz", Icons.Filled.Home) {
-        fun createRoute(deckName: String, cardListJson: String) = "quiz/$deckName/$cardListJson"
+    object Quiz : MainRoute("quiz/{deckId}/{deckName}", "Quiz", Icons.Filled.Home) {
+        fun createRoute(deckId: String, deckName: String) = "quiz/$deckId/$deckName"
     }
 
-    object CardDetail : MainRoute("detail_card/{deckName}/{cardList}/{index}", "Detail", Icons.Filled.Home) {
-        fun createRoute(deckName: String, encodedJson: String, index: Int): String {
-            return "detail_card/$deckName/$encodedJson/$index"
+    // Menggunakan versi Stashed (dengan deckId) agar sinkron dengan Database
+    object CardDetail : MainRoute("detail_card/{deckId}/{deckName}/{cardList}/{index}", "Detail", Icons.Filled.Home) {
+        fun createRoute(deckId: String, deckName: String, encodedJson: String, index: Int): String {
+            return "detail_card/$deckId/$deckName/$encodedJson/$index"
         }
     }
-
-
 
     object AiGeneration : MainRoute(
         route = "ai_generation",
@@ -64,52 +64,67 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
         icon = Icons.Filled.Folder
     )
 
+    // Create Deck
     object CreateDeck : MainRoute(
-        route = "create_deck",
+        route = "create_deck?folderId={folderId}",
         title = "Create Deck",
         icon = Icons.Filled.Add
-    )
+    ) {
+        fun createDeckWithFolder(id: String) = "create_deck?folderId=$id"
+        fun createDeckNoFolder() = "create_deck"
+    }
+
+    // Move Deck
+    object MoveDeck : MainRoute(
+        "move_deck/{deckId}",
+        title = "Move Deck",
+        icon = Icons.Filled.Edit
+    ) {
+        fun createRoute(deckId: String) = "move_deck/$deckId"
+    }
 
     object EditFolder : MainRoute(
-        route = "edit_folder/{oldName}/{color}",
+        route = "edit_folder/{idFolder}/{oldName}/{color}",
         title = "Edit Folder",
         icon = Icons.Filled.Edit
     ) {
-        fun createRoute(oldName: String, color: String): String {
-            return "edit_folder/${Uri.encode(oldName)}/${Uri.encode(color)}"
+        fun createRoute(idFolder: String, oldName: String, color: String): String {
+            return "edit_folder/${Uri.encode(idFolder)}/${Uri.encode(oldName)}/${Uri.encode(color)}"
         }
     }
 
     object EditDeck : MainRoute(
-        route = "edit_deck/{oldName}",
+        route = "edit_deck/{deckId}",
         title = "Edit Deck",
-        icon = Icons.Default.Edit
+        icon = Icons.Filled.Edit
     ) {
-        fun createRoute(oldName: String) = "edit_deck/$oldName"
+        fun createRoute(deckId: String) = "edit_deck/$deckId"
     }
 
     object AddCard : MainRoute(
-        route = "add_card/{deckName}",
+        route = "add_card/{deckId}/{deckName}",
         title = "Add Card",
-        icon = Icons.Default.Add
+        icon = Icons.Filled.Add
     ) {
-        fun createRoute(deckName: String) = "add_card/$deckName"
+        fun createRoute(deckId: String, deckName: String) = "add_card/$deckId/$deckName"
     }
 
+    // Menggunakan versi Stashed (dengan deckId)
     object EditCard : MainRoute(
-        route = "edit_card/{deckName}/{index}/{json}",
+        route = "edit_card/{deckId}/{deckName}/{index}/{json}",
         title = "Edit Card",
-        icon = Icons.Default.Edit
+        icon = Icons.Filled.Edit
     ) {
-        fun createRoute(deckName: String, index: Int, json: String): String {
-            val encodedJson = Uri.encode(json)
-            return "edit_card/$deckName/$index/$encodedJson"
+        fun createRoute(deckId: String, deckName: String, index: Int, json: String): String {
+            // Pastikan JSON di-encode di sini agar aman
+            return "edit_card/$deckId/$deckName/$index/${Uri.encode(json)}"
         }
     }
 
     // ==============================
-// AI GENERATION ROUTES (FINAL FIX)
-// ==============================
+    // AI GENERATION ROUTES (NEW)
+    // Diambil dari Upstream (GitHub)
+    // ==============================
     object AiDraft : MainRoute(
         route = "ai_draft/{deckName}/{cardsJson}",
         title = "AI Draft",
@@ -140,9 +155,3 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
         }
     }
 }
-
-
-
-
-
-

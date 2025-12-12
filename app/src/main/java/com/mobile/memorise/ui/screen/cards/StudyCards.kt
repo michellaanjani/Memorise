@@ -8,7 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -23,12 +22,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import com.mobile.memorise.ui.theme.CalmBlue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
-// Pastikan R di-import. Jika error, sesuaikan dengan package name Anda
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobile.memorise.R
+// --- IMPORT BARU ---
+import com.mobile.memorise.ui.screen.createnew.deck.DeckViewModel
 
 // --- Warna ---
 private val BgColor = Color(0xFFF8F9FB)
@@ -46,10 +46,42 @@ private val GreenText = Color(0xFF4CAF50)
 @Composable
 fun StudyScreen(
     deckName: String,
-    cardList: List<CardItemData>,
-    onBackClick: () -> Unit
+    cardList: List<CardItemData>, // List fallback jika load gagal / kosong
+    onBackClick: () -> Unit,
+    deckId: String? = null,
+    // --- PERUBAHAN: Gunakan DeckViewModel ---
+    deckViewModel: DeckViewModel = hiltViewModel()
 ) {
-    val pagerState = rememberPagerState(pageCount = { cardList.size })
+    // 1. Load data jika deckId ada (untuk memastikan data terbaru)
+    LaunchedEffect(deckId) {
+        if (!deckId.isNullOrEmpty()) {
+            deckViewModel.loadCards(deckId)
+        }
+    }
+
+    // 2. Ambil data dari ViewModel
+    val rawCards = deckViewModel.cards
+    val isLoading = deckViewModel.areCardsLoading
+
+    // 3. Konversi ke CardItemData
+    // Jika data dari API (ViewModel) ada, pakai itu. Jika tidak, pakai data fallback dari parameter navigasi.
+    val displayCards = remember(rawCards.size, rawCards, cardList) {
+        if (rawCards.isNotEmpty()) {
+            rawCards.map { CardItemData(id = it.id, front = it.front, back = it.back) }
+        } else {
+            cardList
+        }
+    }
+
+    // Tampilkan Loading jika sedang fetch data dan list kosong
+    if (!deckId.isNullOrEmpty() && isLoading && displayCards.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    val pagerState = rememberPagerState(pageCount = { displayCards.size })
     val scope = rememberCoroutineScope() // Untuk animasi scroll button
 
     Scaffold(
@@ -79,8 +111,12 @@ fun StudyScreen(
                         .background(Color.White)
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
+                    // Mencegah error division by zero jika list kosong (walaupun harusnya tidak mungkin masuk sini jika kosong)
+                    val total = if (displayCards.isEmpty()) 0 else displayCards.size
+                    val current = if (displayCards.isEmpty()) 0 else pagerState.currentPage + 1
+
                     Text(
-                        text = "${pagerState.currentPage + 1}/${cardList.size}",
+                        text = "$current/$total",
                         color = Color.Gray,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
@@ -98,16 +134,23 @@ fun StudyScreen(
         ) {
 
             // 1. Area Kartu (Pager)
-            HorizontalPager(
-                state = pagerState,
-                contentPadding = PaddingValues(horizontal = 24.dp),
-                pageSpacing = 16.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f) // Mengambil space terbesar
-            ) { page ->
-                val cardData = cardList[page]
-                FlipCardItem(card = cardData)
+            if (displayCards.isNotEmpty()) {
+                HorizontalPager(
+                    state = pagerState,
+                    contentPadding = PaddingValues(horizontal = 24.dp),
+                    pageSpacing = 16.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f) // Mengambil space terbesar
+                ) { page ->
+                    val cardData = displayCards[page]
+                    FlipCardItem(card = cardData)
+                }
+            } else {
+                // Fallback Empty State
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    Text("No cards available to study.")
+                }
             }
 
             // 2. Tombol Navigasi (Prev / Next)
@@ -146,7 +189,7 @@ fun StudyScreen(
                             pagerState.animateScrollToPage(pagerState.currentPage + 1)
                         }
                     },
-                    enabled = pagerState.currentPage < cardList.size - 1, // Disable jika di akhir
+                    enabled = pagerState.currentPage < displayCards.size - 1, // Disable jika di akhir
                     colors = IconButtonDefaults.filledIconButtonColors(
                         containerColor = BlueText, // Warna biru biar menonjol
                         disabledContainerColor = Color.LightGray

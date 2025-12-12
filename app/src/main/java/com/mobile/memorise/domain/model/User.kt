@@ -1,5 +1,6 @@
 package com.mobile.memorise.domain.model
 
+// Model User (Data Profil)
 data class User(
     val id: String,
     val email: String,
@@ -11,3 +12,10 @@ data class User(
 ) {
     val fullName: String get() = "$firstName $lastName"
 }
+
+// Model AuthToken (Data Sesi Login)
+// Tambahkan class ini di bawah User
+data class AuthToken(
+    val accessToken: String,
+    val refreshToken: String
+)

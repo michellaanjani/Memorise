@@ -3,11 +3,14 @@ package com.mobile.memorise.ui.screen.createnew.card
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -15,27 +18,42 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobile.memorise.R
-import com.mobile.memorise.ui.screen.cards.CardItemData
+import com.mobile.memorise.ui.screen.createnew.deck.CardOperationState
+import com.mobile.memorise.ui.screen.createnew.deck.DeckViewModel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import androidx.compose.ui.draw.clip
-import kotlin.math.abs
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 
 @Composable
 fun AddCardScreen(
+    deckId: String,
     deckName: String,
     onBackClick: () -> Unit,
-    onCardSaved: (CardItemData) -> Unit
+    // Menggunakan DeckViewModel yang baru (Hilt)
+    deckViewModel: DeckViewModel = hiltViewModel()
 ) {
     var front by remember { mutableStateOf(TextFieldValue("")) }
     var back by remember { mutableStateOf(TextFieldValue("")) }
     var showSuccessPopup by remember { mutableStateOf(false) }
 
-    val coroutine = rememberCoroutineScope()
-    val isFormValid = front.text.isNotBlank() && back.text.isNotBlank()
+    // Mengambil state langsung dari properti variable di ViewModel
+    val cardOperationState = deckViewModel.cardOperationState
+
+    // Logic ketika state berubah (Success/Error)
+    LaunchedEffect(cardOperationState) {
+        if (cardOperationState is CardOperationState.Success) {
+            showSuccessPopup = true
+            delay(800)
+            // Reset state agar jika masuk kembali tidak langsung sukses
+            deckViewModel.resetCardState()
+            onBackClick()
+        }
+    }
+
+    // Validasi form: Tidak boleh kosong & tidak sedang loading
+    val isFormValid = front.text.isNotBlank() &&
+            back.text.isNotBlank() &&
+            cardOperationState !is CardOperationState.Loading
 
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -43,7 +61,8 @@ fun AddCardScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())  // <<< SCROLL WORKS
+                // Fitur scroll dari Upstream (Penting agar UI tidak terpotong)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(top = 20.dp)
         ) {
@@ -134,31 +153,19 @@ fun AddCardScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // ---------- BUTTON (reduced width) ----------
+            // ---------- BUTTON ----------
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center
             ) {
                 Button(
                     onClick = {
-                        val generatedId = abs(System.currentTimeMillis().toInt())
-                        val newCard = CardItemData(
-                            id = generatedId,
+                        // Memanggil fungsi createCard dari DeckViewModel
+                        deckViewModel.createCard(
+                            deckId = deckId,
                             front = front.text.trim(),
                             back = back.text.trim()
                         )
-
-                        onCardSaved(newCard)
-
-                        // Reset form
-                        front = TextFieldValue("")
-                        back = TextFieldValue("")
-                        showSuccessPopup = true
-
-                        coroutine.launch {
-                            delay(1200)
-                            showSuccessPopup = false
-                        }
                     },
                     enabled = isFormValid,
                     modifier = Modifier
@@ -170,9 +177,31 @@ fun AddCardScreen(
                         contentColor = Color.White
                     )
                 ) {
-                    Text("Add Card", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    if (cardOperationState is CardOperationState.Loading) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text("Add Card", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
                 }
             }
+
+            // Menampilkan error jika terjadi kegagalan
+            if (cardOperationState is CardOperationState.Error) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = (cardOperationState as CardOperationState.Error).message,
+                    color = Color.Red,
+                    fontSize = 14.sp,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
+            }
+
+            // Spacer tambahan di bawah agar tombol tidak mepet layar bawah saat di-scroll
+            Spacer(modifier = Modifier.height(50.dp))
         }
 
         // ---------- POPUP SUCCESS ----------

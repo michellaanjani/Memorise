@@ -1,7 +1,5 @@
 package com.mobile.memorise.ui.screen.profile
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,7 +11,9 @@ import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,23 +33,15 @@ import androidx.compose.foundation.BorderStroke
 @Composable
 fun ProfileScreen(
     navController: NavHostController,
-    viewModel: ProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel(),
+    viewModel: ProfileViewModel = hiltViewModel(),
     onLogout: () -> Unit
 ) {
     val user = viewModel.userProfile.collectAsState().value
     val hasPhoto = user.avatarUri != null
 
-    val pickImageLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        if (uri != null && !hasPhoto) {
-            viewModel.updateProfile(
-                firstName = user.firstName,
-                lastName = user.lastName,
-                email = user.email,
-                avatarUri = uri.toString()
-            )
-        }
+    // Load profile when screen is displayed
+    LaunchedEffect(Unit) {
+        viewModel.loadUserProfile()
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -122,27 +114,6 @@ fun ProfileScreen(
                     }
                 }
 
-                // Camera icon
-                if (!hasPhoto) {
-                    Box(
-                        modifier = Modifier
-                            .offset(8.dp, 8.dp)
-                            .size(36.dp)
-                            .shadow(4.dp, CircleShape, clip = false)
-                            .background(Color.White, CircleShape)
-                            .border(1.dp, Color(0xFFE0E0E0), CircleShape)
-                            .clip(CircleShape)
-                            .clickable { pickImageLauncher.launch("image/*") },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.camera),
-                            contentDescription = "Change Photo",
-                            tint = Color(0xFF0961F5),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.height(14.dp))

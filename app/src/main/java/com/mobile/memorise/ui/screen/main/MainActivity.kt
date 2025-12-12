@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -299,7 +300,7 @@ fun CreateBottomSheetContent(
             painter = painterResource(id = R.drawable.cdeck),
             title = "Create Deck",
             subtitle = "Organize flashcard into decks",
-            onClick = { onNavigate(MainRoute.CreateDeck.route) }
+            onClick = { onNavigate(MainRoute.CreateDeck.createDeckNoFolder()) }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -355,7 +356,7 @@ fun CreateOptionItem(
         }
 
         Icon(
-            imageVector = Icons.Default.KeyboardArrowRight,
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
             tint = TextBlack
         )

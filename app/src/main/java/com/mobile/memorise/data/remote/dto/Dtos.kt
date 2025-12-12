@@ -28,11 +28,16 @@ data class LoginRequest(
 data class UpdateProfileRequest(
     val firstName: String,
     val lastName: String,
-    val profile: ProfileDataDto // Nested object sesuai API
+    val profile: ProfileDataDto? = null // Nested object sesuai API, optional
 )
 
 data class ProfileDataDto(
-    val bio: String
+    val bio: String? = null
+)
+
+data class ChangePasswordRequest(
+    val currentPassword: String,
+    val newPassword: String
 )
 
 // --- 3. Response Data Structures ---
@@ -51,13 +56,18 @@ data class UserWrapperDto(
     val user: UserDto
 )
 
+data class UserProfileResponseDto(
+    val user: UserDto
+)
+
 data class EmailVerificationStatusDataDto(
     val isEmailVerified: Boolean
 )
 
 // Mapping User dari JSON yang rumit ke object DTO
+// Mapping User dari JSON yang rumit ke object DTO
 data class UserDto(
-    @SerializedName("_id") val id: String, // API login pakai "_id"
+    @SerializedName(value = "id", alternate = ["_id"]) val id: String, // profile pakai "id", login pakai "_id"
     val email: String,
     val firstName: String,
     val lastName: String,

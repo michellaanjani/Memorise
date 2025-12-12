@@ -12,30 +12,24 @@ class AuthInterceptor @Inject constructor(
 ) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        // 1. Ambil token (blocking karena interceptor synchronous)
+        val originalRequest = chain.request()
+
+        // 1. Ambil token (blocking)
         val token = runBlocking {
             tokenStore.accessToken.first()
         }
 
-        // 2. Buat request baru dengan header
-        val request = if (!token.isNullOrEmpty()) {
-            chain.request().newBuilder()
-                .addHeader("Authorization", "Bearer $token")
-                .build()
-        } else {
-            chain.request()
+        // 2. Jika token ada, suntikkan ke header
+        val requestBuilder = originalRequest.newBuilder()
+        if (!token.isNullOrBlank()) {
+            requestBuilder.addHeader("Authorization", "Bearer $token")
         }
 
-        val response = chain.proceed(request)
+        val request = requestBuilder.build()
 
-        // 3. Cek apakah token expired (401)
-        if (response.code == 401) {
-            // Token tidak valid -> Hapus token -> UI akan otomatis kembali ke Login
-            runBlocking {
-                tokenStore.clearToken()
-            }
-        }
-
-        return response
+        // 3. Lanjutkan request
+        // PENTING: Jangan cek kode 401 di sini!
+        // Biarkan Authenticator yang menangani 401.
+        return chain.proceed(request)
     }
 }
