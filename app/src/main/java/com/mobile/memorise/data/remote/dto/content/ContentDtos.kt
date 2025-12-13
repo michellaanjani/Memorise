@@ -14,7 +14,7 @@ data class FolderDto(
     val color: String,
     val decksCount: Int = 0,
     val createdAt: String? = null,
-    val updatedAt: String? = null // Opsional: Tambahkan jika folder juga butuh tanggal update
+    val updatedAt: String? = null
 )
 
 data class DeckDto(
@@ -25,7 +25,6 @@ data class DeckDto(
     val description: String?,
     val cardCount: Int = 0,
     val createdAt: String? = null,
-    // 🔥 UPDATE: Field ini wajib ada untuk fitur "Updated Date"
     val updatedAt: String? = null
 )
 
@@ -40,7 +39,7 @@ data class CardDto(
 )
 
 // =================================================================
-// 2. HOME & REQUEST BODIES (Folder/Deck/Card)
+// 2. HOME & REQUEST BODIES
 // =================================================================
 
 data class HomeDataDto(
@@ -61,7 +60,7 @@ data class CreateDeckRequestDto(
 )
 
 data class CreateCardRequestDto(
-    val deckId: String?,
+    val deckId: String? = null, // Nullable agar bisa dipakai untuk Update (PATCH)
     val front: String,
     val back: String
 )
@@ -71,23 +70,56 @@ data class MoveDeckRequestDto(
 )
 
 // =================================================================
-// 3. QUIZ SYSTEM DTOs
+// 3. QUIZ SYSTEM DTOs (BAGIAN INI YANG DIPERBAIKI)
 // =================================================================
 
+// Sesuaikan dengan JSON Log: { "deckId": "...", "totalQuestions": 6, "questions": [...] }
 data class QuizSessionDto(
-    @SerializedName("quizId") val quizId: String,
-    @SerializedName("cards") val cards: List<CardDto>
+    @SerializedName("deckId")
+    val deckId: String? = null,
+
+    @SerializedName("totalQuestions")
+    val totalQuestions: Int? = 0,
+
+    @SerializedName("questions")
+    val questions: List<QuizQuestionDto>? = emptyList() // Default empty biar gak crash
+)
+
+// Class baru untuk menampung detail pertanyaan dari server
+data class QuizQuestionDto(
+    @SerializedName("cardId")
+    val cardId: String,
+
+    @SerializedName("question")
+    val question: String,
+
+    @SerializedName("correctAnswer")
+    val correctAnswer: String,
+
+    @SerializedName("options")
+    val options: List<String>? = emptyList(), // Penting: List String, bukan Object
+
+    @SerializedName("explanation")
+    val explanation: String? = null
 )
 
 data class QuizSubmitRequestDto(
-    val quizId: String,
+    val deckId: String,          // Biasanya butuh deckId
+    val totalQuestions: Int,
+    val correctAnswers: Int,
+
+    @SerializedName("details") // <--- TAMBAHKAN INI AGAR SERVER BACA SEBAGAI "details"
     val answers: List<QuizAnswerDto>
 )
-
 data class QuizAnswerDto(
     val cardId: String,
-    val answer: String
+    val isCorrect: Boolean,
+    val userAnswer: String,
+
+    // 🔥 TAMBAHKAN INI
+    val correctAnswer: String
 )
+
 
 data class QuizResultDto(
     @SerializedName("_id") val id: String,
@@ -95,6 +127,9 @@ data class QuizResultDto(
     val score: Int,
     val totalQuestions: Int,
     val correctAnswers: Int,
+
+    // 🔥 PERBAIKAN: Mapping 'createdAt' dari JSON ke variabel 'playedAt'
+    @SerializedName("createdAt")
     val playedAt: String
 )
 
@@ -102,14 +137,12 @@ data class QuizResultDto(
 // 4. AI & FILE MODULE DTOs
 // =================================================================
 
-// --- AI GENERATION REQUEST ---
 data class AiGenerateRequest(
     val fileId: String?,
-    val format: String,     // 'question' or 'definition'
+    val format: String,
     val cardAmount: Int
 )
 
-// --- AI GENERATION RESPONSE ---
 data class AiGenerateResultData(
     val deck: AiDeckInfo,
     val cards: List<AiCard>
@@ -121,7 +154,6 @@ data class AiDeckInfo(
     val description: String?
 )
 
-// --- AI CARD (Digunakan di Draft) ---
 data class AiCard(
     @SerializedName("_id") val id: String,
     val front: String,
@@ -129,7 +161,6 @@ data class AiCard(
     val deckId: String? = null
 )
 
-// --- AI DRAFT DETAIL ---
 data class AiDraftDetailData(
     @SerializedName("_id") val id: String,
     val name: String,
@@ -138,7 +169,6 @@ data class AiDraftDetailData(
     val cards: List<AiCard>
 )
 
-// --- AI ACTIONS ---
 data class UpdateCardRequest(
     val front: String,
     val back: String
@@ -148,7 +178,6 @@ data class SaveDeckRequest(
     val folderId: String?
 )
 
-// --- FILE UPLOAD ---
 data class UploadResponseData(
     @SerializedName("_id") val id: String,
     val url: String?,

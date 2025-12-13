@@ -1,11 +1,11 @@
 package com.mobile.memorise.ui.screen.cards
 
 import android.media.MediaPlayer
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,19 +14,25 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Cancel
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -38,199 +44,185 @@ import com.mobile.memorise.domain.model.quiz.QuizSubmitRequest
 import com.mobile.memorise.ui.viewmodel.QuizViewModel
 import com.mobile.memorise.util.Resource
 
-// --- COLORS ---
-private val TextDark = Color(0xFF1A1C24)
-private val TextGray = Color(0xFF757575)
-private val BluePrimary = Color(0xFF4285F4)
-private val OrangeButton = Color(0xFFFF9800)
-
-// Warna Status Jawaban
-private val CorrectGreen = Color(0xFF00C853)
-private val CorrectBg = Color(0xFFE8F5E9)
-private val WrongRed = Color(0xFFD32F2F)
-private val WrongBg = Color(0xFFFFEBEE)
-private val BorderDefault = Color(0xFFE0E0E0)
-private val BgDefault = Color(0xFFF5F6F8)
+// --- COLORS PALETTE ---
+private val PrimaryBlue = Color(0xFF4285F4)
+private val LightBlueBg = Color(0xFFF3F7FF)
+private val SuccessGreen = Color(0xFF00C853)
+private val ErrorRed = Color(0xFFD32F2F)
+private val WarningOrange = Color(0xFFFF9800)
+private val TextDark = Color(0xFF323A5E)
+private val TextGray = Color(0xFF6B7280)
+private val SurfaceWhite = Color.White
 
 @Composable
 fun QuizScreen(
     deckId: String,
-    deckName: String, // Bisa digunakan untuk judul jika mau
+    deckName: String,
     onBackClick: () -> Unit,
     quizViewModel: QuizViewModel = hiltViewModel()
 ) {
-    // Collect State dari ViewModel
     val startState by quizViewModel.startState.collectAsState()
     val submitState by quizViewModel.submitState.collectAsState()
 
-    // State Lokal Quiz
+    // Snackbar State
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // State Lokal
     var currentIndex by remember { mutableIntStateOf(0) }
     var correctCount by remember { mutableIntStateOf(0) }
     var answers by remember { mutableStateOf(listOf<QuizAnswerDetail>()) }
 
-    // 1. Mulai Quiz saat layar dibuka
+    // Efek Error Submit
+    LaunchedEffect(submitState) {
+        if (submitState is Resource.Error) {
+            val msg = (submitState as Resource.Error).message ?: "Gagal mengirim jawaban."
+            snackbarHostState.showSnackbar(msg)
+        }
+    }
+
     LaunchedEffect(deckId) {
         quizViewModel.resetStartState()
         quizViewModel.resetSubmitState()
         quizViewModel.startQuiz(deckId)
     }
 
-    // Ambil data pertanyaan jika sukses
     val questions = (startState as? Resource.Success)?.data?.questions ?: emptyList()
     val totalQuestions = (startState as? Resource.Success)?.data?.totalQuestions ?: questions.size
 
-    // --- MAIN CONTENT SWITCHER ---
-    when (startState) {
-        is Resource.Loading -> {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = BluePrimary)
-            }
-        }
-        is Resource.Error -> {
-            val msg = (startState as Resource.Error).message ?: "Gagal memulai kuis."
-            ErrorView(
-                message = msg,
-                onRetry = { quizViewModel.startQuiz(deckId) },
-                onBack = onBackClick
-            )
-        }
-        is Resource.Success -> {
-            // Cek apakah sudah Submit (Selesai)
-            if (submitState is Resource.Success) {
-                val result = (submitState as Resource.Success).data!!
-                QuizResultContent(
-                    totalQuestions = result.totalQuestions,
-                    correctAnswers = result.correctAnswers,
-                    score = result.score,
-                    onBackClick = onBackClick
-                )
-            } else if (submitState is Resource.Error) {
-                val msg = (submitState as Resource.Error).message ?: "Gagal mengirim jawaban."
-                ErrorView(
-                    message = msg,
-                    onRetry = {
-                        quizViewModel.submitQuiz(
-                            QuizSubmitRequest(deckId, totalQuestions, correctCount, answers)
-                        )
-                    },
-                    onBack = onBackClick
-                )
-            } else {
-                // Tampilkan Pertanyaan Aktif
-                if (questions.isEmpty()) {
-                    ErrorView(
-                        message = "Tidak ada pertanyaan tersedia untuk Deck ini.",
-                        onRetry = onBackClick,
-                        onBack = onBackClick
-                    )
-                } else {
-                    QuizQuestionContent(
-                        question = questions[currentIndex],
-                        currentNumber = currentIndex + 1,
-                        totalNumber = totalQuestions,
-                        onBackClick = onBackClick,
-                        onAnswered = { detail ->
-                            // Simpan jawaban (hindari duplikat cardId)
-                            answers = answers.filterNot { it.cardId == detail.cardId } + detail
-                            if (detail.isCorrect) correctCount++
-                        },
-                        onNextClick = {
-                            if (currentIndex < questions.size - 1) {
-                                currentIndex++
-                            } else {
-                                // Jika soal terakhir selesai, Submit ke API
-                                quizViewModel.submitQuiz(
-                                    QuizSubmitRequest(deckId, totalQuestions, correctCount, answers)
-                                )
+    // Container Utama (Tanpa Scaffold di sini untuk hindari double padding)
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = LightBlueBg
+    ) {
+        // Bungkus dengan Box untuk menampung Snackbar di lapisan paling atas jika perlu,
+        // tapi idealnya Scaffold di dalam Question/Result menangani ini.
+        // Kita gunakan Scaffold pembungkus khusus Snackbar jika mau global.
+        Scaffold(
+            containerColor = Color.Transparent,
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            contentWindowInsets = WindowInsets(0, 0, 0, 0) // Reset insets
+        ) { paddingValues ->
+            Box(Modifier.padding(paddingValues).fillMaxSize()) {
+                when (startState) {
+                    is Resource.Loading -> {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(color = PrimaryBlue)
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("Menyiapkan Kuis...", color = TextGray)
                             }
-                        },
-                        isLastQuestion = currentIndex == questions.size - 1,
-                        submitState = submitState
-                    )
+                        }
+                    }
+                    is Resource.Error -> {
+                        val msg = (startState as Resource.Error).message ?: "Terjadi kesalahan."
+                        ErrorStateView(message = msg, onRetry = { quizViewModel.startQuiz(deckId) }, onBack = onBackClick)
+                    }
+                    is Resource.Success -> {
+                        if (submitState is Resource.Success) {
+                            val result = (submitState as Resource.Success).data!!
+                            QuizResultContent(
+                                totalQuestions = result.totalQuestions,
+                                correctAnswers = result.correctAnswers,
+                                score = result.score,
+                                onBackClick = onBackClick
+                            )
+                        } else if (questions.isNotEmpty()) {
+                            QuizQuestionContent(
+                                question = questions[currentIndex],
+                                currentIndex = currentIndex,
+                                totalQuestions = totalQuestions,
+                                onBackClick = onBackClick,
+                                submitState = submitState,
+                                onAnswered = { detail ->
+                                    answers = answers.filterNot { it.cardId == detail.cardId } + detail
+                                    if (detail.isCorrect) correctCount++
+                                },
+                                onNextClick = {
+                                    if (currentIndex < questions.size - 1) {
+                                        currentIndex++
+                                    } else {
+                                        quizViewModel.submitQuiz(
+                                            QuizSubmitRequest(deckId, totalQuestions, correctCount, answers)
+                                        )
+                                    }
+                                }
+                            )
+                        } else {
+                            ErrorStateView("Tidak ada kartu dalam Deck ini.", onRetry = onBackClick, onBack = onBackClick)
+                        }
+                    }
+                    else -> {}
                 }
             }
         }
-        else -> {} // Idle State
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+// ... (QuizQuestionContent dan QuizOptionItem SAMA SEPERTI SEBELUMNYA, TIDAK PERLU DIUBAH) ...
+@OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun QuizQuestionContent(
     question: QuizQuestion,
-    currentNumber: Int,
-    totalNumber: Int,
+    currentIndex: Int,
+    totalQuestions: Int,
     onBackClick: () -> Unit,
+    submitState: Resource<QuizSubmitData>,
     onAnswered: (QuizAnswerDetail) -> Unit,
-    onNextClick: () -> Unit,
-    isLastQuestion: Boolean,
-    submitState: Resource<QuizSubmitData>
+    onNextClick: () -> Unit
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
-    var selectedAnswer by remember { mutableStateOf<String?>(null) }
-    var isAnswered by remember { mutableStateOf(false) }
-    var showExplain by remember { mutableStateOf(false) }
+    var selectedAnswer by remember(question) { mutableStateOf<String?>(null) }
+    var isAnswered by remember(question) { mutableStateOf(false) }
 
-    // Ambil maksimal 4 opsi
-    val options = remember(question) { question.options.take(4) }
+    val progress by animateFloatAsState(
+        targetValue = (currentIndex + 1) / totalQuestions.toFloat(),
+        animationSpec = tween(500), label = "progress"
+    )
 
     Scaffold(
-        containerColor = Color.White,
+        containerColor = LightBlueBg,
+        contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Image(
-                        painter = painterResource(id = R.drawable.memorisey),
-                        contentDescription = "Memorise Logo",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.height(28.dp)
+            Surface(shadowElevation = 4.dp, color = SurfaceWhite) {
+                Column {
+                    TopAppBar(
+                        title = { Text("Quiz Time", fontWeight = FontWeight.Bold, color = TextDark, fontSize = 18.sp) },
+                        navigationIcon = {
+                            IconButton(onClick = onBackClick) { Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextDark) }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceWhite)
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextDark)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
-            )
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.fillMaxWidth().height(6.dp),
+                        color = PrimaryBlue,
+                        trackColor = Color(0xFFE0E0E0),
+                        strokeCap = StrokeCap.Round
+                    )
+                }
+            }
         },
         bottomBar = {
-            // Tombol Next/Submit Muncul setelah menjawab
             if (isAnswered) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White)
-                        .padding(24.dp)
+                Surface(
+                    shadowElevation = 16.dp, color = SurfaceWhite,
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
                 ) {
-                    Button(
-                        onClick = {
-                            // Reset state lokal untuk pertanyaan berikutnya
-                            selectedAnswer = null
-                            isAnswered = false
-                            showExplain = false
-                            onNextClick()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isLastQuestion) CorrectGreen else BluePrimary
-                        ),
-                        enabled = submitState !is Resource.Loading,
-                    ) {
-                        if (submitState is Resource.Loading) {
-                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                        } else {
-                            Text(
-                                text = if (isLastQuestion) "Selesai & Lihat Hasil" else "Pertanyaan Selanjutnya",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
+                    Column(modifier = Modifier.fillMaxWidth().padding(24.dp).windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))) {
+                        Button(
+                            onClick = onNextClick,
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = if (currentIndex == totalQuestions - 1) SuccessGreen else PrimaryBlue),
+                            enabled = submitState !is Resource.Loading
+                        ) {
+                            if (submitState is Resource.Loading) {
+                                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                            } else {
+                                Text(text = if (currentIndex == totalQuestions - 1) "Finish Quiz" else "Next Question", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SurfaceWhite)
+                            }
                         }
                     }
                 }
@@ -238,167 +230,64 @@ fun QuizQuestionContent(
         }
     ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 24.dp)
-                .verticalScroll(scrollState),
+            modifier = Modifier.padding(innerPadding).fillMaxSize().verticalScroll(scrollState).padding(horizontal = 24.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Text(text = "Question ${currentIndex + 1} of $totalQuestions", style = MaterialTheme.typography.labelLarge, color = TextGray)
             Spacer(modifier = Modifier.height(24.dp))
-
-            // Indikator Nomor Soal
-            Text(
-                text = "Soal $currentNumber dari $totalNumber",
-                color = TextGray,
-                fontSize = 14.sp
-            )
-
+            AnimatedContent(targetState = question, transitionSpec = { fadeIn(tween(300)) + slideInHorizontally { it } togetherWith fadeOut(tween(300)) + slideOutHorizontally { -it } }, label = "q") { target ->
+                Text(text = target.question, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextDark, textAlign = TextAlign.Center, lineHeight = 30.sp, modifier = Modifier.fillMaxWidth())
+            }
             Spacer(modifier = Modifier.height(32.dp))
-
-            // Teks Pertanyaan
-            Text(
-                text = question.question,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextDark,
-                textAlign = TextAlign.Center,
-                lineHeight = 32.sp
-            )
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Loop Opsi Jawaban
-            options.forEach { option ->
-                val isCorrectOption = option == question.correctAnswer
-                val isSelected = option == selectedAnswer
-
-                // Tentukan Warna Border & Background
-                var borderColor = BorderDefault
-                var bgColor = BgDefault
-                var icon: @Composable (() -> Unit)? = null
-
-                if (isAnswered) {
-                    if (isCorrectOption) {
-                        borderColor = CorrectGreen
-                        bgColor = CorrectBg
-                        icon = { Icon(Icons.Default.CheckCircle, null, tint = CorrectGreen) }
-                    } else if (isSelected) {
-                        borderColor = WrongRed
-                        bgColor = WrongBg
-                        icon = {
-                            Icon(
-                                Icons.Default.Close,
-                                null,
-                                tint = WrongRed,
-                                modifier = Modifier
-                                    .border(1.dp, WrongRed, CircleShape)
-                                    .padding(2.dp)
-                                    .size(16.dp)
-                            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                val options = remember(question) { (question.options ?: emptyList()).take(4) }
+                options.forEach { option ->
+                    QuizOptionItem(
+                        optionText = option,
+                        isSelected = selectedAnswer == option,
+                        isAnswered = isAnswered,
+                        isCorrectAnswer = option == question.correctAnswer,
+                        onClick = {
+                            if (!isAnswered) {
+                                selectedAnswer = option; isAnswered = true;
+                                val isCorrect = option == question.correctAnswer
+                                try {
+                                    val soundRes = if (isCorrect) R.raw.correct else R.raw.wrong
+                                    MediaPlayer.create(context, soundRes).apply { setOnCompletionListener { release() }; start() }
+                                } catch (e: Exception) { e.printStackTrace() }
+                                onAnswered(QuizAnswerDetail(question.cardId, isCorrect, option, question.correctAnswer ?: "", question.explanation))
+                            }
                         }
-                    }
-                } else if (isSelected) {
-                    // State terpilih tapi belum dikonfirmasi (opsional, disini langsung jawab)
-                    borderColor = BluePrimary
-                }
-
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, if (isSelected || (isAnswered && isCorrectOption)) borderColor else BorderDefault),
-                    colors = CardDefaults.cardColors(containerColor = if (isSelected || (isAnswered && isCorrectOption)) bgColor else Color.White),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp)
-                        .clickable(enabled = !isAnswered) {
-                            selectedAnswer = option
-                            isAnswered = true
-
-                            // Callback ke Parent
-                            onAnswered(
-                                QuizAnswerDetail(
-                                    cardId = question.cardId,
-                                    isCorrect = isCorrectOption,
-                                    userAnswer = option,
-                                    correctAnswer = question.correctAnswer,
-                                    explanation = question.explanation
-                                )
-                            )
-
-                            // Mainkan Efek Suara
-                            val soundRes = if (isCorrectOption) R.raw.correct else R.raw.wrong
-                            val mp = MediaPlayer.create(context, soundRes)
-                            mp.setOnCompletionListener { it.release() }
-                            mp.start()
-                        }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = option,
-                            fontSize = 15.sp,
-                            color = TextDark,
-                            modifier = Modifier.weight(1f)
-                        )
-                        if (isAnswered && icon != null) {
-                            Spacer(modifier = Modifier.width(8.dp))
-                            icon()
-                        }
-                    }
-                }
-            }
-
-            // Tombol Penjelasan (Hanya muncul jika sudah dijawab & ada penjelasan)
-            if (isAnswered) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = { showExplain = !showExplain },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFE0E7FF),
-                        contentColor = TextDark
                     )
-                ) {
-                    Text(if (showExplain) "Sembunyikan Penjelasan" else "Lihat Penjelasan", fontWeight = FontWeight.SemiBold)
                 }
-
-                if (showExplain) {
-                    Spacer(Modifier.height(12.dp))
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF6F8FF)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "Penjelasan:",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                color = BluePrimary
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = question.explanation ?: "Tidak ada penjelasan tambahan.",
-                                color = TextDark,
-                                fontSize = 14.sp
-                            )
-                        }
+            }
+            AnimatedVisibility(visible = isAnswered && !question.explanation.isNullOrBlank()) {
+                Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)), border = BorderStroke(1.dp, Color(0xFFFFC107)), modifier = Modifier.fillMaxWidth().padding(top = 24.dp)) {
+                    Column(Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Rounded.Lightbulb, null, tint = Color(0xFFFFA000)); Spacer(Modifier.width(8.dp)); Text("Explanation", fontWeight = FontWeight.Bold, color = Color(0xFFFFA000)) }
+                        Spacer(Modifier.height(4.dp)); Text(question.explanation ?: "", fontSize = 14.sp, color = TextDark)
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(24.dp))
+            if (isAnswered) Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }
 
+@Composable
+fun QuizOptionItem(optionText: String, isSelected: Boolean, isAnswered: Boolean, isCorrectAnswer: Boolean, onClick: () -> Unit) {
+    val borderColor by animateColorAsState(targetValue = when { isAnswered && isCorrectAnswer -> SuccessGreen; isAnswered && isSelected && !isCorrectAnswer -> ErrorRed; isSelected -> PrimaryBlue; else -> Color(0xFFE5E7EB) }, label = "border")
+    val backgroundColor by animateColorAsState(targetValue = when { isAnswered && isCorrectAnswer -> Color(0xFFDCFCE7); isAnswered && isSelected && !isCorrectAnswer -> Color(0xFFFEE2E2); isSelected -> Color(0xFFEFF6FF); else -> SurfaceWhite }, label = "bg")
+    val icon = when { isAnswered && isCorrectAnswer -> Icons.Default.Check; isAnswered && isSelected && !isCorrectAnswer -> Icons.Default.Close; else -> null }
+    Card(shape = RoundedCornerShape(16.dp), border = BorderStroke(2.dp, borderColor), colors = CardDefaults.cardColors(containerColor = backgroundColor), modifier = Modifier.fillMaxWidth().clickable(enabled = !isAnswered, onClick = onClick).shadow(elevation = if (isSelected) 4.dp else 0.dp, shape = RoundedCornerShape(16.dp), spotColor = borderColor)) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(text = optionText, fontSize = 16.sp, color = TextDark, fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal, modifier = Modifier.weight(1f))
+            if (icon != null) { Spacer(modifier = Modifier.width(8.dp)); Icon(imageVector = icon, contentDescription = null, tint = if (icon == Icons.Default.Check) SuccessGreen else ErrorRed, modifier = Modifier.size(24.dp).background(color = if (icon == Icons.Default.Check) SuccessGreen.copy(0.1f) else ErrorRed.copy(0.1f), shape = CircleShape).padding(4.dp)) }
+        }
+    }
+}
+
+// 🔥 PERBAIKAN TAMPILAN RESULT 🔥
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuizResultContent(
@@ -407,128 +296,224 @@ fun QuizResultContent(
     score: Int,
     onBackClick: () -> Unit
 ) {
-    val targetPercentage = score.toFloat()
+    val context = LocalContext.current
     val wrongAnswers = totalQuestions - correctAnswers
 
-    // Animasi Progress Bar
-    val animatedProgress = remember { Animatable(0f) }
+    // Pesan Motivasi berdasarkan Score
+    val (resultTitle, resultMessage, resultColor) = remember(score) {
+        when {
+            score >= 80 -> Triple("Excellent!", "Kamu luar biasa!", SuccessGreen)
+            score >= 60 -> Triple("Good Job!", "Pertahankan semangatmu!", PrimaryBlue)
+            score >= 40 -> Triple("Not Bad", "Coba lagi biar makin jago!", WarningOrange)
+            else -> Triple("Keep Learning", "Jangan menyerah, ayo belajar lagi!", ErrorRed)
+        }
+    }
 
+    // Animasi Angka Score
+    val animatedScore = remember { Animatable(0f) }
+
+    // Efek Suara & Animasi saat muncul
     LaunchedEffect(Unit) {
-        animatedProgress.animateTo(
-            targetValue = targetPercentage,
+        // 1. Play Sound
+        try {
+            // Pastikan file 'done.mp3' ada di res/raw/done.mp3
+            val mp = MediaPlayer.create(context, R.raw.done)
+            mp.start()
+            mp.setOnCompletionListener { it.release() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 2. Animasi Progress
+        animatedScore.animateTo(
+            targetValue = score.toFloat(),
             animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing)
         )
     }
 
     Scaffold(
-        containerColor = Color.White,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Image(
-                        painter = painterResource(id = R.drawable.memorisey),
-                        contentDescription = "Logo",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.height(28.dp)
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = TextDark)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White)
-            )
-        }
-    ) { innerPadding ->
+        containerColor = SurfaceWhite,
+        contentWindowInsets = WindowInsets.safeDrawing
+    ) { padding ->
         Column(
             modifier = Modifier
+                .padding(padding)
                 .fillMaxSize()
-                .padding(innerPadding),
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // KONTEN TENGAH (Weight 1f agar mengisi ruang)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.size(250.dp)
-                ) {
-                    // Track Belakang (Abu-abu muda)
-                    CircularProgressIndicator(
-                        progress = { 1f },
-                        modifier = Modifier.fillMaxSize(),
-                        color = Color(0xFFF3F6FF),
-                        strokeWidth = 20.dp,
-                        trackColor = Color(0xFFF3F6FF),
-                        strokeCap = StrokeCap.Round,
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text("Quiz Result", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextDark)
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // --- CUSTOM CIRCULAR PROGRESS ---
+            Box(contentAlignment = Alignment.Center) {
+                // Panggil Custom Composable
+                AnimatedCircularProgress(
+                    percentage = animatedScore.value / 100f,
+                    color = resultColor,
+                    size = 220.dp,
+                    strokeWidth = 18.dp
+                )
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "${animatedScore.value.toInt()}%",
+                        fontSize = 42.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = TextDark
                     )
-
-                    // Progress Depan (Biru) - Animasi
-                    CircularProgressIndicator(
-                        progress = { animatedProgress.value / 100f },
-                        modifier = Modifier.fillMaxSize(),
-                        color = BluePrimary,
-                        strokeWidth = 20.dp,
-                        trackColor = Color.Transparent,
-                        strokeCap = StrokeCap.Round,
-                    )
-
-                    // Teks Persentase di Tengah
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "${animatedProgress.value.toInt()}%",
-                            fontSize = 48.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextDark
-                        )
-                        Text(
-                            text = "Score",
-                            fontSize = 14.sp,
-                            color = TextGray
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(40.dp))
-
-                // Detail Jawaban
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(24.dp)
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("$correctAnswers", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = CorrectGreen)
-                        Text("Benar", color = TextGray)
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("$wrongAnswers", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = WrongRed)
-                        Text("Salah", color = TextGray)
-                    }
+                    Text("Score", fontSize = 14.sp, color = TextGray)
                 }
             }
 
-            // TOMBOL KEMBALI (Di Bawah)
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Pesan Motivasi
+            Text(resultTitle, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = resultColor)
+            Text(resultMessage, fontSize = 16.sp, color = TextGray, textAlign = TextAlign.Center)
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Statistik Grid
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                StatCardModern(
+                    label = "Correct",
+                    value = correctAnswers.toString(),
+                    color = SuccessGreen,
+                    icon = Icons.Rounded.CheckCircle,
+                    modifier = Modifier.weight(1f)
+                )
+                StatCardModern(
+                    label = "Wrong",
+                    value = wrongAnswers.toString(),
+                    color = ErrorRed,
+                    icon = Icons.Rounded.Cancel,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Total Question Card
+            Card(
+                colors = CardDefaults.cardColors(containerColor = LightBlueBg),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.padding(horizontal = 24.dp).fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Total Questions", color = TextGray, fontSize = 14.sp)
+                    Text("$totalQuestions", fontWeight = FontWeight.Bold, color = TextDark, fontSize = 18.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(24.dp))
+
             Button(
                 onClick = onBackClick,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(24.dp)
                     .height(56.dp),
-                shape = RoundedCornerShape(28.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = OrangeButton)
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
             ) {
-                Text(
-                    text = "Kembali ke Detail Deck",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
+                Text("Back to Deck", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SurfaceWhite)
             }
+        }
+    }
+}
+
+// --- HELPER COMPOSABLE: Custom Circle ---
+@Composable
+fun AnimatedCircularProgress(
+    percentage: Float,
+    color: Color,
+    size: Dp,
+    strokeWidth: Dp
+) {
+    Canvas(modifier = Modifier.size(size)) {
+        // Background Circle (Abu-abu muda)
+        drawCircle(
+            color = Color(0xFFF3F4F6),
+            style = Stroke(width = strokeWidth.toPx())
+        )
+
+        // Foreground Arc (Warna Score)
+        drawArc(
+            color = color,
+            startAngle = -90f,
+            sweepAngle = 360 * percentage,
+            useCenter = false,
+            style = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
+        )
+    }
+}
+
+// --- HELPER COMPOSABLE: Modern Stat Card ---
+@Composable
+fun StatCardModern(
+    label: String,
+    value: String,
+    color: Color,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, Color(0xFFE5E7EB))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(color.copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column {
+                Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextDark)
+                Text(label, fontSize = 12.sp, color = TextGray)
+            }
+        }
+    }
+}
+
+@Composable
+fun ErrorStateView(message: String, onRetry: () -> Unit, onBack: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(Icons.Default.Close, null, tint = ErrorRed, modifier = Modifier.size(64.dp))
+        Spacer(Modifier.height(16.dp))
+        Text("Oops!", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        Text(message, textAlign = TextAlign.Center, color = TextGray)
+        Spacer(Modifier.height(24.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            OutlinedButton(onClick = onBack) { Text("Back") }
+            Button(onClick = onRetry, colors = ButtonDefaults.buttonColors(PrimaryBlue)) { Text("Try Again") }
         }
     }
 }

@@ -306,54 +306,35 @@ class ContentRepositoryImpl @Inject constructor(
     // 5. QUIZ
     // =================================================================
 
-    override suspend fun startQuiz(deckId: String): Result<QuizSession> {
+    // =================================================================
+    // 5. QUIZ (IMPLEMENTASI BARU)
+    // =================================================================
+
+    override suspend fun startQuiz(deckId: String): Result<QuizStartData> {
         return safeApiCall(
             apiCall = { api.startQuiz(deckId) },
-            mapper = { dto: QuizSessionDto ->
-                QuizSession(
-                    quizId = dto.quizId,
-                    cards = dto.cards.map { it.toDomain().copy(deckId = deckId) }
-                )
-            }
+            mapper = { it.toDomain() } // Menggunakan mapper QuizSessionDto.toDomain()
         )
     }
 
-    override suspend fun submitQuiz(quizId: String, answers: List<QuizAnswerInput>): Result<QuizResult> {
-        val answerDtos = answers.map { QuizAnswerDto(it.cardId, it.answer) }
-        val request = QuizSubmitRequestDto(quizId, answerDtos)
-
+    override suspend fun submitQuiz(request: QuizSubmitRequest): Result<QuizSubmitData> {
         return safeApiCall(
-            apiCall = { api.submitQuiz(request) },
-            mapper = { dto: QuizResultDto ->
-                QuizResult(
-                    id = dto.id,
-                    deckId = dto.deckId,
-                    score = dto.score,
-                    totalQuestions = dto.totalQuestions,
-                    correctAnswers = dto.correctAnswers,
-                    playedAt = dto.playedAt
-                )
-            }
+            apiCall = { api.submitQuiz(request.toDto()) }, // Menggunakan mapper toDto()
+            mapper = { it.toDomain() } // Menggunakan mapper QuizResultDto.toDomain()
         )
     }
 
-    override suspend fun getQuizHistory(): Result<List<QuizResult>> {
+    override suspend fun getQuizHistory(): Result<List<QuizSubmitData>> {
         return safeApiCall(
             apiCall = { api.getQuizHistory() },
-            mapper = { list: List<QuizResultDto> ->
-                list.map {
-                    QuizResult(it.id, it.deckId, it.score, it.totalQuestions, it.correctAnswers, it.playedAt)
-                }
-            }
+            mapper = { list -> list.map { it.toDomain() } }
         )
     }
 
-    override suspend fun getQuizDetail(quizId: String): Result<QuizResult> {
+    override suspend fun getQuizDetail(quizId: String): Result<QuizSubmitData> {
         return safeApiCall(
             apiCall = { api.getQuizDetail(quizId) },
-            mapper = { dto: QuizResultDto ->
-                QuizResult(dto.id, dto.deckId, dto.score, dto.totalQuestions, dto.correctAnswers, dto.playedAt)
-            }
+            mapper = { it.toDomain() }
         )
     }
 }

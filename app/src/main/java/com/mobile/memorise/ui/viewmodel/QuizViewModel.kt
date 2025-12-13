@@ -2,13 +2,10 @@ package com.mobile.memorise.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.mobile.memorise.data.remote.api.ApiService // Ganti QuizApi dengan ApiService
-import com.mobile.memorise.data.mapper.toDomain
-import com.mobile.memorise.data.mapper.toDto
-import com.mobile.memorise.domain.model.quiz.QuizAnswerDetail
 import com.mobile.memorise.domain.model.quiz.QuizStartData
-import com.mobile.memorise.domain.model.quiz.QuizSubmitRequest
 import com.mobile.memorise.domain.model.quiz.QuizSubmitData
+import com.mobile.memorise.domain.model.quiz.QuizSubmitRequest
+import com.mobile.memorise.domain.repository.ContentRepository // Gunakan Repository
 import com.mobile.memorise.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +15,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class QuizViewModel @Inject constructor(
-    private val api: ApiService // INJECT APISERVICE, BUKAN QUIZAPI
+    private val repository: ContentRepository // Ganti ApiService dengan Repository
 ) : ViewModel() {
 
     private val _startState = MutableStateFlow<Resource<QuizStartData>>(Resource.Idle())
@@ -33,43 +30,30 @@ class QuizViewModel @Inject constructor(
     fun startQuiz(deckId: String) {
         viewModelScope.launch {
             _startState.value = Resource.Loading()
-            try {
-                // Panggil API baru
-                val response = api.startQuiz(deckId)
-                val body = response.body()
 
-                // Cek ApiResponseDto
-                if (response.isSuccessful && body?.success == true && body.data != null) {
-                    // MAP DARI DTO (QuizSessionDto) KE DOMAIN (QuizStartData)
-                    _startState.value = Resource.Success(body.data.toDomain())
-                } else {
-                    _startState.value = Resource.Error(body?.message ?: "Failed to start quiz")
+            // Panggil Repository (Logic aman ada di sana)
+            repository.startQuiz(deckId)
+                .onSuccess { data ->
+                    _startState.value = Resource.Success(data)
                 }
-            } catch (e: Exception) {
-                _startState.value = Resource.Error(e.localizedMessage ?: "Network error")
-            }
+                .onFailure { exception ->
+                    _startState.value = Resource.Error(exception.message ?: "Gagal memulai kuis")
+                }
         }
     }
 
     fun submitQuiz(request: QuizSubmitRequest) {
         viewModelScope.launch {
             _submitState.value = Resource.Loading()
-            try {
-                // MAP REQUEST DOMAIN KE DTO SEBELUM KIRIM KE API
-                val requestDto = request.toDto()
 
-                val response = api.submitQuiz(requestDto)
-                val body = response.body()
-
-                if (response.isSuccessful && body?.success == true && body.data != null) {
-                    // MAP DARI DTO (QuizResultDto) KE DOMAIN (QuizSubmitData)
-                    _submitState.value = Resource.Success(body.data.toDomain())
-                } else {
-                    _submitState.value = Resource.Error(body?.message ?: "Failed to submit quiz")
+            // Repository akan mengurus konversi ke DTO dan handling API
+            repository.submitQuiz(request)
+                .onSuccess { data ->
+                    _submitState.value = Resource.Success(data)
                 }
-            } catch (e: Exception) {
-                _submitState.value = Resource.Error(e.localizedMessage ?: "Network error")
-            }
+                .onFailure { exception ->
+                    _submitState.value = Resource.Error(exception.message ?: "Gagal mengirim jawaban")
+                }
         }
     }
 }

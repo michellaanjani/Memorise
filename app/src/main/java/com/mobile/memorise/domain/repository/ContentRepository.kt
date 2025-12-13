@@ -1,8 +1,8 @@
 package com.mobile.memorise.domain.repository
 
 import com.mobile.memorise.domain.model.*
+import com.mobile.memorise.domain.model.quiz.* // Pastikan import ini ada
 import java.io.File
-
 
 interface ContentRepository {
 
@@ -16,7 +16,7 @@ interface ContentRepository {
     // =================================================================
     suspend fun getAllFolders(): Result<List<Folder>>
     suspend fun createFolder(name: String, desc: String, color: String): Result<Folder>
-    suspend fun updateFolder(id: String, name: String, desc: String,color: String): Result<Folder>
+    suspend fun updateFolder(id: String, name: String, desc: String, color: String): Result<Folder>
     suspend fun deleteFolder(id: String): Result<Unit>
 
     // =================================================================
@@ -24,10 +24,8 @@ interface ContentRepository {
     // =================================================================
     suspend fun getDecks(folderId: String?): Result<List<Deck>>
     suspend fun createDeck(name: String, desc: String, folderId: String?): Result<Deck>
-    // PERBAIKAN: Tambahkan parameter folderId: String?
     suspend fun updateDeck(id: String, name: String, desc: String, folderId: String?): Result<Deck>
     suspend fun moveDeck(deckId: String, folderId: String?): Result<Deck>
-
     suspend fun moveDeckToHome(deckId: String): Result<Deck>
     suspend fun deleteDeck(id: String): Result<Unit>
 
@@ -42,10 +40,6 @@ interface ContentRepository {
     // =================================================================
     // AI GENERATOR MODULE
     // =================================================================
-    /**
-     * @param prompt Topik atau teks instruksi
-     * @param fileId ID file yang sudah diupload (opsional)
-     */
     suspend fun generateFlashcards(prompt: String, fileId: String? = null): Result<AiGeneratedContent>
 
     suspend fun getAiDraft(deckId: String): Result<Deck>
@@ -57,26 +51,25 @@ interface ContentRepository {
     suspend fun saveAiDraft(deckId: String, destinationFolderId: String?): Result<Deck>
 
     // =================================================================
-    // QUIZ SYSTEM
+    // QUIZ SYSTEM (DIPERBARUI SESUAI MAPPER & DTO BARU)
     // =================================================================
-    suspend fun startQuiz(deckId: String): Result<QuizSession>
+
+    // Return tipe berubah dari QuizSession -> QuizStartData
+    suspend fun startQuiz(deckId: String): Result<QuizStartData>
 
     /**
-     * @param quizId ID sesi kuis
-     * @param answers Map berisi cardId dan jawaban user (misal: "easy", "hard", atau boolean score)
+     * Menggunakan Request Object lengkap (termasuk score & totalQuestions)
      */
-    suspend fun submitQuiz(quizId: String, answers: List<QuizAnswerInput>): Result<QuizResult>
+    suspend fun submitQuiz(request: QuizSubmitRequest): Result<QuizSubmitData>
 
-    suspend fun getQuizHistory(): Result<List<QuizResult>>
+    // Menggunakan QuizSubmitData karena itu hasil mapping dari QuizResultDto
+    suspend fun getQuizHistory(): Result<List<QuizSubmitData>>
 
-    suspend fun getQuizDetail(quizId: String): Result<QuizResult>
+    suspend fun getQuizDetail(quizId: String): Result<QuizSubmitData>
 
     // =================================================================
     // FILE UPLOAD MODULE
     // =================================================================
-    /**
-     * Repository implementation akan mengubah File menjadi MultipartBody.Part
-     */
     suspend fun uploadFile(file: File): Result<UploadedFile>
 
     suspend fun getFileUrl(id: String): Result<String>

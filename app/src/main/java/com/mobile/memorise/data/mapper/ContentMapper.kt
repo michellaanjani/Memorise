@@ -19,7 +19,6 @@ fun FolderDto.toDomain(): Folder {
     )
 }
 
-// 🔥 UPDATE: Menambahkan mapping untuk 'updatedAt'
 fun DeckDto.toDomain(): Deck {
     return Deck(
         id = this.id,
@@ -27,7 +26,7 @@ fun DeckDto.toDomain(): Deck {
         description = this.description ?: "",
         cardCount = this.cardCount,
         folderId = this.folderId,
-        updatedAt = this.updatedAt ?: "" // Mapping field tanggal update
+        updatedAt = this.updatedAt ?: ""
     )
 }
 
@@ -74,33 +73,38 @@ fun AiCard.toDomain(): Card {
 }
 
 // =================================================================
-// 4. QUIZ MAPPERS
+// 4. QUIZ MAPPERS (BAGIAN INI YANG DIPERBAIKI TOTAL)
 // =================================================================
 
 // --- A. Start Quiz (Response API -> Domain) ---
 fun QuizSessionDto.toDomain(): QuizStartData {
     return QuizStartData(
-        deckId = this.quizId,
-        totalQuestions = this.cards.size,
-        questions = this.cards.map { it.toQuizQuestion() }
+        deckId = this.deckId ?: "", // Handle null
+        totalQuestions = this.totalQuestions ?: 0,
+        // PENTING: Gunakan map dari 'questions', bukan 'cards'.
+        // Jika null, return emptyList() agar tidak crash saat di-loop/size().
+        questions = this.questions?.map { it.toDomain() } ?: emptyList()
     )
 }
 
-// Helper: Mengubah CardDto ke QuizQuestion
-fun CardDto.toQuizQuestion(): QuizQuestion {
+// Helper: Mengubah QuizQuestionDto ke Domain QuizQuestion
+fun QuizQuestionDto.toDomain(): QuizQuestion {
     return QuizQuestion(
-        cardId = this.id,
-        question = this.front,
-        correctAnswer = this.back,
-        options = emptyList(),
-        explanation = null
+        cardId = this.cardId,
+        question = this.question,
+        correctAnswer = this.correctAnswer,
+        // PENTING: Handle null options agar UI tidak crash saat .take(4)
+        options = this.options ?: emptyList(),
+        explanation = this.explanation
     )
 }
 
 // --- B. Submit Quiz (Request Domain -> Request API) ---
 fun QuizSubmitRequest.toDto(): QuizSubmitRequestDto {
     return QuizSubmitRequestDto(
-        quizId = this.deckId,
+        deckId = this.deckId,
+        totalQuestions = this.totalQuestions, // Sertakan data statistik
+        correctAnswers = this.correctAnswers,
         answers = this.details.map { it.toDto() }
     )
 }
@@ -108,7 +112,11 @@ fun QuizSubmitRequest.toDto(): QuizSubmitRequestDto {
 fun QuizAnswerDetail.toDto(): QuizAnswerDto {
     return QuizAnswerDto(
         cardId = this.cardId,
-        answer = this.userAnswer
+        isCorrect = this.isCorrect,
+        userAnswer = this.userAnswer,
+
+        // 🔥 TAMBAHKAN MAPPING INI
+        correctAnswer = this.correctAnswer
     )
 }
 
@@ -122,7 +130,7 @@ fun QuizResultDto.toDomain(): QuizSubmitData {
         totalQuestions = this.totalQuestions,
         createdAt = this.playedAt,
         updatedAt = this.playedAt,
-        userId = "",
+        userId = "", // Tidak dikirim server, biarkan kosong
         details = emptyList(),
         version = 0
     )
