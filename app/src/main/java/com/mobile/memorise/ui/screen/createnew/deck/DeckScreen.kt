@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
@@ -33,9 +34,14 @@ import com.mobile.memorise.navigation.MainRoute
 import com.mobile.memorise.ui.component.DeleteConfirmDialog
 import com.mobile.memorise.ui.screen.main.CreateOptionItem
 import com.mobile.memorise.ui.theme.*
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
-// --- Definisi Warna Lokal (Agar tidak error TextBlack) ---
+// --- Definisi Warna Lokal ---
 private val TextBlack = Color(0xFF1F2937)
+private val BgColor = Color(0xFFF8F9FB)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,7 +49,6 @@ fun DeckScreen(
     folderName: String,
     folderId: String,
     onBackClick: () -> Unit,
-    // PERBAIKAN: Callback harus menerima Object Deck agar bisa mengirim ID dan Nama
     onDeckClick: (Deck) -> Unit = {},
     onNavigate: (String) -> Unit = {},
     viewModel: DeckViewModel = hiltViewModel()
@@ -56,12 +61,13 @@ fun DeckScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deckToDelete by remember { mutableStateOf<Deck?>(null) }
 
+    // 🔥 PENTING: Ini mengisi currentFolderId di ViewModel agar Edit Deck tidak error
     LaunchedEffect(folderId) {
         viewModel.loadDecks(folderId)
     }
 
     Scaffold(
-        containerColor = Color(0xFFF8F9FB),
+        containerColor = BgColor,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -82,7 +88,7 @@ fun DeckScreen(
                     }
                 },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = Color(0xFFF8F9FB)
+                    containerColor = BgColor
                 )
             )
         },
@@ -152,7 +158,6 @@ fun DeckScreen(
                     items(deckList) { deck ->
                         DeckItemView(
                             data = deck,
-                            // PERBAIKAN: Mengirim seluruh objek Deck ke callback
                             onClick = { onDeckClick(deck) },
                             onMoveClicked = {
                                 onNavigate(MainRoute.MoveDeck.createRoute(deck.id))
@@ -251,14 +256,15 @@ fun DeckItemView(
                 Spacer(modifier = Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        painter = painterResource(id = R.drawable.deck),
+                        imageVector = Icons.Default.DateRange,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
                         tint = Color.Gray
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "${data.cardCount} Cards",
+                        // Menggunakan helper formatDeckDate
+                        text = formatDeckDate(data.updatedAt),
                         fontSize = 12.sp,
                         color = Color.Gray
                     )
@@ -279,7 +285,6 @@ fun DeckItemView(
                     onDismissRequest = { expanded = false },
                     modifier = Modifier.background(Color.White)
                 ) {
-                    // --- MOVE ---
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -296,7 +301,6 @@ fun DeckItemView(
 
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color.Gray.copy(alpha = 0.3f))
 
-                    // --- EDIT ---
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -313,7 +317,6 @@ fun DeckItemView(
 
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color.Gray.copy(alpha = 0.3f))
 
-                    // --- DELETE ---
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -377,5 +380,20 @@ fun CreateBottomSheetContent(
                 onNavigate(MainRoute.AiGeneration.route)
             }
         )
+    }
+}
+
+fun formatDeckDate(isoDate: String): String {
+    // Cek jika kosong
+    if (isoDate.isBlank()) return "Recently"
+
+    return try {
+        val instant = Instant.parse(isoDate)
+        val zone = ZoneId.systemDefault()
+        val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.getDefault())
+        "Updated: " + instant.atZone(zone).format(formatter)
+    } catch (e: Exception) {
+        // Fallback jika format gagal
+        "Updated recently"
     }
 }

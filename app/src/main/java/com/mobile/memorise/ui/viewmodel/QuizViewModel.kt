@@ -2,7 +2,9 @@ package com.mobile.memorise.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.mobile.memorise.data.remote.api.QuizApi
+import com.mobile.memorise.data.remote.api.ApiService // Ganti QuizApi dengan ApiService
+import com.mobile.memorise.data.mapper.toDomain
+import com.mobile.memorise.data.mapper.toDto
 import com.mobile.memorise.domain.model.quiz.QuizAnswerDetail
 import com.mobile.memorise.domain.model.quiz.QuizStartData
 import com.mobile.memorise.domain.model.quiz.QuizSubmitRequest
@@ -16,7 +18,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class QuizViewModel @Inject constructor(
-    private val api: QuizApi
+    private val api: ApiService // INJECT APISERVICE, BUKAN QUIZAPI
 ) : ViewModel() {
 
     private val _startState = MutableStateFlow<Resource<QuizStartData>>(Resource.Idle())
@@ -32,10 +34,14 @@ class QuizViewModel @Inject constructor(
         viewModelScope.launch {
             _startState.value = Resource.Loading()
             try {
+                // Panggil API baru
                 val response = api.startQuiz(deckId)
                 val body = response.body()
+
+                // Cek ApiResponseDto
                 if (response.isSuccessful && body?.success == true && body.data != null) {
-                    _startState.value = Resource.Success(body.data)
+                    // MAP DARI DTO (QuizSessionDto) KE DOMAIN (QuizStartData)
+                    _startState.value = Resource.Success(body.data.toDomain())
                 } else {
                     _startState.value = Resource.Error(body?.message ?: "Failed to start quiz")
                 }
@@ -49,10 +55,15 @@ class QuizViewModel @Inject constructor(
         viewModelScope.launch {
             _submitState.value = Resource.Loading()
             try {
-                val response = api.submitQuiz(request)
+                // MAP REQUEST DOMAIN KE DTO SEBELUM KIRIM KE API
+                val requestDto = request.toDto()
+
+                val response = api.submitQuiz(requestDto)
                 val body = response.body()
+
                 if (response.isSuccessful && body?.success == true && body.data != null) {
-                    _submitState.value = Resource.Success(body.data)
+                    // MAP DARI DTO (QuizResultDto) KE DOMAIN (QuizSubmitData)
+                    _submitState.value = Resource.Success(body.data.toDomain())
                 } else {
                     _submitState.value = Resource.Error(body?.message ?: "Failed to submit quiz")
                 }

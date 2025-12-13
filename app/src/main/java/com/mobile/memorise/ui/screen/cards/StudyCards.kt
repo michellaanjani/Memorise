@@ -24,21 +24,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.launch
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobile.memorise.R
-// --- IMPORT BARU ---
 import com.mobile.memorise.ui.screen.createnew.deck.DeckViewModel
+import kotlinx.coroutines.launch
 
-// --- Warna ---
+// --- WARNA ---
 private val BgColor = Color(0xFFF8F9FB)
 private val TextDark = Color(0xFF000000)
 
-// Warna untuk Question (Biru)
+// Warna Question (Biru)
 private val LightBlueBadge = Color(0xFFE3F2FD)
 private val BlueText = Color(0xFF2196F3)
 
-// Warna untuk Answer (Hijau) - Agar beda visualnya
+// Warna Answer (Hijau)
 private val LightGreenBadge = Color(0xFFE8F5E9)
 private val GreenText = Color(0xFF4CAF50)
 
@@ -46,25 +45,23 @@ private val GreenText = Color(0xFF4CAF50)
 @Composable
 fun StudyScreen(
     deckName: String,
-    cardList: List<CardItemData>, // List fallback jika load gagal / kosong
+    cardList: List<CardItemData>, // Fallback data dari Navigasi
     onBackClick: () -> Unit,
-    deckId: String? = null,
-    // --- PERUBAHAN: Gunakan DeckViewModel ---
+    deckId: String? = null, // Opsional: jika ingin load fresh data
     deckViewModel: DeckViewModel = hiltViewModel()
 ) {
-    // 1. Load data jika deckId ada (untuk memastikan data terbaru)
+    // 1. Fetch data terbaru jika deckId tersedia
     LaunchedEffect(deckId) {
         if (!deckId.isNullOrEmpty()) {
             deckViewModel.loadCards(deckId)
         }
     }
 
-    // 2. Ambil data dari ViewModel
+    // 2. Ambil State dari ViewModel
     val rawCards = deckViewModel.cards
     val isLoading = deckViewModel.areCardsLoading
 
-    // 3. Konversi ke CardItemData
-    // Jika data dari API (ViewModel) ada, pakai itu. Jika tidak, pakai data fallback dari parameter navigasi.
+    // 3. Tentukan List yang Dipakai (Prioritas: ViewModel > NavParam)
     val displayCards = remember(rawCards.size, rawCards, cardList) {
         if (rawCards.isNotEmpty()) {
             rawCards.map { CardItemData(id = it.id, front = it.front, back = it.back) }
@@ -73,27 +70,30 @@ fun StudyScreen(
         }
     }
 
-    // Tampilkan Loading jika sedang fetch data dan list kosong
+    // 4. Loading State
     if (!deckId.isNullOrEmpty() && isLoading && displayCards.isEmpty()) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+            CircularProgressIndicator(color = BlueText)
         }
         return
     }
 
+    // Pager & Scope
     val pagerState = rememberPagerState(pageCount = { displayCards.size })
-    val scope = rememberCoroutineScope() // Untuk animasi scroll button
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         containerColor = BgColor,
         topBar = {
+            // Custom Top Bar dengan Indikator Halaman
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(top = 16.dp, bottom = 8.dp),
+                    .padding(vertical = 16.dp, horizontal = 16.dp),
                 contentAlignment = Alignment.Center
             ) {
+                // Tombol Back di Kiri
                 IconButton(
                     onClick = onBackClick,
                     modifier = Modifier.align(Alignment.CenterStart)
@@ -105,16 +105,15 @@ fun StudyScreen(
                     )
                 }
 
+                // Indikator Halaman di Tengah
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
                         .background(Color.White)
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    // Mencegah error division by zero jika list kosong (walaupun harusnya tidak mungkin masuk sini jika kosong)
                     val total = if (displayCards.isEmpty()) 0 else displayCards.size
                     val current = if (displayCards.isEmpty()) 0 else pagerState.currentPage + 1
-
                     Text(
                         text = "$current/$total",
                         color = Color.Gray,
@@ -129,11 +128,11 @@ fun StudyScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            verticalArrangement = Arrangement.Center, // Konten di tengah vertikal
+            verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // 1. Area Kartu (Pager)
+            // 1. AREA KARTU UTAMA
             if (displayCards.isNotEmpty()) {
                 HorizontalPager(
                     state = pagerState,
@@ -141,64 +140,62 @@ fun StudyScreen(
                     pageSpacing = 16.dp,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f) // Mengambil space terbesar
+                        .weight(1f) // Ambil sisa ruang vertikal
                 ) { page ->
-                    val cardData = displayCards[page]
-                    FlipCardItem(card = cardData)
+                    FlipCardItem(card = displayCards[page])
                 }
             } else {
-                // Fallback Empty State
                 Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    Text("No cards available to study.")
+                    Text("No cards available.", color = Color.Gray)
                 }
             }
 
-            // 2. Tombol Navigasi (Prev / Next)
+            // 2. TOMBOL NAVIGASI BAWAH
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 32.dp, horizontal = 40.dp), // Jarak dari bawah
+                    .padding(vertical = 32.dp, horizontal = 40.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Tombol Previous
+                // PREV Button
                 FilledIconButton(
                     onClick = {
                         scope.launch {
                             pagerState.animateScrollToPage(pagerState.currentPage - 1)
                         }
                     },
-                    enabled = pagerState.currentPage > 0, // Disable jika di awal
+                    enabled = pagerState.currentPage > 0,
                     colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = BlueText, // Warna biru biar menonjol
+                        containerColor = BlueText,
                         disabledContainerColor = Color.LightGray
                     ),
                     modifier = Modifier.size(56.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Previous Card",
+                        contentDescription = "Prev",
                         tint = Color.White
                     )
                 }
 
-                // Tombol Next
+                // NEXT Button
                 FilledIconButton(
                     onClick = {
                         scope.launch {
                             pagerState.animateScrollToPage(pagerState.currentPage + 1)
                         }
                     },
-                    enabled = pagerState.currentPage < displayCards.size - 1, // Disable jika di akhir
+                    enabled = pagerState.currentPage < displayCards.size - 1,
                     colors = IconButtonDefaults.filledIconButtonColors(
-                        containerColor = BlueText, // Warna biru biar menonjol
+                        containerColor = BlueText,
                         disabledContainerColor = Color.LightGray
                     ),
                     modifier = Modifier.size(56.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowForward,
-                        contentDescription = "Next Card",
+                        contentDescription = "Next",
                         tint = Color.White
                     )
                 }
@@ -210,14 +207,14 @@ fun StudyScreen(
 @Composable
 fun FlipCardItem(card: CardItemData) {
     var isFlipped by remember { mutableStateOf(false) }
-    val context = LocalContext.current // Context untuk Audio
+    val context = LocalContext.current
 
-    // Fungsi Helper untuk Audio
+    // Audio Playback
     fun playFlipSound() {
         try {
-            val mediaPlayer = MediaPlayer.create(context, R.raw.flip)
-            mediaPlayer.setOnCompletionListener { mp -> mp.release() } // Hapus memori setelah selesai
-            mediaPlayer.start()
+            val mp = MediaPlayer.create(context, R.raw.flip)
+            mp.setOnCompletionListener { it.release() }
+            mp.start()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -226,7 +223,7 @@ fun FlipCardItem(card: CardItemData) {
     val rotation by animateFloatAsState(
         targetValue = if (isFlipped) 180f else 0f,
         animationSpec = tween(durationMillis = 400),
-        label = "FlipAnimation"
+        label = "FlipAnim"
     )
 
     Box(
@@ -234,35 +231,35 @@ fun FlipCardItem(card: CardItemData) {
             .fillMaxSize()
             .clickable {
                 isFlipped = !isFlipped
-                playFlipSound() // Play Audio saat klik
+                playFlipSound()
             }
             .graphicsLayer {
                 rotationY = rotation
                 cameraDistance = 12f * density
             }
     ) {
-        // KARTU DEPAN (QUESTION)
+        // TAMPILAN DEPAN (QUESTION)
         if (rotation <= 90f) {
             CardFace(
-                badgeText = "Questions",
-                badgeBgColor = LightBlueBadge, // Biru Muda
-                badgeTextColor = BlueText,     // Biru
+                badgeText = "Question",
+                badgeBgColor = LightBlueBadge,
+                badgeTextColor = BlueText,
                 mainText = card.front,
                 footerText = "Tap to show answer",
                 backgroundColor = Color.White
             )
         }
-        // KARTU BELAKANG (ANSWER)
+        // TAMPILAN BELAKANG (ANSWER)
         else {
             CardFace(
                 badgeText = "Answer",
-                badgeBgColor = LightGreenBadge, // Hijau Muda (Beda Visual)
-                badgeTextColor = GreenText,     // Hijau
+                badgeBgColor = LightGreenBadge,
+                badgeTextColor = GreenText,
                 mainText = card.back,
                 footerText = "Tap to show question",
                 backgroundColor = Color.White,
                 modifier = Modifier.graphicsLayer {
-                    rotationY = 180f // Balik text agar terbaca normal
+                    rotationY = 180f // Agar teks tidak terbalik
                 }
             )
         }
@@ -292,22 +289,22 @@ fun CardFace(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // 1. Badge Atas (Questions/Answer) - Warna dinamis
+            // BADGE
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
-                    .background(badgeBgColor) // Warna Background Badge Berubah
+                    .background(badgeBgColor)
                     .padding(horizontal = 24.dp, vertical = 8.dp)
             ) {
                 Text(
                     text = badgeText,
-                    color = badgeTextColor, // Warna Text Badge Berubah
+                    color = badgeTextColor,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )
             }
 
-            // 2. Text Utama
+            // KONTEN UTAMA
             Box(
                 modifier = Modifier.weight(1f),
                 contentAlignment = Alignment.Center
@@ -322,7 +319,7 @@ fun CardFace(
                 )
             }
 
-            // 3. Footer
+            // FOOTER HINT
             Text(
                 text = footerText,
                 fontSize = 14.sp,

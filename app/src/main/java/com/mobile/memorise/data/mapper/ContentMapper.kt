@@ -1,110 +1,129 @@
 package com.mobile.memorise.data.mapper
 
-import com.mobile.memorise.data.remote.dto.auth.AuthDataDto
-import com.mobile.memorise.data.remote.dto.auth.UserDto
 import com.mobile.memorise.data.remote.dto.content.*
 import com.mobile.memorise.domain.model.*
+import com.mobile.memorise.domain.model.quiz.*
 
 // =================================================================
-// 1. CONTENT MAPPER (Deck, Folder, Card)
+// 1. STANDARD CONTENT MAPPERS (Folder, Deck, Card)
 // =================================================================
-
-fun DeckDto.toDomain(): Deck {
-    return Deck(
-        // Gunakan ?: "" untuk mencegah crash jika ID dari API null/beda nama
-        id = this.id ?: "",
-        folderId = this.folderId, // folderId boleh null di domain
-        name = this.name ?: "Unknown Deck",
-        description = this.description ?: "",
-        cardCount = this.cardCount
-    )
-}
 
 fun FolderDto.toDomain(): Folder {
     return Folder(
-        id = this.id ?: "",
-        name = this.name ?: "Unknown Folder",
+        id = this.id,
+        name = this.name,
         description = this.description ?: "",
-        color = this.color ?: "#FFFFFF", // Default putih jika warna null
+        color = this.color,
         deckCount = this.decksCount,
         createdAt = this.createdAt ?: ""
     )
 }
 
+// 🔥 UPDATE: Menambahkan mapping untuk 'updatedAt'
+fun DeckDto.toDomain(): Deck {
+    return Deck(
+        id = this.id,
+        name = this.name,
+        description = this.description ?: "",
+        cardCount = this.cardCount,
+        folderId = this.folderId,
+        updatedAt = this.updatedAt ?: "" // Mapping field tanggal update
+    )
+}
+
 fun CardDto.toDomain(): Card {
     return Card(
-        id = this.id ?: "",
-        deckId = this.deckId ?: "",
-        front = this.front ?: "",
-        back = this.back ?: ""
+        id = this.id,
+        front = this.front,
+        back = this.back,
+        deckId = this.deckId
     )
 }
 
 // =================================================================
-// 2. AUTH & USER MAPPER
+// 2. FILE UPLOAD MAPPER
 // =================================================================
 
-fun UserDto.toDomain(): User {
-    return User(
-        id = this.id ?: "",
-        email = this.email ?: "",
-        firstName = this.firstName ?: "",
-        lastName = this.lastName ?: "",
-        isEmailVerified = this.isEmailVerified ?: false,
-        avatar = this.profile?.avatar,
-        bio = this.profile?.bio
-    )
-}
-
-fun AuthDataDto.toDomainToken(): AuthToken? {
-    // Pastikan tokens tidak null
-    return tokens?.let {
-        AuthToken(
-            accessToken = it.accessToken ?: "",
-            refreshToken = it.refreshToken ?: ""
-        )
-    }
-}
-
-// =================================================================
-// 3. QUIZ MAPPER
-// =================================================================
-
-fun QuizStartResponseDto.toDomain(): QuizSession {
-    return QuizSession(
-        quizId = this.quizId ?: "",
-        // Mapping list aman: jika list null, kembalikan list kosong
-        cards = this.cards?.map { it.toDomain() } ?: emptyList()
-    )
-}
-
-fun QuizResultDto.toDomain(): QuizResult {
-    return QuizResult(
-        id = this.id ?: "",
-        deckId = this.deckId ?: "",
-        score = this.score,
-        totalQuestions = this.totalQuestions,
-        correctAnswers = this.correctAnswers,
-        playedAt = this.playedAt ?: ""
-    )
-}
-
-// =================================================================
-// 4. FILE & AI MAPPER
-// =================================================================
-
-fun FileUploadResponseDto.toDomain(): UploadedFile {
+fun UploadResponseData.toDomain(): UploadedFile {
     return UploadedFile(
-        id = this.id ?: "",
+        id = this.id,
         url = this.url ?: "",
-        originalName = this.originalName ?: "unknown_file"
+        originalName = this.originalname
     )
 }
 
-fun AiGeneratedResponseDto.toDomain(): AiGeneratedContent {
+// =================================================================
+// 3. AI GENERATION MAPPERS
+// =================================================================
+
+fun AiGenerateResultData.toDomain(): AiGeneratedContent {
     return AiGeneratedContent(
+        deckId = this.deck.id,
+        summary = this.deck.description ?: "No description provided",
+        cardCount = this.cards.size
+    )
+}
+
+fun AiCard.toDomain(): Card {
+    return Card(
+        id = this.id,
         deckId = this.deckId ?: "",
-        summary = this.summary ?: "No summary available",
-        cardCount = this.cardCount
+        front = this.front,
+        back = this.back
+    )
+}
+
+// =================================================================
+// 4. QUIZ MAPPERS
+// =================================================================
+
+// --- A. Start Quiz (Response API -> Domain) ---
+fun QuizSessionDto.toDomain(): QuizStartData {
+    return QuizStartData(
+        deckId = this.quizId,
+        totalQuestions = this.cards.size,
+        questions = this.cards.map { it.toQuizQuestion() }
+    )
+}
+
+// Helper: Mengubah CardDto ke QuizQuestion
+fun CardDto.toQuizQuestion(): QuizQuestion {
+    return QuizQuestion(
+        cardId = this.id,
+        question = this.front,
+        correctAnswer = this.back,
+        options = emptyList(),
+        explanation = null
+    )
+}
+
+// --- B. Submit Quiz (Request Domain -> Request API) ---
+fun QuizSubmitRequest.toDto(): QuizSubmitRequestDto {
+    return QuizSubmitRequestDto(
+        quizId = this.deckId,
+        answers = this.details.map { it.toDto() }
+    )
+}
+
+fun QuizAnswerDetail.toDto(): QuizAnswerDto {
+    return QuizAnswerDto(
+        cardId = this.cardId,
+        answer = this.userAnswer
+    )
+}
+
+// --- C. Submit Result (Response API -> Domain) ---
+fun QuizResultDto.toDomain(): QuizSubmitData {
+    return QuizSubmitData(
+        id = this.id,
+        deckId = this.deckId,
+        score = this.score,
+        correctAnswers = this.correctAnswers,
+        totalQuestions = this.totalQuestions,
+        createdAt = this.playedAt,
+        updatedAt = this.playedAt,
+        userId = "",
+        details = emptyList(),
+        version = 0
     )
 }

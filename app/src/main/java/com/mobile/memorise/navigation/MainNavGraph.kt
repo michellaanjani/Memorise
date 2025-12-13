@@ -4,20 +4,23 @@ import android.net.Uri
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.ViewModel
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavController
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 
-// Imports from your project structure
-import com.mobile.memorise.navigation.MainRoute.*
+// --- IMPORT SCREENS ---
 import com.mobile.memorise.ui.screen.home.HomeScreen
 import com.mobile.memorise.ui.screen.profile.*
 import com.mobile.memorise.ui.screen.cards.*
@@ -26,18 +29,26 @@ import com.mobile.memorise.ui.screen.createnew.folder.*
 import com.mobile.memorise.ui.screen.createnew.card.*
 import com.mobile.memorise.ui.screen.createnew.deck.*
 
+// --- HELPER: Shared ViewModel (untuk Nested Graph seperti AI) ---
+@Composable
+inline fun <reified T : ViewModel> NavBackStackEntry.sharedViewModel(navController: NavController): T {
+    val navGraphRoute = destination.parent?.route ?: return hiltViewModel()
+    val parentEntry = remember(this) {
+        navController.getBackStackEntry(navGraphRoute)
+    }
+    return hiltViewModel(parentEntry)
+}
+
 @Composable
 fun NavGraph(
     navController: NavHostController,
     innerPadding: PaddingValues,
     onLogout: () -> Unit
 ) {
-    // ============================================================
-    // ViewModel Initialization (Scoped to NavGraph)
-    // Menggunakan hiltViewModel sesuai perubahan lokal Anda
-    // ============================================================
+    // --- GLOBAL VIEWMODELS ---
+    // Di-instantiate di sini agar datanya bisa dishare antar screen (misal: List Cards update setelah Add Card)
     val deckViewModel: DeckViewModel = hiltViewModel()
-    val folderViewModel: FolderViewModel = hiltViewModel() // Asumsi ini juga sudah Hilt
+    val folderViewModel: FolderViewModel = hiltViewModel()
     val profileViewModel: ProfileViewModel = hiltViewModel()
 
     NavHost(
@@ -47,7 +58,7 @@ fun NavGraph(
     ) {
 
         // ============================================================
-        // 1. HOME SCREEN
+        // 1. HOME & DASHBOARD
         // ============================================================
         composable(route = MainRoute.Home.route) {
             HomeScreen(
@@ -72,7 +83,76 @@ fun NavGraph(
         }
 
         // ============================================================
-        // 2. PROFILE
+        // 2. FEATURE: AI GENERATION (Nested Graph)
+        // ============================================================
+        navigation(
+            startDestination = MainRoute.AiGeneration.route,
+            route = "ai_graph"
+        ) {
+            composable(MainRoute.AiGeneration.route) { entry ->
+                val sharedAiViewModel = entry.sharedViewModel<AiViewModel>(navController)
+                AiGenerationScreen(
+                    navController = navController,
+                    onBackClick = { navController.popBackStack() },
+                    viewModel = sharedAiViewModel
+                )
+            }
+
+            composable(MainRoute.CameraScreen.route) {
+                CameraCaptureScreen(
+                    onImageCaptured = { uri ->
+                        navController.previousBackStackEntry
+                            ?.savedStateHandle
+                            ?.set("captured_image_uri", uri.toString())
+                        navController.popBackStack()
+                    },
+                    onClose = { navController.popBackStack() }
+                )
+            }
+
+            composable(
+                route = MainRoute.AiDraft.route,
+                arguments = listOf(navArgument("deckId") { type = NavType.StringType })
+            ) { entry ->
+                val sharedAiViewModel = entry.sharedViewModel<AiViewModel>(navController)
+                val deckId = entry.arguments?.getString("deckId") ?: ""
+                AiGeneratedDraftScreen(
+                    navController = navController,
+                    deckId = deckId,
+                    onBackClick = { navController.popBackStack() },
+                    viewModel = sharedAiViewModel
+                )
+            }
+
+            composable(
+                route = MainRoute.AiCardDetail.route,
+                arguments = listOf(navArgument("index") { type = NavType.IntType })
+            ) { entry ->
+                val sharedAiViewModel = entry.sharedViewModel<AiViewModel>(navController)
+                val index = entry.arguments?.getInt("index") ?: 0
+                AiDetailCardScreen(
+                    navController = navController,
+                    initialIndex = index,
+                    viewModel = sharedAiViewModel
+                )
+            }
+
+            composable(
+                route = MainRoute.AiEditCard.route,
+                arguments = listOf(navArgument("cardId") { type = NavType.StringType })
+            ) { entry ->
+                val sharedAiViewModel = entry.sharedViewModel<AiViewModel>(navController)
+                val cardId = entry.arguments?.getString("cardId") ?: ""
+                EditAiCardScreen(
+                    cardId = cardId,
+                    onBackClick = { navController.popBackStack() },
+                    viewModel = sharedAiViewModel
+                )
+            }
+        }
+
+        // ============================================================
+        // 3. PROFILE & ACCOUNT
         // ============================================================
         composable(route = MainRoute.Account.route) {
             ProfileScreen(
@@ -82,9 +162,6 @@ fun NavGraph(
             )
         }
 
-        // ============================================================
-        // 3. EDIT PROFILE
-        // ============================================================
         composable(route = MainRoute.EditProfile.route) {
             EditProfileScreen(
                 navController = navController,
@@ -92,16 +169,15 @@ fun NavGraph(
             )
         }
 
-        // ============================================================
-        // 4. UPDATE PASSWORD
-        // ============================================================
         composable(route = MainRoute.EditPassword.route) {
             UpdatePasswordScreen(navController = navController)
         }
 
         // ============================================================
-        // 5. DECK DETAIL (Inside Folder)
+        // 4. DECK & CARDS MANAGEMENT
         // ============================================================
+
+        // List Deck dalam Folder
         composable(
             route = MainRoute.DeckDetail.route,
             arguments = listOf(
@@ -111,7 +187,6 @@ fun NavGraph(
         ) { backStackEntry ->
             val folderName = backStackEntry.arguments?.getString("folderName") ?: "Unknown"
             val folderId = backStackEntry.arguments?.getString("folderId") ?: ""
-
             DeckScreen(
                 folderName = folderName,
                 folderId = folderId,
@@ -119,15 +194,11 @@ fun NavGraph(
                 onDeckClick = { deck ->
                     navController.navigate(MainRoute.Cards.createRoute(deck.id, deck.name))
                 },
-                onNavigate = { route ->
-                    navController.navigate(route)
-                }
+                onNavigate = { route -> navController.navigate(route) }
             )
         }
 
-        // ============================================================
-        // 6. CARDS LIST
-        // ============================================================
+        // List Kartu dalam Deck
         composable(
             route = MainRoute.Cards.route,
             arguments = listOf(
@@ -141,17 +212,11 @@ fun NavGraph(
             CardsScreen(
                 deckId = deckId,
                 deckName = deckName,
-                deckViewModel = deckViewModel,
+                deckViewModel = deckViewModel, // Shared Instance
                 onBackClick = { navController.popBackStack() },
-                onStudyClick = {
-                    navController.navigate(MainRoute.Study.createRoute(deckId, deckName))
-                },
-                onQuizClick = {
-                    navController.navigate(MainRoute.Quiz.createRoute(deckId, deckName))
-                },
-                onAddCardClick = {
-                    navController.navigate(MainRoute.AddCard.createRoute(deckId, deckName))
-                },
+                onStudyClick = { navController.navigate(MainRoute.Study.createRoute(deckId, deckName)) },
+                onQuizClick = { navController.navigate(MainRoute.Quiz.createRoute(deckId, deckName)) },
+                onAddCardClick = { navController.navigate(MainRoute.AddCard.createRoute(deckId, deckName)) },
                 onCardClick = { encodedJson, index ->
                     navController.navigate(MainRoute.CardDetail.createRoute(deckId, deckName, encodedJson, index))
                 },
@@ -161,9 +226,7 @@ fun NavGraph(
             )
         }
 
-        // ============================================================
-        // 7. CARD DETAIL
-        // ============================================================
+        // Detail Kartu (Pager View)
         composable(
             route = MainRoute.CardDetail.route,
             arguments = listOf(
@@ -178,6 +241,7 @@ fun NavGraph(
             val jsonString = backStackEntry.arguments?.getString("cardList") ?: "[]"
             val index = backStackEntry.arguments?.getInt("index") ?: 0
 
+            // Decode JSON
             val cards = try {
                 Json.decodeFromString<List<CardItemData>>(Uri.decode(jsonString))
             } catch (e: Exception) {
@@ -189,24 +253,27 @@ fun NavGraph(
                 deckName = deckName,
                 cards = cards,
                 initialIndex = index,
+                // deckViewModel = deckViewModel, // HAPUS INI jika menggunakan hiltViewModel() default di definisi fungsi, ATAU biarkan jika ingin inject manual.
                 onClose = { navController.popBackStack() },
-                onEditCard = { idx, encodedJson ->
-                    val encoded = Uri.encode(encodedJson)
-                    navController.navigate(MainRoute.EditCard.createRoute(deckId, deckName, idx, encoded))
-                },
-                onDeleteCard = { idx ->
-                    val targetId = cards.getOrNull(idx)?.id
-                    if (targetId != null) {
-                        deckViewModel.deleteCard(targetId)
-                        navController.popBackStack()
-                    }
+
+                // PERBAIKAN DI SINI:
+                // DetailCardScreen mengirim (cardId, jsonString), pastikan route menerimanya dengan benar.
+                onEditCard = { cardId, rawJsonString ->
+                    // Jika createRoute butuh index (Int), Anda harus mengubah DetailCardScreen.
+                    // Jika createRoute butuh ID (String), gunakan cardId.
+
+                    // Asumsi: Anda mengirim ID kartu ke layar edit
+                    navController.navigate(
+                        MainRoute.EditCard.createRoute(deckId, deckName, cardId, rawJsonString)
+                    )
                 }
+
+                // HAPUS parameter onDeleteCard di sini,
+                // karena logika delete sudah ditangani di dalam DetailCardScreen.
             )
         }
 
-        // ============================================================
-        // 8. STUDY MODE
-        // ============================================================
+        // Study Mode
         composable(
             route = MainRoute.Study.route,
             arguments = listOf(
@@ -216,19 +283,16 @@ fun NavGraph(
         ) { backStackEntry ->
             val deckId = backStackEntry.arguments?.getString("deckId") ?: ""
             val deckName = backStackEntry.arguments?.getString("deckName") ?: "Unknown"
-
             StudyScreen(
                 deckName = deckName,
-                cardList = emptyList(), // ViewModel handles data
+                cardList = emptyList(), // Load fresh from API via ViewModel
                 deckId = deckId,
                 onBackClick = { navController.popBackStack() },
                 deckViewModel = deckViewModel
             )
         }
 
-        // ============================================================
-        // 9. QUIZ
-        // ============================================================
+        // Quiz Mode
         composable(
             route = MainRoute.Quiz.route,
             arguments = listOf(
@@ -238,7 +302,6 @@ fun NavGraph(
         ) { backStackEntry ->
             val deckId = backStackEntry.arguments?.getString("deckId") ?: ""
             val deckName = backStackEntry.arguments?.getString("deckName") ?: "Unknown"
-
             QuizScreen(
                 deckId = deckId,
                 deckName = deckName,
@@ -247,141 +310,9 @@ fun NavGraph(
         }
 
         // ============================================================
-        // 10. AI GENERATION & CAMERA (Merged Upstream Features)
+        // 5. CREATE / EDIT FORMS
         // ============================================================
-        composable(MainRoute.AiGeneration.route) {
-            AiGenerationScreen(
-                navController = navController,
-                onBackClick = { navController.popBackStack() },
-                onGenerateClick = {
-                    val deckName = "AI Deck"
-                    val sampleCards = listOf(
-                        AiDraftCard("What is AI?", "AI means artificial intelligence."),
-                        AiDraftCard("Define Machine Learning", "ML is a subset of AI.")
-                    )
-                    val encodedJson = Uri.encode(Json.encodeToString(sampleCards))
 
-                    navController.navigate(
-                        AiDraft.createRoute(deckName, encodedJson)
-                    )
-                }
-            )
-        }
-
-        composable("camera_screen") {
-            CameraCaptureScreen(
-                onImageCaptured = { uri ->
-                    navController.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.set("captured_image_uri", uri.toString())
-                    navController.popBackStack()
-                },
-                onClose = { navController.popBackStack() }
-            )
-        }
-
-        // ============================================================
-        // 11. AI GENERATED DRAFT (Upstream Feature)
-        // ============================================================
-        composable(
-            route = AiDraft.route,
-            arguments = listOf(
-                navArgument("deckName") { type = NavType.StringType },
-                navArgument("cardsJson") { type = NavType.StringType }
-            )
-        ) { backStack ->
-            val deckName = backStack.arguments?.getString("deckName") ?: ""
-            val encodedJson = backStack.arguments?.getString("cardsJson") ?: ""
-            val decodedJson = Uri.decode(encodedJson)
-
-            AiGeneratedDraftScreen(
-                navController = navController,
-                deckName = deckName,
-                cardsJson = decodedJson,
-                onBackClick = { navController.popBackStack() },
-                onSaveClick = { _, _ ->
-                    navController.navigate(MainRoute.Home.route) {
-                        popUpTo(0)
-                    }
-                },
-                onCardClick = { index ->
-                    navController.navigate(AiCardDetail.createRoute(index, encodedJson))
-                },
-                onEditCardClick = { index ->
-                    navController.navigate(AiEditCard.createRoute(index, encodedJson))
-                }
-            )
-        }
-
-        // ============================================================
-        // 12. AI DETAIL CARD (Upstream Feature)
-        // ============================================================
-        composable(
-            route = AiCardDetail.route,
-            arguments = listOf(
-                navArgument("index") { type = NavType.IntType },
-                navArgument("cardsJson") { type = NavType.StringType }
-            )
-        ) { backstack ->
-            val index = backstack.arguments?.getInt("index") ?: 0
-            val json = backstack.arguments?.getString("cardsJson") ?: ""
-
-            AiDetailCardScreen(
-                jsonCards = json,
-                initialIndex = index,
-                onClose = { navController.popBackStack() },
-                onEditAiCard = { editIndex, updatedJson ->
-                    navController.navigate(
-                        AiEditCard.createRoute(index = editIndex, cardsJson = updatedJson)
-                    )
-                },
-                onReturnUpdatedList = { updatedList ->
-                    val encoded = Uri.encode(Json.encodeToString(updatedList))
-                    navController.previousBackStackEntry?.savedStateHandle?.set("updated_ai_cards", encoded)
-                    navController.popBackStack()
-                }
-            )
-        }
-
-        // ============================================================
-        // 13. AI EDIT CARD (Upstream Feature)
-        // ============================================================
-        composable(
-            route = AiEditCard.route,
-            arguments = listOf(
-                navArgument("index") { type = NavType.IntType },
-                navArgument("cardsJson") { type = NavType.StringType }
-            )
-        ) { backstack ->
-            val index = backstack.arguments?.getInt("index") ?: 0
-            val json = Uri.decode(backstack.arguments?.getString("cardsJson") ?: "")
-
-            val list = try {
-                Json.decodeFromString<List<AiDraftCard>>(json)
-            } catch (_: Exception) {
-                emptyList()
-            }
-            val card = list.getOrNull(index) ?: run {
-                navController.popBackStack()
-                return@composable
-            }
-
-            EditAiCardScreen(
-                card = card,
-                onBackClick = { navController.popBackStack() },
-                onCardUpdated = { updated ->
-                    val newList = list.toMutableList()
-                    newList[index] = updated
-                    val encoded = Uri.encode(Json.encodeToString(newList))
-                    navController.previousBackStackEntry?.savedStateHandle?.set("updated_ai_cards", encoded)
-                    navController.popBackStack()
-                }
-            )
-        }
-
-        // ============================================================
-        // 14. CREATE FOLDER
-        // ============================================================
         composable(route = MainRoute.CreateFolder.route) {
             CreateFolderScreen(
                 navController = navController,
@@ -390,9 +321,6 @@ fun NavGraph(
             )
         }
 
-        // ============================================================
-        // 15. CREATE DECK
-        // ============================================================
         composable(
             route = MainRoute.CreateDeck.route,
             arguments = listOf(
@@ -404,7 +332,6 @@ fun NavGraph(
             )
         ) { backStackEntry ->
             val folderId = backStackEntry.arguments?.getString("folderId")
-
             CreateDeckScreen(
                 navController = navController,
                 deckViewModel = deckViewModel,
@@ -413,9 +340,6 @@ fun NavGraph(
             )
         }
 
-        // ============================================================
-        // 16. EDIT FOLDER
-        // ============================================================
         composable(
             route = MainRoute.EditFolder.route,
             arguments = listOf(
@@ -426,7 +350,7 @@ fun NavGraph(
         ) { backStackEntry ->
             val folderId = backStackEntry.arguments?.getString("idFolder") ?: ""
             val oldName = backStackEntry.arguments?.getString("oldName") ?: ""
-            val rawColor  = backStackEntry.arguments?.getString("color") ?: "#FFFFFF"
+            val rawColor = backStackEntry.arguments?.getString("color") ?: "#FFFFFF"
             val initialColor = if (rawColor.startsWith("#")) rawColor else "#$rawColor"
 
             EditFolderScreen(
@@ -438,42 +362,28 @@ fun NavGraph(
             )
         }
 
-        // ============================================================
-        // 17. EDIT DECK
-        // ============================================================
         composable(
             route = MainRoute.EditDeck.route,
-            arguments = listOf(
-                navArgument("deckId") { type = NavType.StringType }
-            )
+            arguments = listOf(navArgument("deckId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val deckId = backStackEntry.arguments?.getString("deckId") ?: ""
-
             EditDeckScreen(
-                deckId = deckId,
+                deckId = backStackEntry.arguments?.getString("deckId") ?: "",
                 deckViewModel = deckViewModel,
                 onBackClick = { navController.popBackStack() }
             )
         }
 
-        // ============================================================
-        // 18. MOVE DECK
-        // ============================================================
         composable(
             route = MainRoute.MoveDeck.route,
             arguments = listOf(navArgument("deckId") { type = NavType.StringType })
         ) { backStackEntry ->
-            val deckId = backStackEntry.arguments?.getString("deckId") ?: ""
-
             MoveDeckScreen(
-                deckId = deckId,
+                deckId = backStackEntry.arguments?.getString("deckId") ?: "",
                 onBackClick = { navController.popBackStack() }
             )
         }
 
-        // ============================================================
-        // 19. ADD CARD
-        // ============================================================
+        // ADD CARD
         composable(
             route = MainRoute.AddCard.route,
             arguments = listOf(
@@ -481,20 +391,15 @@ fun NavGraph(
                 navArgument("deckName") { type = NavType.StringType }
             )
         ) { backStackEntry ->
-            val deckId = backStackEntry.arguments?.getString("deckId") ?: ""
-            val deckName = backStackEntry.arguments?.getString("deckName") ?: "Unknown"
-
             AddCardScreen(
-                deckId = deckId,
-                deckName = deckName,
+                deckId = backStackEntry.arguments?.getString("deckId") ?: "",
+                deckName = backStackEntry.arguments?.getString("deckName") ?: "",
                 onBackClick = { navController.popBackStack() },
-                deckViewModel = deckViewModel
+                deckViewModel = deckViewModel // Gunakan ViewModel yang sama
             )
         }
 
-        // ============================================================
-        // 20. EDIT CARD (Using Local/Stashed logic for now)
-        // ============================================================
+        // EDIT CARD (Handling JSON Arguments)
         composable(
             route = MainRoute.EditCard.route,
             arguments = listOf(
@@ -506,15 +411,34 @@ fun NavGraph(
         ) { backStackEntry ->
             val deckId = backStackEntry.arguments?.getString("deckId") ?: ""
             val deckName = backStackEntry.arguments?.getString("deckName") ?: "Unknown"
+            val index = backStackEntry.arguments?.getInt("index") ?: 0
+            val jsonString = backStackEntry.arguments?.getString("json") ?: "[]"
 
-            // Menggunakan AddCardScreen sementara (sesuai kode stashed Anda)
-            // sampai EditCardScreen mendukung parameter deckId/ViewModel
-            AddCardScreen(
-                deckId = deckId,
-                deckName = deckName,
-                onBackClick = { navController.popBackStack() },
-                deckViewModel = deckViewModel
-            )
+            // 1. Decode JSON
+            val cards = try {
+                Json.decodeFromString<List<CardItemData>>(Uri.decode(jsonString))
+            } catch (e: Exception) {
+                emptyList()
+            }
+
+            // 2. Ambil object kartu
+            val cardToEdit = cards.getOrNull(index)
+
+            // 3. Tampilkan Screen jika data valid
+            if (cardToEdit != null) {
+                EditCardScreen(
+                    deckId = deckId,
+                    deckName = deckName,
+                    card = cardToEdit,
+                    onBackClick = { navController.popBackStack() },
+                    deckViewModel = deckViewModel
+                )
+            } else {
+                // Fallback jika data error
+                LaunchedEffect(Unit) {
+                    navController.popBackStack()
+                }
+            }
         }
     }
 }

@@ -18,7 +18,8 @@ data class Deck(
     val folderId: String?,
     val name: String,
     val description: String,
-    val cardCount: Int
+    val cardCount: Int,
+    val updatedAt: String
 
 )
 

@@ -1,43 +1,28 @@
 package com.mobile.memorise.data.remote.api
 
-import com.mobile.memorise.data.remote.dto.auth.AuthDataDto
-import com.mobile.memorise.data.remote.dto.auth.LoginRequestDto
-import com.mobile.memorise.data.remote.dto.auth.RegisterRequestDto
+import com.google.gson.JsonObject
 import com.mobile.memorise.data.remote.dto.common.ApiResponseDto
-// Import ini sudah mencakup DeckDto, FolderDto, CardDto, dll.
 import com.mobile.memorise.data.remote.dto.content.*
-
+//import com.mobile.memorise.domain.model.quiz.QuizStartResponse
+//import com.mobile.memorise.domain.model.quiz.QuizSubmitRequest
+//import com.mobile.memorise.domain.model.quiz.QuizSubmitResponse
 import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.*
 
 interface ApiService {
 
     // =================================================================
-    // 1. AUTH MODULE
-    // =================================================================
-    @POST("auth/login")
-    suspend fun login(@Body request: LoginRequestDto): Response<ApiResponseDto<AuthDataDto>>
-
-    @POST("auth/register")
-    suspend fun register(@Body request: RegisterRequestDto): Response<ApiResponseDto<AuthDataDto>>
-
-    // =================================================================
-    // 3. HOME & DASHBOARD
+    // HOME & FOLDER
     // =================================================================
     @GET("home")
     suspend fun getHomeData(): Response<ApiResponseDto<HomeDataDto>>
 
-    // =================================================================
-    // 4. FOLDER MODULE
-    // =================================================================
-    @GET("folders")
-    suspend fun getAllFolders(): Response<ApiResponseDto<List<FolderDto>>>
-
     @POST("folders")
     suspend fun createFolder(@Body request: CreateFolderRequestDto): Response<ApiResponseDto<FolderDto>>
 
-    @PATCH("folders/{id}")
+    @PUT("folders/{id}")
     suspend fun updateFolder(
         @Path("id") id: String,
         @Body request: CreateFolderRequestDto
@@ -47,10 +32,10 @@ interface ApiService {
     suspend fun deleteFolder(@Path("id") id: String): Response<ApiResponseDto<Unit>>
 
     // =================================================================
-    // 5. DECK MODULE
+    // DECK
     // =================================================================
     @GET("decks")
-    suspend fun getDecks(@Query("folderId") folderId: String? = null): Response<ApiResponseDto<List<DeckDto>>>
+    suspend fun getDecks(@Query("folderId") folderId: String?): Response<ApiResponseDto<List<DeckDto>>>
 
     @POST("decks")
     suspend fun createDeck(@Body request: CreateDeckRequestDto): Response<ApiResponseDto<DeckDto>>
@@ -61,24 +46,29 @@ interface ApiService {
         @Body request: CreateDeckRequestDto
     ): Response<ApiResponseDto<DeckDto>>
 
-    // Tambahkan method ini di interface ContentApi
+    // Endpoint khusus untuk memindahkan deck (Move Deck)
+//    @PATCH("decks/{id}/move")
+//    suspend fun moveDeck(
+//        @Path("id") id: String,
+//        @Body body: JsonObject
+//    ): Response<ApiResponseDto<DeckDto>>
     @PATCH("decks/{id}/move")
     suspend fun moveDeck(
-        @Path("id") deckId: String,
-        @Body request: MoveDeckRequestDto
+        @Path("id") id: String,
+        @Body body: RequestBody // Tetap pakai JsonObject untuk keamanan 'null'
     ): Response<ApiResponseDto<DeckDto>>
 
     @DELETE("decks/{id}")
     suspend fun deleteDeck(@Path("id") id: String): Response<ApiResponseDto<Unit>>
 
     // =================================================================
-    // 6. CARD MODULE
+    // CARD
     // =================================================================
-    @POST("cards")
-    suspend fun createCard(@Body request: CreateCardRequestDto): Response<ApiResponseDto<CardDto>>
-
     @GET("cards/deck/{deckId}")
     suspend fun getCardsByDeckId(@Path("deckId") deckId: String): Response<ApiResponseDto<List<CardDto>>>
+
+    @POST("cards")
+    suspend fun createCard(@Body request: CreateCardRequestDto): Response<ApiResponseDto<CardDto>>
 
     @PATCH("cards/{id}")
     suspend fun updateCard(
@@ -90,38 +80,72 @@ interface ApiService {
     suspend fun deleteCard(@Path("id") id: String): Response<ApiResponseDto<Unit>>
 
     // =================================================================
-    // 7. AI GENERATOR MODULE
+    // AI (UPDATED: Menggunakan ApiResponseDto)
     // =================================================================
+
+//    @Multipart
+//    @POST("upload/file")
+//    suspend fun uploadFile(
+//        @Part file: MultipartBody.Part
+//    ): Response<ApiResponseDto<UploadResponseData>> // Ubah ke ApiResponseDto
+
     @POST("ai/generate-flashcards")
-    suspend fun generateFlashcards(@Body request: AiGenerateRequestDto): Response<ApiResponseDto<AiGeneratedResponseDto>>
+    suspend fun generateFlashcards(
+        @Body request: AiGenerateRequest
+    ): Response<ApiResponseDto<AiGenerateResultData>>
 
     @GET("ai/draft/{deckId}")
-    suspend fun getAiDraft(@Path("deckId") deckId: String): Response<ApiResponseDto<DeckDto>>
+    suspend fun getDraftDeck(
+        @Path("deckId") deckId: String
+    ): Response<ApiResponseDto<AiDraftDetailData>>
 
     @PATCH("ai/draft/{deckId}/cards/{cardId}")
     suspend fun updateDraftCard(
         @Path("deckId") deckId: String,
         @Path("cardId") cardId: String,
-        @Body request: CreateCardRequestDto
-    ): Response<ApiResponseDto<CardDto>>
+        @Body request: UpdateCardRequest
+    ): Response<ApiResponseDto<AiCard>>
 
-    @DELETE("ai/draft/{deckId}/cards/{cardId}")
+//    @DELETE("ai/draft/{deckId}/cards/{cardId}")
+//    suspend fun deleteDraftCard(
+//        @Path("deckId") deckId: String,
+//        @Path("cardId") cardId: String
+//    ): Response<ApiResponseDto<Any>>
+//    // UBAH MENJADI (Gunakan Unit)
+    @DELETE("ai/draft/{deckId}/cards/{cardId}") // sesuaikan path
     suspend fun deleteDraftCard(
         @Path("deckId") deckId: String,
         @Path("cardId") cardId: String
     ): Response<ApiResponseDto<Unit>>
 
     @POST("ai/draft/{deckId}/save")
-    suspend fun saveAiDraft(
+    suspend fun saveDeck(
         @Path("deckId") deckId: String,
-        @Body request: AiSaveRequestDto
-    ): Response<ApiResponseDto<DeckDto>>
+        @Body request: SaveDeckRequest
+    ): Response<ApiResponseDto<AiDeckInfo>>
 
-    // =================================================================
-    // 8. QUIZ SYSTEM
-    // =================================================================
+
+
+//    // =================================================================
+//    // QUIZ
+//    // =================================================================
+//    //
+//
+//    @GET("quiz/start/{deckId}")
+//    suspend fun startQuiz(@Path("deckId") deckId: String): Response<QuizStartResponse>
+//
+//    @POST("quiz/submit")
+//    suspend fun submitQuiz(@Body request: QuizSubmitRequest): Response<QuizSubmitResponse>
+//
+//    @GET("quiz/history")
+//    suspend fun getQuizHistory(): Response<ApiResponseDto<List<QuizResultDto>>>
+//
+//    @GET("quiz/{id}")
+//    suspend fun getQuizDetail(@Path("id") id: String): Response<ApiResponseDto<QuizResultDto>>
+//
+//    // --- QUIZ ENDPOINTS ---
     @GET("quiz/start/{deckId}")
-    suspend fun startQuiz(@Path("deckId") deckId: String): Response<ApiResponseDto<QuizStartResponseDto>>
+    suspend fun startQuiz(@Path("deckId") deckId: String): Response<ApiResponseDto<QuizSessionDto>>
 
     @POST("quiz/submit")
     suspend fun submitQuiz(@Body request: QuizSubmitRequestDto): Response<ApiResponseDto<QuizResultDto>>
@@ -129,21 +153,18 @@ interface ApiService {
     @GET("quiz/history")
     suspend fun getQuizHistory(): Response<ApiResponseDto<List<QuizResultDto>>>
 
-    @GET("quiz/{quizId}")
-    suspend fun getQuizDetail(@Path("quizId") quizId: String): Response<ApiResponseDto<QuizResultDto>>
+    @GET("quiz/{id}")
+    suspend fun getQuizDetail(@Path("id") id: String): Response<ApiResponseDto<QuizResultDto>>
 
-    // =================================================================
-    // 9. FILE UPLOAD MODULE
-    // =================================================================
+    // --- FILE ENDPOINTS (INI YANG HILANG SEBELUMNYA) ---
     @Multipart
     @POST("files/upload")
-    suspend fun uploadFile(
-        @Part file: MultipartBody.Part
-    ): Response<ApiResponseDto<FileUploadResponseDto>>
+    suspend fun uploadFile(@Part file: MultipartBody.Part): Response<ApiResponseDto<UploadResponseData>>
 
     @GET("files/{id}/url")
-    suspend fun getFileUrl(@Path("id") id: String): Response<ApiResponseDto<FileUrlResponseDto>>
+    suspend fun getFileUrl(@Path("id") id: String): Response<ApiResponseDto<FileUrlDto>>
 
     @DELETE("files/{id}")
     suspend fun deleteFile(@Path("id") id: String): Response<ApiResponseDto<Unit>>
+
 }

@@ -26,12 +26,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobile.memorise.ui.component.DeleteConfirmDialog
+import com.mobile.memorise.ui.screen.createnew.deck.DeckViewModel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-// Warna
+// --- COLORS ---
 private val BgColor = Color(0xFFF8F9FB)
 private val LabelBgColor = Color(0xFFE3F2FD)
 private val LabelTextColor = Color(0xFF2196F3)
@@ -39,17 +41,17 @@ private val TextDark = Color(0xFF1A1C24)
 
 @Composable
 fun DetailCardScreen(
-    deckId: String, // Diperlukan untuk konteks database
+    deckId: String,
     deckName: String,
-    cards: List<CardItemData>,
+    cards: List<CardItemData>, // Data awal dari navigasi
     initialIndex: Int = 0,
     onClose: () -> Unit,
-    onEditCard: (Int, String) -> Unit,
-    onDeleteCard: (Int) -> Unit
+    // 🔥 PERBAIKAN 1: Mengubah tipe parameter pertama jadi Int (Index) agar sesuai dengan NavGraph
+    onEditCard: (Int, String) -> Unit, // (Index, EncodedJson) -> Unit
+    // Inject ViewModel untuk koneksi API
+    deckViewModel: DeckViewModel = hiltViewModel()
 ) {
-
     // 👉 STATE LOKAL LIST KARTU
-    // Kita copy cards ke mutableStateListOf agar bisa dihapus secara UI instant
     val cardList = remember { mutableStateListOf<CardItemData>().apply { addAll(cards) } }
 
     // 👉 STATE INDEX HALAMAN
@@ -61,10 +63,16 @@ fun DetailCardScreen(
         return
     }
 
+    // Pager State
     val pagerState = rememberPagerState(
         initialPage = currentIndex,
         pageCount = { cardList.size }
     )
+
+    // Update currentIndex saat pager digeser user
+    LaunchedEffect(pagerState.currentPage) {
+        currentIndex = pagerState.currentPage
+    }
 
     val scope = rememberCoroutineScope()
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -77,9 +85,15 @@ fun DetailCardScreen(
                 totalCards = cardList.size,
                 onClose = onClose,
                 onEditClick = { index ->
-                    val json = Json.encodeToString(cardList.toList())
-                    val encodedJson = Uri.encode(json)
-                    onEditCard(index, encodedJson)
+                    val currentCard = cardList.getOrNull(index)
+                    if (currentCard != null) {
+                        // Encode list kartu saat ini menjadi JSON untuk dikirim ke Edit Screen
+                        val json = Json.encodeToString(cardList.toList())
+                        val encodedJson = Uri.encode(json)
+
+                        // 🔥 PERBAIKAN 2: Mengirimkan 'index' (Int), bukan ID.
+                        onEditCard(index, encodedJson)
+                    }
                 },
                 onDeleteClick = {
                     showDeleteDialog = true
@@ -117,7 +131,6 @@ fun DetailCardScreen(
                 contentPadding = PaddingValues(horizontal = 24.dp),
                 pageSpacing = 16.dp
             ) { pageIndex ->
-                // Pastikan index aman (cegah crash saat delete item terakhir)
                 val currentCard = cardList.getOrNull(pageIndex)
                 if (currentCard != null) {
                     CardContentView(currentCard)
@@ -126,31 +139,31 @@ fun DetailCardScreen(
         }
     }
 
-    // 👉 DIALOG HAPUS
+    // 👉 DIALOG HAPUS DENGAN KONEKSI API
     if (showDeleteDialog) {
         DeleteConfirmDialog(
             onCancel = { showDeleteDialog = false },
             onDelete = {
                 val currentPage = pagerState.currentPage
+                val cardToDelete = cardList.getOrNull(currentPage)
 
-                // 1. Panggil Callback ke Parent (untuk hapus di Database/ViewModel)
-                onDeleteCard(currentPage)
+                if (cardToDelete != null) {
+                    // 🔥 PERBAIKAN 3: Memanggil API Delete via ViewModel
+                    deckViewModel.deleteCard(cardToDelete.id)
 
-                // 2. Hapus dari State UI Lokal (supaya hilang visualnya)
-                if (currentPage < cardList.size) {
+                    // Update UI Lokal (Hapus dari Pager agar responsif)
                     cardList.removeAt(currentPage)
-                }
 
-                // 3. Atur Navigasi
-                if (cardList.isNotEmpty()) {
-                    // Geser index jika perlu
-                    val newIndex = currentPage.coerceAtMost(cardList.lastIndex)
-                    currentIndex = newIndex
-                    // Paksa scroll jika index berubah drastis (opsional, pagerState handle otomatis biasanya)
-                } else {
-                    onClose()
+                    // Logika Navigasi setelah hapus
+                    if (cardList.isNotEmpty()) {
+                        // Geser index agar tidak out of bounds
+                        val newIndex = currentPage.coerceAtMost(cardList.lastIndex)
+                        currentIndex = newIndex
+                    } else {
+                        // Jika kartu habis, tutup layar detail
+                        onClose()
+                    }
                 }
-
                 showDeleteDialog = false
             }
         )

@@ -20,31 +20,31 @@ import javax.inject.Inject
 
 // --- Deck States ---
 sealed class CreateDeckState {
-    object Idle : CreateDeckState()
-    object Loading : CreateDeckState()
-    object Success : CreateDeckState()
+    data object Idle : CreateDeckState()
+    data object Loading : CreateDeckState()
+    data object Success : CreateDeckState()
     data class Error(val message: String) : CreateDeckState()
 }
 
 sealed class EditDeckState {
-    object Idle : EditDeckState()
-    object Loading : EditDeckState()
-    object Success : EditDeckState()
+    data object Idle : EditDeckState()
+    data object Loading : EditDeckState()
+    data object Success : EditDeckState()
     data class Error(val message: String) : EditDeckState()
 }
 
 sealed class MoveDeckState {
-    object Idle : MoveDeckState()
-    object Loading : MoveDeckState()
-    object Success : MoveDeckState()
+    data object Idle : MoveDeckState()
+    data object Loading : MoveDeckState()
+    data object Success : MoveDeckState()
     data class Error(val message: String) : MoveDeckState()
 }
 
-// --- Card States (Baru Ditambahkan) ---
+// --- Card States ---
 sealed class CardOperationState {
-    object Idle : CardOperationState()
-    object Loading : CardOperationState()
-    object Success : CardOperationState()
+    data object Idle : CardOperationState()
+    data object Loading : CardOperationState()
+    data object Success : CardOperationState()
     data class Error(val message: String) : CardOperationState()
 }
 
@@ -53,57 +53,104 @@ class DeckViewModel @Inject constructor(
     private val repository: ContentRepository
 ) : ViewModel() {
 
-    // --- DATA HOLDERS ---
+    // ==========================================================
+    // DATA HOLDERS
+    // ==========================================================
+
     private val _decks = mutableStateListOf<Deck>()
     val decks: List<Deck> get() = _decks
 
     private val _folders = mutableStateListOf<Folder>()
     val folders: List<Folder> get() = _folders
 
-    // List kartu untuk ditampilkan di layar Detail/Edit
+    // List kartu untuk ditampilkan di layar Detail (CardsScreen)
     private val _cards = mutableStateListOf<Card>()
     val cards: List<Card> get() = _cards
 
-    // --- UI STATES (Deck) ---
+    // ==========================================================
+    // UI STATES
+    // ==========================================================
+
+    // State untuk Create Deck
     var createDeckState by mutableStateOf<CreateDeckState>(CreateDeckState.Idle)
         private set
 
+    // State untuk Edit Deck
     var editDeckState by mutableStateOf<EditDeckState>(EditDeckState.Idle)
         private set
 
+    // State untuk Move Deck
     var moveDeckState by mutableStateOf<MoveDeckState>(MoveDeckState.Idle)
         private set
 
-    // --- UI STATES (Card - Baru Ditambahkan) ---
+    // State untuk Operasi Card (Create/Update/Delete)
     var cardOperationState by mutableStateOf<CardOperationState>(CardOperationState.Idle)
         private set
 
+    // Loading khusus saat fetch cards
     var areCardsLoading by mutableStateOf(false)
         private set
 
-    private var currentFolderId: String? = null
+    // Pesan error umum (Snackbar)
+    var errorMessage by mutableStateOf<String?>(null)
+        private set
 
     // ==========================================================
-    // STATE MANAGEMENT
+    // PERBAIKAN DI SINI (Dibuat Public State)
+    // ==========================================================
+    // Agar EditDeckScreen bisa mengambil ID ini jika data dari Deck null
+    var currentFolderId by mutableStateOf<String?>(null)
+        private set
+
+    // ==========================================================
+    // HELPER FUNCTIONS
     // ==========================================================
 
+    /**
+     * Mengambil data deck dari list lokal berdasarkan ID.
+     * Digunakan di EditDeckScreen untuk pre-fill data.
+     */
+    fun getDeckById(id: String): Deck? {
+        return _decks.find { it.id == id }
+    }
+
+    /**
+     * Reset state Edit setelah sukses atau navigasi
+     */
+    fun onEditSuccessHandled() {
+        editDeckState = EditDeckState.Idle
+    }
+
+    /**
+     * Reset state Error saat user mulai mengetik ulang
+     */
+    fun resetEditStateOnly() {
+        if (editDeckState is EditDeckState.Error) {
+            editDeckState = EditDeckState.Idle
+        }
+    }
+
+    /**
+     * Reset semua state utama (Deck & Folder Ops)
+     */
     fun resetState() {
         createDeckState = CreateDeckState.Idle
         editDeckState = EditDeckState.Idle
         moveDeckState = MoveDeckState.Idle
         cardOperationState = CardOperationState.Idle
+        errorMessage = null
     }
 
-    fun onEditSuccessHandled() {
-        editDeckState = EditDeckState.Idle
-    }
-
-    fun resetEditStateOnly() {
-        editDeckState = EditDeckState.Idle
-    }
-
+    /**
+     * Reset khusus state Card (Diminta untuk tidak dihapus)
+     */
     fun resetCardState() {
         cardOperationState = CardOperationState.Idle
+        errorMessage = null
+    }
+
+    fun clearError() {
+        errorMessage = null
     }
 
     // ==========================================================
@@ -117,6 +164,9 @@ class DeckViewModel @Inject constructor(
                 .onSuccess { deckList ->
                     _decks.clear()
                     _decks.addAll(deckList)
+                }
+                .onFailure {
+                    errorMessage = "Gagal memuat decks: ${it.message}"
                 }
         }
     }
@@ -140,7 +190,7 @@ class DeckViewModel @Inject constructor(
             createDeckState = CreateDeckState.Loading
             repository.createDeck(name, description, folderId)
                 .onSuccess { newDeck ->
-                    _decks.add(0, newDeck)
+                    _decks.add(0, newDeck) // Tambah ke atas list
                     createDeckState = CreateDeckState.Success
                 }
                 .onFailure { e ->
@@ -149,15 +199,23 @@ class DeckViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Update Deck.
+     * Pastikan folderId diisi dengan ID folder lama agar deck tidak keluar dari folder.
+     */
     fun updateDeck(deckId: String, name: String, description: String, folderId: String?) {
         viewModelScope.launch {
             editDeckState = EditDeckState.Loading
+
+            // Memanggil Repository (Pastikan di RepositoryImpl sudah menggunakan api.updateDeck)
             repository.updateDeck(deckId, name, description, folderId)
                 .onSuccess { updatedDeck ->
+                    // 1. Update list lokal agar UI DeckScreen berubah (nama/updatedAt) langsung
                     val index = _decks.indexOfFirst { it.id == deckId }
                     if (index != -1) {
                         _decks[index] = updatedDeck
                     } else {
+                        // Jika deck tidak ketemu (kasus jarang), reload semua
                         reloadCurrentFolder()
                     }
                     editDeckState = EditDeckState.Success
@@ -168,21 +226,37 @@ class DeckViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Logic Move Deck yang sudah diperbaiki.
+     * Memilih antara moveDeck (folder biasa) atau moveDeckToHome (root).
+     */
     fun moveDeck(deckId: String, targetFolderId: String?) {
         viewModelScope.launch {
             moveDeckState = MoveDeckState.Loading
-            repository.moveDeck(deckId, targetFolderId)
-                .onSuccess {
-                    moveDeckState = MoveDeckState.Success
-                    if (targetFolderId != currentFolderId) {
-                        _decks.removeAll { it.id == deckId }
-                    } else {
-                        reloadCurrentFolder()
-                    }
+
+            // PILIH STRATEGI BERDASARKAN TARGET
+            val result = if (targetFolderId == null) {
+                // Jika target null, berarti pindah ke Home. Panggil fungsi khusus repository.
+                repository.moveDeckToHome(deckId)
+            } else {
+                // Jika target ada ID-nya, pindah ke folder tersebut.
+                repository.moveDeck(deckId, targetFolderId)
+            }
+
+            result.onSuccess {
+                moveDeckState = MoveDeckState.Success
+                // Logika UI:
+                // Jika deck dipindahkan ke tempat yang BUKAN folder saat ini,
+                // maka hapus deck itu dari tampilan list sekarang.
+                if (targetFolderId != currentFolderId) {
+                    _decks.removeAll { it.id == deckId }
+                } else {
+                    // Jika dipindah ke folder yang sama (edge case), refresh saja
+                    reloadCurrentFolder()
                 }
-                .onFailure { e ->
-                    moveDeckState = MoveDeckState.Error(e.message ?: "Failed to move deck")
-                }
+            }.onFailure { e ->
+                moveDeckState = MoveDeckState.Error(e.message ?: "Failed to move deck")
+            }
         }
     }
 
@@ -192,30 +266,29 @@ class DeckViewModel @Inject constructor(
                 .onSuccess {
                     _decks.removeAll { it.id == deckId }
                 }
+                .onFailure {
+                    errorMessage = "Gagal menghapus deck: ${it.message}"
+                }
         }
     }
 
-    fun getDeckById(deckId: String): Deck? {
-        return _decks.find { it.id == deckId }
-    }
-
     // ==========================================================
-    // CARD ACTIONS (PENGGANTI DeckRemoteViewModel)
+    // CARD ACTIONS
     // ==========================================================
 
     fun loadCards(deckId: String) {
         viewModelScope.launch {
             areCardsLoading = true
+            errorMessage = null
             repository.getCardsByDeckId(deckId)
                 .onSuccess { cardList ->
                     _cards.clear()
                     _cards.addAll(cardList)
-                    areCardsLoading = false
                 }
-                .onFailure {
-                    areCardsLoading = false
-                    // Handle error if needed, e.g. show snackbar
+                .onFailure { e ->
+                    errorMessage = "Gagal memuat kartu: ${e.message}"
                 }
+            areCardsLoading = false
         }
     }
 
@@ -224,11 +297,12 @@ class DeckViewModel @Inject constructor(
             cardOperationState = CardOperationState.Loading
             repository.createCard(deckId, front, back)
                 .onSuccess { newCard ->
-                    _cards.add(newCard) // Langsung update list UI
+                    _cards.add(newCard) // Langsung update UI CardsScreen
                     cardOperationState = CardOperationState.Success
                 }
                 .onFailure { e ->
                     cardOperationState = CardOperationState.Error(e.message ?: "Failed to create card")
+                    errorMessage = e.message
                 }
         }
     }
@@ -246,19 +320,19 @@ class DeckViewModel @Inject constructor(
                 }
                 .onFailure { e ->
                     cardOperationState = CardOperationState.Error(e.message ?: "Failed to update card")
+                    errorMessage = e.message
                 }
         }
     }
 
     fun deleteCard(cardId: String) {
         viewModelScope.launch {
-            // Opsional: set loading state jika ingin menunjukkan progress delete
             repository.deleteCard(cardId)
                 .onSuccess {
                     _cards.removeAll { it.id == cardId }
                 }
                 .onFailure { e ->
-                    // Handle error, maybe show toast
+                    errorMessage = "Gagal menghapus kartu: ${e.message}"
                 }
         }
     }

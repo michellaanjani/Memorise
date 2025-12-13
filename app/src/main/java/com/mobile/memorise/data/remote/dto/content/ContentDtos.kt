@@ -1,106 +1,80 @@
 package com.mobile.memorise.data.remote.dto.content
 
 import com.google.gson.annotations.SerializedName
-import com.mobile.memorise.data.remote.dto.common.*
 
 // =================================================================
-// 1. DEFINISI KELAS DASAR (PERBAIKAN UTAMA DI SINI)
+// 1. STANDARD CONTENT (Folder, Deck, Card)
 // =================================================================
 
 data class FolderDto(
-    @SerializedName("id", alternate = ["_id"]) // Tambahan wajib: Backend kirim "_id", bukan "id"
+    @SerializedName("id", alternate = ["_id"])
     val id: String,
-
     val name: String,
     val description: String?,
     val color: String,
     val decksCount: Int = 0,
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    val updatedAt: String? = null // Opsional: Tambahkan jika folder juga butuh tanggal update
 )
 
 data class DeckDto(
-    @SerializedName("id", alternate = ["_id"])  // Tambahan wajib: Backend kirim "_id", bukan "id"
+    @SerializedName("id", alternate = ["_id"])
     val id: String,
-
     val folderId: String?,
     val name: String,
     val description: String?,
     val cardCount: Int = 0,
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    // 🔥 UPDATE: Field ini wajib ada untuk fitur "Updated Date"
+    val updatedAt: String? = null
 )
 
 data class CardDto(
-    @SerializedName("id", alternate = ["_id"])  // Tambahan wajib untuk konsistensi
+    @SerializedName("id", alternate = ["_id"])
     val id: String,
-
     val deckId: String,
     val front: String,
     val back: String,
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    val updatedAt: String? = null
 )
 
 // =================================================================
-// 2. MODUL HOME & REQUEST BODIES
+// 2. HOME & REQUEST BODIES (Folder/Deck/Card)
 // =================================================================
 
-// --- HOME ---
 data class HomeDataDto(
     @SerializedName("folders") val folders: List<FolderDto>?,
     @SerializedName("unassignedDecks") val unassignedDecks: List<DeckDto>?
 )
 
-// --- FOLDER REQUEST ---
 data class CreateFolderRequestDto(
     val name: String,
     val description: String,
-    val color: String,
-    val deckCount: Int = 0,
-    val createdAt: String? = null
+    val color: String
 )
 
-// --- DECK REQUEST ---
 data class CreateDeckRequestDto(
     val name: String,
     val description: String,
     val folderId: String?
 )
 
-// --- CARD REQUEST ---
 data class CreateCardRequestDto(
     val deckId: String?,
     val front: String,
     val back: String
 )
 
-// Request Body untuk Move Deck
 data class MoveDeckRequestDto(
-    val folderId: String? // Nullable: Kirim null untuk pindah ke Home, kirim ID untuk masuk folder
+    val folderId: String?
 )
 
 // =================================================================
-// 3. AI GENERATOR MODULE
+// 3. QUIZ SYSTEM DTOs
 // =================================================================
 
-data class AiGenerateRequestDto(
-    val prompt: String,
-    val fileId: String?
-)
-
-data class AiGeneratedResponseDto(
-    @SerializedName("deckId") val deckId: String,
-    @SerializedName("summary") val summary: String?,
-    @SerializedName("cardCount") val cardCount: Int
-)
-
-data class AiSaveRequestDto(
-    val destinationFolderId: String?
-)
-
-// =================================================================
-// 4. QUIZ SYSTEM
-// =================================================================
-
-data class QuizStartResponseDto(
+data class QuizSessionDto(
     @SerializedName("quizId") val quizId: String,
     @SerializedName("cards") val cards: List<CardDto>
 )
@@ -112,13 +86,11 @@ data class QuizSubmitRequestDto(
 
 data class QuizAnswerDto(
     val cardId: String,
-    val answer: String // 'easy', 'hard', etc
+    val answer: String
 )
 
 data class QuizResultDto(
-    @SerializedName("_id") // Kemungkinan besar ini juga pakai _id
-    val id: String,
-
+    @SerializedName("_id") val id: String,
     val deckId: String,
     val score: Int,
     val totalQuestions: Int,
@@ -127,17 +99,62 @@ data class QuizResultDto(
 )
 
 // =================================================================
-// 5. FILE UPLOAD MODULE
+// 4. AI & FILE MODULE DTOs
 // =================================================================
 
-data class FileUploadResponseDto(
-    @SerializedName("_id") // Tambahkan jaga-jaga jika file object juga pakai _id
-    val id: String,
-
-    val url: String,
-    val originalName: String
+// --- AI GENERATION REQUEST ---
+data class AiGenerateRequest(
+    val fileId: String?,
+    val format: String,     // 'question' or 'definition'
+    val cardAmount: Int
 )
 
-data class FileUrlResponseDto(
+// --- AI GENERATION RESPONSE ---
+data class AiGenerateResultData(
+    val deck: AiDeckInfo,
+    val cards: List<AiCard>
+)
+
+data class AiDeckInfo(
+    @SerializedName("_id") val id: String,
+    val name: String,
+    val description: String?
+)
+
+// --- AI CARD (Digunakan di Draft) ---
+data class AiCard(
+    @SerializedName("_id") val id: String,
+    val front: String,
+    val back: String,
+    val deckId: String? = null
+)
+
+// --- AI DRAFT DETAIL ---
+data class AiDraftDetailData(
+    @SerializedName("_id") val id: String,
+    val name: String,
+    val description: String?,
+    val isDraft: Boolean = true,
+    val cards: List<AiCard>
+)
+
+// --- AI ACTIONS ---
+data class UpdateCardRequest(
+    val front: String,
+    val back: String
+)
+
+data class SaveDeckRequest(
+    val folderId: String?
+)
+
+// --- FILE UPLOAD ---
+data class UploadResponseData(
+    @SerializedName("_id") val id: String,
+    val url: String?,
+    val originalname: String
+)
+
+data class FileUrlDto(
     val url: String
 )

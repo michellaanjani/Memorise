@@ -57,21 +57,23 @@ fun MoveDeckScreen(
     var selectedFolderId by remember { mutableStateOf<String?>(null) }
     var showSuccessPopup by remember { mutableStateOf(false) }
 
+    // Load folders saat pertama kali dibuka
     LaunchedEffect(Unit) {
         viewModel.loadFolders()
     }
 
+    // Observe State Perubahan (Loading/Success/Error)
     LaunchedEffect(moveState) {
         when (moveState) {
             is MoveDeckState.Success -> {
                 showSuccessPopup = true
-                delay(1500)
-                viewModel.resetState()
-                onBackClick()
+                delay(1500) // Tampilkan popup sukses sebentar
+                viewModel.resetState() // Reset state agar tidak loop jika kembali ke screen ini
+                onBackClick() // Kembali ke layar sebelumnya
             }
             is MoveDeckState.Error -> {
                 Toast.makeText(context, moveState.message, Toast.LENGTH_LONG).show()
-                viewModel.resetState()
+                viewModel.resetState() // Reset error setelah ditampilkan
             }
             else -> {}
         }
@@ -96,10 +98,11 @@ fun MoveDeckScreen(
             ContainerBottomBar(
                 isLoading = moveState is MoveDeckState.Loading,
                 onConfirm = {
-                    // PERBAIKAN DISINI:
-                    // Jika selectedFolderId adalah null (Home), kirim string kosong ""
-                    // Backend menolak null, jadi kita kirim "" sebagai penanda "Tanpa Folder"
-                    viewModel.moveDeck(deckId, selectedFolderId ?: "")
+                    // ✅ PERBAIKAN:
+                    // Kirim `selectedFolderId` apa adanya (bisa null).
+                    // Jika null -> ViewModel akan memanggil moveDeckToHome (pakai JsonNull).
+                    // Jika string -> ViewModel akan memanggil moveDeck biasa.
+                    viewModel.moveDeck(deckId, selectedFolderId)
                 }
             )
         }
@@ -130,16 +133,17 @@ fun MoveDeckScreen(
                         name = "Home (Unassigned)",
                         icon = Icons.Rounded.Home,
                         iconColor = PrimaryBlue,
-                        isSelected = selectedFolderId == null,
+                        isSelected = selectedFolderId == null, // Null berarti Home
                         onClick = { selectedFolderId = null }
                     )
                 }
 
-                // --- ITEM 2: FOLDERS ---
+                // --- ITEM 2: FOLDERS DARI API ---
                 items(folders) { folder ->
-                    // Parse warna hex dari server, fallback ke Orange jika error
+                    // Parse warna hex dari server, fallback ke Orange jika error/invalid
                     val folderColor = try {
-                        Color(android.graphics.Color.parseColor(folder.color))
+                        if (folder.color.isNotEmpty()) Color(android.graphics.Color.parseColor(folder.color))
+                        else Color(0xFFFFB74D)
                     } catch (e: Exception) {
                         Color(0xFFFFB74D)
                     }
@@ -158,6 +162,7 @@ fun MoveDeckScreen(
         }
     }
 
+    // Popup Overlay jika Sukses
     if (showSuccessPopup) {
         SuccessOverlay()
     }
@@ -211,7 +216,7 @@ private fun SelectionItem(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Text
+            // Text Nama Folder/Home
             Text(
                 text = name,
                 fontSize = 16.sp,

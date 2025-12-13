@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
@@ -34,10 +35,13 @@ import com.mobile.memorise.R
 import com.mobile.memorise.ui.component.DeleteConfirmDialog
 import com.mobile.memorise.ui.screen.createnew.deck.DeckViewModel
 import com.mobile.memorise.ui.screen.createnew.folder.FolderViewModel
-import com.mobile.memorise.ui.screen.profile.ProfileViewModel // Import ProfileViewModel
+import com.mobile.memorise.ui.screen.profile.ProfileViewModel
 import com.mobile.memorise.ui.theme.*
 import com.mobile.memorise.util.Resource
 import kotlinx.serialization.Serializable
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /* =========================
@@ -63,11 +67,12 @@ data class FolderItemData(
 data class DeckItemData(
     val id: String,
     val deckName: String,
-    val cardCount: Int
+    val cardCount: Int,
+    val updatedAt: String // 🔥 TAMBAHAN: Field untuk tanggal update
 )
 
 /* =========================
-     HELPER COLORS
+     HELPER COLORS & DATE
    ========================= */
 fun Color.darken(factor: Float = 0.6f): Color {
     return Color(
@@ -80,6 +85,18 @@ fun Color.darken(factor: Float = 0.6f): Color {
 
 fun Color.toHex(): String {
     return String.format("#%06X", (this.toArgb() and 0xFFFFFF))
+}
+
+// 🔥 HELPER FORMAT TANGGAL
+fun formatHomeDeckDate(isoDate: String): String {
+    return try {
+        val instant = Instant.parse(isoDate)
+        val zone = ZoneId.systemDefault()
+        val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.getDefault())
+        "Updated: " + instant.atZone(zone).format(formatter)
+    } catch (e: Exception) {
+        "Updated recently"
+    }
 }
 
 
@@ -128,27 +145,21 @@ fun HomeScreen(
     folderViewModel: FolderViewModel,
     deckViewModel: DeckViewModel,
     homeViewModel: HomeViewModel = hiltViewModel(),
-    // Tambahkan ProfileViewModel
     profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deleteId by remember { mutableStateOf("") }
     var deleteType by remember { mutableStateOf("") }
 
-    // State dari API Home
     val homeState by homeViewModel.homeState.collectAsState()
-
-    // State dari API Profile
     val userProfile by profileViewModel.userProfile.collectAsState()
 
     var homeData by remember { mutableStateOf(HomeData()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    // State untuk Pull To Refresh
     val pullRefreshState = rememberPullToRefreshState()
 
-    // Load User Profile saat layar dibuka
     LaunchedEffect(Unit) {
         profileViewModel.loadUserProfile()
     }
@@ -177,15 +188,12 @@ fun HomeScreen(
         }
     }
 
-    // ---------------------------------------------------------
-    // CONTAINER UTAMA DENGAN PULL TO REFRESH
-    // ---------------------------------------------------------
     PullToRefreshBox(
         isRefreshing = isLoading,
         state = pullRefreshState,
         onRefresh = {
             homeViewModel.getHomeData()
-            profileViewModel.loadUserProfile() // Refresh profile juga jika ditarik
+            profileViewModel.loadUserProfile()
         },
         modifier = Modifier.fillMaxSize()
     ) {
@@ -196,12 +204,10 @@ fun HomeScreen(
             contentPadding = PaddingValues(bottom = 100.dp)
         ) {
 
-            // PASS DATA NAMA KE HEADER
             item {
                 HeaderSection(firstName = userProfile.firstName)
             }
 
-            // LOGIKA LOADING:
             if (isLoading && homeData.folders.isEmpty() && homeData.decks.isEmpty()) {
                 item {
                     Box(
@@ -213,9 +219,7 @@ fun HomeScreen(
                         CircularProgressIndicator()
                     }
                 }
-            }
-            // TAMPILKAN ERROR
-            else if (errorMessage != null && homeData.folders.isEmpty() && homeData.decks.isEmpty()) {
+            } else if (errorMessage != null && homeData.folders.isEmpty() && homeData.decks.isEmpty()) {
                 item {
                     Column(
                         modifier = Modifier
@@ -229,16 +233,11 @@ fun HomeScreen(
                     }
                 }
             } else {
-                // TAMPILKAN DATA
                 if (homeData.folders.isEmpty() && homeData.decks.isEmpty()) {
                     item { EmptyView() }
                 } else {
 
-                    /* ======================
-                        FOLDER LIST
-                       ====================== */
                     if (homeData.folders.isNotEmpty()) {
-
                         item {
                             Text(
                                 text = "Choice your Folder",
@@ -266,7 +265,7 @@ fun HomeScreen(
                                     data = folder,
                                     bgColor = bgColor,
                                     onClick = { onFolderClick(folder) },
-                                    onMoveClicked = { /*TODO: Folder move logic if needed*/ },
+                                    onMoveClicked = { },
                                     onEditClick = { id, oldName, color ->
                                         val encodedName = Uri.encode(oldName)
                                         val safeColor = color.replace("#", "")
@@ -282,9 +281,6 @@ fun HomeScreen(
                         }
                     }
 
-                    /* ======================
-                        RECENT DECK LIST
-                       ====================== */
                     if (homeData.decks.isNotEmpty()) {
                         item {
                             Text(
@@ -321,7 +317,6 @@ fun HomeScreen(
         }
     }
 
-    // Popup Delete
     if (showDeleteDialog) {
         DeleteConfirmDialog(
             onCancel = { showDeleteDialog = false },
@@ -344,10 +339,8 @@ fun HomeScreen(
         COMPONENTS
    ========================= */
 
-// Update HeaderSection untuk menerima parameter nama
 @Composable
 fun HeaderSection(firstName: String?) {
-    // Format nama: Ambil nama depan, jadikan lowercase dulu, lalu first char Uppercase
     val displayName = firstName?.let { name ->
         name.lowercase().replaceFirstChar {
             if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
@@ -363,7 +356,7 @@ fun HeaderSection(firstName: String?) {
     ) {
 
         Text(
-            text = "Hi, $displayName", // Gunakan variable display name
+            text = "Hi, $displayName",
             color = White,
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold
@@ -405,10 +398,6 @@ fun HeaderSection(firstName: String?) {
         Spacer(modifier = Modifier.height(16.dp))
     }
 }
-
-// ... Sisa kode komponen lain (FolderItemView, DeckItemView, EmptyView, ImageActionCard) tetap sama ...
-// Agar lebih ringkas saya tidak menulis ulang bagian bawah yang tidak berubah,
-// tapi pastikan Anda menyimpannya seperti di kode asal Anda.
 
 @Composable
 fun FolderItemView(
@@ -593,7 +582,23 @@ fun DeckItemView(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(data.deckName, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("${data.cardCount} Cards", fontSize = 12.sp, color = Color.Gray)
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // 🔥 UBAH ICON: DateRange
+                    Icon(
+                        imageVector = Icons.Default.DateRange,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    // 🔥 UBAH TEXT: Format Tanggal Update
+                    Text(
+                        text = formatHomeDeckDate(data.updatedAt),
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                }
             }
 
             Box {

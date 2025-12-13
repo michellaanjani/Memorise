@@ -6,46 +6,63 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.mobile.memorise.R
+import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+
+// --- COLORS ---
+private val BgColor = Color(0xFFF8F9FB)
+private val PrimaryBlue = Color(0xFF536DFE)
 
 @Composable
 fun EditAiCardScreen(
-    card: AiDraftCard,
+    cardId: String, // Terima ID
     onBackClick: () -> Unit,
-    onCardUpdated: (AiDraftCard) -> Unit
+    viewModel: AiViewModel = hiltViewModel()
 ) {
-    val originalFront = card.frontSide
-    val originalBack = card.backSide
+    // 1. Ambil data kartu dari ViewModel state 'draftSession' (bukan draftDeck)
+    val draftData by viewModel.draftSession.collectAsState()
 
-    var front by remember { mutableStateOf(TextFieldValue(card.frontSide)) }
-    var back by remember { mutableStateOf(TextFieldValue(card.backSide)) }
+    // Cari kartu berdasarkan ID dari list cards yang ada di session
+    val card = remember(draftData, cardId) {
+        draftData?.cards?.find { it.id == cardId }
+    }
 
-    val isEdited = front.text != originalFront || back.text != originalBack
+    // State untuk form menggunakan TextFieldValue agar cursor stabil
+    var front by remember(card) { mutableStateOf(TextFieldValue(card?.front ?: "")) }
+    var back by remember(card) { mutableStateOf(TextFieldValue(card?.back ?: "")) }
 
+    // State Popup
     var showSuccessPopup by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
-    // Auto-close popup
-    LaunchedEffect(showSuccessPopup) {
-        if (showSuccessPopup) {
-            delay(1500)
-            showSuccessPopup = false
+    // Cek apakah ada perubahan data
+    val isEdited = card != null && (front.text != card.front || back.text != card.back)
+
+    // Jika data card tidak ditemukan (misal error load / loading awal), tampilkan Loading
+    if (card == null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = PrimaryBlue)
         }
+        return
     }
 
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BgColor)
     ) {
 
         Column(
@@ -64,8 +81,9 @@ fun EditAiCardScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.back),
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
+                    tint = Color.Black,
                     modifier = Modifier
                         .size(28.dp)
                         .clickable { onBackClick() }
@@ -78,7 +96,8 @@ fun EditAiCardScreen(
                         .padding(end = 28.dp),
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
+                    fontSize = 18.sp,
+                    color = Color.Black
                 )
             }
 
@@ -92,8 +111,9 @@ fun EditAiCardScreen(
                     .padding(20.dp)
             ) {
 
+                // Front Side Input
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Front Side (AI)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Text("Front Side (AI)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.Black)
                     Text("*", color = Color.Red, fontSize = 15.sp)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -105,11 +125,18 @@ fun EditAiCardScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 20.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        focusedBorderColor = PrimaryBlue,
+                        unfocusedBorderColor = Color(0xFFE0E0E0)
+                    )
                 )
 
+                // Back Side Input
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Back Side (AI)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Text("Back Side (AI)", fontWeight = FontWeight.SemiBold, fontSize = 15.sp, color = Color.Black)
                     Text("*", color = Color.Red, fontSize = 15.sp)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -121,7 +148,13 @@ fun EditAiCardScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 100.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        focusedBorderColor = PrimaryBlue,
+                        unfocusedBorderColor = Color(0xFFE0E0E0)
+                    )
                 )
             }
 
@@ -134,21 +167,32 @@ fun EditAiCardScreen(
             ) {
                 Button(
                     onClick = {
-                        onCardUpdated(
-                            AiDraftCard(
-                                frontSide = front.text.trim(),
-                                backSide = back.text.trim()
-                            )
+                        // 2. Panggil ViewModel Update
+                        viewModel.updateCard(
+                            cardId = card.id,
+                            front = front.text.trim(),
+                            back = back.text.trim()
                         )
+
+                        // 3. Tampilkan Popup & Navigasi Balik
                         showSuccessPopup = true
+                        scope.launch {
+                            delay(1500)
+                            showSuccessPopup = false
+                            onBackClick() // Kembali ke layar sebelumnya
+                        }
                     },
                     enabled = isEdited,
                     modifier = Modifier
                         .widthIn(min = 160.dp)
                         .height(48.dp),
-                    shape = RoundedCornerShape(16.dp)
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PrimaryBlue,
+                        disabledContainerColor = Color.Gray.copy(alpha = 0.5f)
+                    )
                 ) {
-                    Text("Update Card", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Update Card", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
                 }
             }
         }
@@ -158,7 +202,7 @@ fun EditAiCardScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 40.dp)
+                    .padding(top = 80.dp)
                     .align(Alignment.TopCenter),
                 contentAlignment = Alignment.Center
             ) {

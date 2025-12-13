@@ -69,40 +69,53 @@ fun CardsScreen(
     onAddCardClick: () -> Unit = {},
     onCardClick: (String, Int) -> Unit,
     onEditCardClick: (String, Int) -> Unit,
-    // Menggunakan DeckViewModel (Hilt) untuk data real, bukan JSON aset
+    // Menggunakan DeckViewModel (Hilt)
     deckViewModel: DeckViewModel = hiltViewModel()
 ) {
+    // --- STATE MANAGEMENT ---
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    // State untuk Popup
+    // State dari ViewModel
+    val rawCards = deckViewModel.cards
+    val isLoading = deckViewModel.areCardsLoading
+    val errorMessage = deckViewModel.errorMessage
+
+    // State UI Lokal
     var showQuizAlert by remember { mutableStateOf(false) }
     var showStudyAlert by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var selectedIndex by remember { mutableStateOf(-1) }
 
-    // 1. Load data dari Database saat pertama kali dibuka
+    // Gunakan ID untuk delete agar lebih aman daripada index
+    var cardIdToDelete by remember { mutableStateOf<String?>(null) }
+
+    // 1. Load data saat pertama kali dibuka
     LaunchedEffect(deckId) {
         deckViewModel.loadCards(deckId)
     }
 
-    // 2. Ambil data langsung dari List di ViewModel (SnapshotStateList)
-    val rawCards = deckViewModel.cards
-    val isLoading = deckViewModel.areCardsLoading
+    // 2. Tampilkan Error Snackbar jika ada masalah jaringan/API
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            deckViewModel.clearError()
+        }
+    }
 
-    // 3. Mapping data domain ke UI Model (CardItemData)
+    // 3. Mapping data Domain ke UI Model
     val cardList = remember(rawCards.size, rawCards) {
         rawCards.map {
             CardItemData(
                 id = it.id,
                 front = it.front,
-                back = it.back,
-                explanation = null // Sesuaikan jika entity Card punya notes/explanation
+                back = it.back
             )
         }
     }
 
     Scaffold(
         containerColor = BgColor,
+        snackbarHost = { SnackbarHost(snackbarHostState) }, // Host Snackbar
         topBar = {
             TopAppBar(
                 title = {},
@@ -141,40 +154,48 @@ fun CardsScreen(
         }
     ) { innerPadding ->
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                top = innerPadding.calculateTopPadding(),
-                bottom = innerPadding.calculateBottomPadding() + 100.dp,
-                start = 24.dp,
-                end = 24.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // 1. Judul
-            item {
-                Text(
-                    text = deckName,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextDark,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+        // Loading State Penuh jika data kosong dan sedang loading
+        if (isLoading && cardList.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = BlueButton)
             }
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    top = innerPadding.calculateTopPadding(),
+                    bottom = innerPadding.calculateBottomPadding() + 100.dp, // Space untuk FAB
+                    start = 24.dp,
+                    end = 24.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // 1. Judul Deck
+                item {
+                    Text(
+                        text = deckName,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextDark,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                }
 
-            // 2. Summary Card
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(BlueHeader),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(color = Color.White)
-                    } else {
+                // 2. Summary Card (Kotak Biru)
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(BlueHeader),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = "${cardList.size}",
@@ -190,121 +211,123 @@ fun CardsScreen(
                         }
                     }
                 }
-            }
 
-            // 3. Tombol Actions (Study & Quiz)
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    // Tombol Study (Orange)
-                    Button(
-                        onClick = {
-                            if (cardList.isEmpty()) {
-                                showStudyAlert = true
-                            } else {
-                                onStudyClick()
-                            }
-                        },
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = OrangeButton)
-                    ) {
-                        Text("Study cards", color = Color.White, fontWeight = FontWeight.SemiBold)
-                    }
-
-                    // Tombol Quiz (Biru)
-                    Button(
-                        onClick = {
-                            if (cardList.size < 3) {
-                                showQuizAlert = true
-                            } else {
-                                onQuizClick()
-                            }
-                        },
-                        modifier = Modifier.weight(1f).height(50.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BlueButton)
-                    ) {
-                        Text("Start Quiz", color = Color.White, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
-
-            // --- LOGIKA TAMPILAN LIST VS EMPTY STATE ---
-
-            if (cardList.isNotEmpty()) {
-                // A. Jika Ada Kartu: Tampilkan Header List & Item Kartu
+                // 3. Tombol Actions (Study & Quiz)
                 item {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Cards in deck (${cardList.size})",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextDark
-                    )
-                }
-                itemsIndexed(cardList) { index, card ->
-                    CardItemView(
-                        card = card,
-                        onClick = {
-                            val jsonList = Json.encodeToString(cardList)
-                            val encodedJson = Uri.encode(jsonList)
-                            onCardClick(encodedJson, index)
-                        },
-                        onEditClick = {
-                            val jsonList = Json.encodeToString(cardList)
-                            val encodedJson = Uri.encode(jsonList)
-                            onEditCardClick(encodedJson, index)
-                        },
-                        onDeleteClick = {
-                            selectedIndex = index
-                            showDeleteDialog = true
-                        }
-                    )
-                }
-
-            } else if (!isLoading) {
-                // B. Jika KOSONG (dan tidak loading): Tampilkan Empty State UI
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 40.dp),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(24.dp)
+                        // Tombol Study
+                        Button(
+                            onClick = {
+                                if (cardList.isEmpty()) {
+                                    showStudyAlert = true
+                                } else {
+                                    onStudyClick()
+                                }
+                            },
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = OrangeButton)
                         ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.empty),
-                                contentDescription = "No Cards",
-                                modifier = Modifier.size(200.dp),
-                                contentScale = ContentScale.Fit
-                            )
-                            Spacer(modifier = Modifier.height(24.dp))
-                            Text(
-                                text = "No Cards yet!",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1A1C24)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Let’s create a card for you to learn!",
-                                fontSize = 14.sp,
-                                color = Color.Gray,
-                                textAlign = TextAlign.Center
-                            )
+                            Text("Study cards", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        }
+
+                        // Tombol Quiz
+                        Button(
+                            onClick = {
+                                if (cardList.size < 3) {
+                                    showQuizAlert = true
+                                } else {
+                                    onQuizClick()
+                                }
+                            },
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = BlueButton)
+                        ) {
+                            Text("Start Quiz", color = Color.White, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+
+                // --- LOGIKA LIST VS EMPTY STATE ---
+
+                if (cardList.isNotEmpty()) {
+                    // Header List
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Cards in deck (${cardList.size})",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextDark
+                        )
+                    }
+
+                    // Item List
+                    itemsIndexed(cardList) { index, card ->
+                        CardItemView(
+                            card = card,
+                            onClick = {
+                                val jsonList = Json.encodeToString(cardList)
+                                val encodedJson = Uri.encode(jsonList)
+                                onCardClick(encodedJson, index)
+                            },
+                            onEditClick = {
+                                val jsonList = Json.encodeToString(cardList)
+                                val encodedJson = Uri.encode(jsonList)
+                                onEditCardClick(encodedJson, index)
+                            },
+                            onDeleteClick = {
+                                cardIdToDelete = card.id // Simpan ID, bukan index
+                                showDeleteDialog = true
+                            }
+                        )
+                    }
+
+                } else {
+                    // Empty State (Gambar Kosong)
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 40.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(24.dp)
+                            ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.empty),
+                                    contentDescription = "No Cards",
+                                    modifier = Modifier.size(200.dp),
+                                    contentScale = ContentScale.Fit
+                                )
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Text(
+                                    text = "No Cards yet!",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1A1C24)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Let’s create a card for you to learn!",
+                                    fontSize = 14.sp,
+                                    color = Color.Gray,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
-        // --- DIALOG POPUPS ---
+        // --- DIALOGS ---
 
         if (showQuizAlert) {
             ValidationDialog(
@@ -323,21 +346,23 @@ fun CardsScreen(
                 onDismiss = { showStudyAlert = false }
             )
         }
-    }
 
-    // --- CONFIRM DELETE DIALOG ---
-    if (showDeleteDialog) {
-        DeleteConfirmDialog(
-            onCancel = { showDeleteDialog = false },
-            onDelete = {
-                val targetId = cardList.getOrNull(selectedIndex)?.id
-                if (targetId != null) {
-                    // PANGGIL FUNGSI DELETE DARI VIEWMODEL (Real Database)
-                    deckViewModel.deleteCard(targetId)
+        // --- CONFIRM DELETE DIALOG ---
+        if (showDeleteDialog) {
+            DeleteConfirmDialog(
+                onCancel = {
+                    showDeleteDialog = false
+                    cardIdToDelete = null
+                },
+                onDelete = {
+                    cardIdToDelete?.let { id ->
+                        deckViewModel.deleteCard(id)
+                    }
+                    showDeleteDialog = false
+                    cardIdToDelete = null
                 }
-                showDeleteDialog = false
-            }
-        )
+            )
+        }
     }
 }
 
@@ -392,7 +417,8 @@ fun CardItemView(
 
                 DropdownMenu(
                     expanded = expanded,
-                    onDismissRequest = { expanded = false }
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.background(Color.White)
                 ) {
                     DropdownMenuItem(
                         text = {
@@ -489,7 +515,9 @@ fun ValidationDialog(
 
                 Button(
                     onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = BlueButton)
                 ) {

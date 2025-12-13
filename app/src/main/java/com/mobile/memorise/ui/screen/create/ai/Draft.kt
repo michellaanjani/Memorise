@@ -1,6 +1,6 @@
 package com.mobile.memorise.ui.screen.create.ai
 
-import com.mobile.memorise.R
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,18 +17,20 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.foundation.Image
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.painterResource
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.mobile.memorise.R
+import com.mobile.memorise.domain.model.Card
 import com.mobile.memorise.ui.component.DeleteConfirmDialog
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 
+// --- COLORS ---
 private val BgColor = Color(0xFFF5F5F7)
 private val HeaderBlue = Color(0xFF0961F5)
 private val CardWhite = Color.White
@@ -36,37 +38,73 @@ private val TextDark = Color(0xFF1A1C24)
 private val TextGray = Color(0xFF7A7A7A)
 private val PrimaryBlue = HeaderBlue
 
-@Serializable
-data class AiDraftCard(
-    val frontSide: String,
-    val backSide: String
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiGeneratedDraftScreen(
     navController: NavController,
-    deckName: String,
-    cardsJson: String,
+    deckId: String,
     onBackClick: () -> Unit,
-    onSaveClick: (String, List<AiDraftCard>) -> Unit,
-    onCardClick: (Int) -> Unit,
-    onEditCardClick: (Int) -> Unit
+    viewModel: AiViewModel = hiltViewModel()
 ) {
-    var deckNameState by remember { mutableStateOf(deckName) }
-    var cards by remember { mutableStateOf(Json.decodeFromString<List<AiDraftCard>>(cardsJson)) }
+    // 1. Load Draft Data saat masuk screen pertama kali
+    LaunchedEffect(deckId) {
+        viewModel.loadDraft(deckId)
+    }
 
-    var selectedIndex by remember { mutableStateOf(-1) }
+    // 2. Observe States
+    val draftData by viewModel.draftSession.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
+    val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // 3. Local UI States
     var showDeleteDialog by remember { mutableStateOf(false) }
-
+    var selectedCardId by remember { mutableStateOf<String?>(null) }
     var showSuccessPopup by remember { mutableStateOf(false) }
 
-    // FIX untuk delay popup
-    val scope = rememberCoroutineScope()
+    // State untuk Nama Deck
+    var deckNameState by remember { mutableStateOf("") }
+
+    // Inisialisasi nama deck saat data selesai dimuat dari API
+    // Kita gunakan LaunchedEffect key(draftData) agar update hanya jika nama lokal masih kosong
+    LaunchedEffect(draftData) {
+        if (draftData != null && deckNameState.isEmpty()) {
+            deckNameState = draftData!!.deck.name
+        }
+    }
+
+    // --- LOADING STATE (Full Screen saat awal) ---
+    if (uiState is AiUiState.Loading && draftData == null) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = PrimaryBlue)
+        }
+        return
+    }
+
+    // --- ERROR STATE ---
+    if (uiState is AiUiState.Error) {
+        val errorMsg = (uiState as AiUiState.Error).message
+        // Tampilkan error jika data benar-benar kosong
+        if (draftData == null) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Gagal memuat draft", fontWeight = FontWeight.Bold)
+                    Text(errorMsg, color = Color.Red, fontSize = 12.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = onBackClick) { Text("Kembali") }
+                }
+            }
+            return
+        }
+    }
+
+    val cards = draftData?.cards ?: emptyList()
 
     Scaffold(
         containerColor = BgColor,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         bottomBar = {
+            // Save Button Area
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -80,20 +118,41 @@ fun AiGeneratedDraftScreen(
                         .fillMaxWidth(0.9f)
                         .height(46.dp)
                 ) {
+                    val isSaving = uiState is AiUiState.Loading
+
                     TextButton(
                         onClick = {
-                            onSaveClick(deckNameState, cards)
-                            showSuccessPopup = true
+                            if (deckNameState.isBlank()) {
+                                scope.launch { snackbarHostState.showSnackbar("Nama deck tidak boleh kosong") }
+                                return@TextButton
+                            }
 
-                            scope.launch {
-                                kotlinx.coroutines.delay(3500)
-                                showSuccessPopup = false
+                            if (!isSaving) {
+                                viewModel.saveDeck {
+                                    showSuccessPopup = true
+                                    scope.launch {
+                                        delay(1500) // Tahan sebentar biar user lihat popup sukses
+                                        // Navigasi ke Home, hapus backstack agar tidak bisa 'Back' ke draft yang sudah disave
+                                        navController.navigate("home_screen") {
+                                            popUpTo("home_screen") { inclusive = true }
+                                        }
+                                    }
+                                }
                             }
                         },
+                        enabled = !isSaving,
                         modifier = Modifier.fillMaxSize(),
                         colors = ButtonDefaults.textButtonColors(contentColor = PrimaryBlue)
                     ) {
-                        Text("Save", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        if (isSaving) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = PrimaryBlue)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Menyimpan...", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        } else {
+                            Text("Save Deck", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 }
             }
@@ -107,7 +166,7 @@ fun AiGeneratedDraftScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
-            // ================= HEADER (CENTER TITLE + LOGO) =================
+            // ================= HEADER =================
             item {
                 Column(
                     modifier = Modifier
@@ -116,7 +175,6 @@ fun AiGeneratedDraftScreen(
                         .background(HeaderBlue)
                         .padding(bottom = 20.dp)
                 ) {
-
                     // TOP BAR
                     Row(
                         modifier = Modifier
@@ -124,31 +182,19 @@ fun AiGeneratedDraftScreen(
                             .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-
                         IconButton(onClick = onBackClick) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White
-                            )
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
                         }
-
                         Text(
-                            text = "AI Generation",
+                            text = "Draft Preview",
                             color = Color.White,
-                            fontSize = 22.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f),
                         )
-
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null,
-                            tint = Color.Transparent
-                        )
                     }
 
-                    // LOGO FIXED
+                    // LOGO / ILLUSTRATION
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -156,15 +202,13 @@ fun AiGeneratedDraftScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.logm),
+                            painter = painterResource(id = R.drawable.logm), // Pastikan resource ada
                             contentDescription = "App Logo",
-                            modifier = Modifier.size(90.dp) // bebas ubah
+                            modifier = Modifier.size(80.dp)
                         )
                     }
                 }
             }
-
-
 
             // ============ DECK NAME INPUT ============
             item {
@@ -174,25 +218,18 @@ fun AiGeneratedDraftScreen(
                         .padding(horizontal = 20.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Deck Name",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TextDark
-                        )
-                        Text(
-                            text = " *",
-                            color = Color.Red,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text("Deck Name", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = TextDark)
+                        Text(" *", color = Color.Red, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
-
                     Spacer(modifier = Modifier.height(8.dp))
 
                     TextField(
                         value = deckNameState,
-                        onValueChange = { deckNameState = it },
+                        onValueChange = {
+                            deckNameState = it
+                            // PENTING: Update ke ViewModel agar saat save, nama baru yang dipakai
+                            viewModel.updateLocalDeckName(it)
+                        },
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -206,14 +243,12 @@ fun AiGeneratedDraftScreen(
                             focusedTextColor = TextDark,
                             unfocusedTextColor = TextDark
                         ),
-                        placeholder = {
-                            Text("Enter deck name", color = TextGray)
-                        }
+                        placeholder = { Text("Enter deck name", color = TextGray) }
                     )
                 }
             }
 
-            // ============ SECTION TITLE + COUNT ============
+            // ============ INFO COUNT ============
             item {
                 Text(
                     text = "Cards generated — ${cards.size} cards",
@@ -225,13 +260,19 @@ fun AiGeneratedDraftScreen(
             }
 
             // ================= CARD LIST =================
-            itemsIndexed(cards) { index, card ->
+            itemsIndexed(items = cards, key = { _, card -> card.id }) { index, card ->
                 MinimalAppleCardItem(
                     card = card,
-                    onClick = { onCardClick(index) },
-                    onEditClick = { onEditCardClick(index) },
+                    onClick = {
+                        // Navigasi ke detail card (pastikan route sesuai graph kamu)
+                        // Menggunakan index agar pager bisa langsung ke posisi kartu ini
+                        navController.navigate("ai_card_detail/$index")
+                    },
+                    onEditClick = {
+                        navController.navigate("ai_card_detail/$index")
+                    },
                     onDeleteClick = {
-                        selectedIndex = index
+                        selectedCardId = card.id
                         showDeleteDialog = true
                     }
                 )
@@ -249,27 +290,28 @@ fun AiGeneratedDraftScreen(
         ) {
             Box(
                 modifier = Modifier
-                    .padding(top = 60.dp)
-                    .background(Color(0xFF7CFF8A), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 20.dp, vertical = 10.dp)
+                    .padding(top = 100.dp)
+                    .background(Color(0xFF4CAF50), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 24.dp, vertical = 12.dp)
             ) {
                 Text(
-                    "Your card is ready!",
-                    fontSize = 15.sp,
+                    "Deck Saved Successfully!",
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color.Black
+                    color = Color.White
                 )
             }
         }
     }
 
     // ================= DELETE DIALOG =================
-    if (showDeleteDialog && selectedIndex in cards.indices) {
+    if (showDeleteDialog && selectedCardId != null) {
         DeleteConfirmDialog(
             onCancel = { showDeleteDialog = false },
             onDelete = {
-                cards = cards.toMutableList().apply { removeAt(selectedIndex) }
+                selectedCardId?.let { viewModel.deleteCard(it) }
                 showDeleteDialog = false
+                selectedCardId = null
             }
         )
     }
@@ -277,7 +319,7 @@ fun AiGeneratedDraftScreen(
 
 @Composable
 fun MinimalAppleCardItem(
-    card: AiDraftCard,
+    card: Card,
     onClick: () -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
@@ -295,15 +337,19 @@ fun MinimalAppleCardItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
+                // Front
                 Text(
-                    text = card.frontSide,
+                    text = card.front,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 16.sp,
-                    color = TextDark
+                    color = TextDark,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(6.dp))
+                // Back
                 Text(
-                    text = card.backSide,
+                    text = card.back,
                     fontSize = 13.sp,
                     color = TextGray,
                     maxLines = 2,

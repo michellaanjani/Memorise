@@ -27,6 +27,8 @@ interface ContentRepository {
     // PERBAIKAN: Tambahkan parameter folderId: String?
     suspend fun updateDeck(id: String, name: String, desc: String, folderId: String?): Result<Deck>
     suspend fun moveDeck(deckId: String, folderId: String?): Result<Deck>
+
+    suspend fun moveDeckToHome(deckId: String): Result<Deck>
     suspend fun deleteDeck(id: String): Result<Unit>
 
     // =================================================================

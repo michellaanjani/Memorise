@@ -5,7 +5,7 @@ import com.google.gson.GsonBuilder
 import com.mobile.memorise.data.remote.AuthApi
 import com.mobile.memorise.data.remote.AuthInterceptor
 import com.mobile.memorise.data.remote.TokenAuthenticator
-import com.mobile.memorise.data.remote.api.*
+import com.mobile.memorise.data.remote.api.* // Pastikan UserApi / AuthApi ada di package ini
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -19,34 +19,34 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-object NetworkModule { // <-- Ganti nama jadi NetworkModule
+object NetworkModule {
 
     // URL Backend
     private const val BASE_URL = "https://memorise-backend-production.up.railway.app/api/"
 
-    // 1. GSON (Penting untuk handle null)
+    // 1. GSON
     @Provides
     @Singleton
     fun provideGson(): Gson {
         return GsonBuilder()
-            .serializeNulls()
             .create()
     }
 
-    // 2. OkHttpClient (Lengkap dengan Auth & Logging)
+    // 2. OkHttpClient
     @Provides
     @Singleton
     fun provideOkHttpClient(
         authInterceptor: AuthInterceptor,
         tokenAuthenticator: TokenAuthenticator
     ): OkHttpClient {
+
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BODY
         }
 
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
-            .authenticator(tokenAuthenticator) // Handle Refresh Token
+            .authenticator(tokenAuthenticator)
             .addInterceptor(logging)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
@@ -68,17 +68,25 @@ object NetworkModule { // <-- Ganti nama jadi NetworkModule
     // API SERVICES
     // =================================================================
 
+    // AuthApi biasanya tetap terpisah karena digunakan di TokenAuthenticator
+    // (Pastikan file AuthApi.kt masih ada)
     @Provides
     @Singleton
     fun provideAuthApi(retrofit: Retrofit): AuthApi {
         return retrofit.create(AuthApi::class.java)
     }
 
+    // UserApi (Profil, dll) - Jika belum digabung ke ApiService, biarkan ini.
+    // Jika UserApi juga sudah masuk ApiService, hapus ini.
     @Provides
     @Singleton
     fun provideUserApi(retrofit: Retrofit): UserApi {
         return retrofit.create(UserApi::class.java)
     }
+
+    // === PERBAIKAN DI SINI ===
+    // Cukup sediakan ApiService, karena Folder, Deck, Card, Quiz, AI, File
+    // semuanya ada di dalam interface ApiService ini.
 
     @Provides
     @Singleton
@@ -86,22 +94,6 @@ object NetworkModule { // <-- Ganti nama jadi NetworkModule
         return retrofit.create(ApiService::class.java)
     }
 
-    @Provides
-    @Singleton
-    fun provideDeckApi(retrofit: Retrofit): DeckApi {
-        return retrofit.create(DeckApi::class.java)
-    }
-
-    @Provides
-    @Singleton
-    fun provideCardApi(retrofit: Retrofit): CardApi {
-        return retrofit.create(CardApi::class.java)
-    }
-
-    @Provides
-    @Singleton
-    fun provideQuizApi(retrofit: Retrofit): QuizApi {
-        return retrofit.create(QuizApi::class.java)
-    }
-
+    // HAPUS provideDeckApi, provideCardApi, provideQuizApi
+    // Karena interface-nya sudah dihapus/digabung.
 }

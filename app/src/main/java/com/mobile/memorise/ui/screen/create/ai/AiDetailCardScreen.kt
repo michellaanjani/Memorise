@@ -1,17 +1,11 @@
 package com.mobile.memorise.ui.screen.create.ai
 
-import android.net.Uri
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,51 +16,68 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import kotlinx.coroutines.launch
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 
-// Reuse helpers from cards package
+// 1. Ganti Import DTO ke Domain Model
+import com.mobile.memorise.domain.model.Card
+import com.mobile.memorise.ui.component.DeleteConfirmDialog
 import com.mobile.memorise.ui.screen.cards.DetailBottomBar
 import com.mobile.memorise.ui.screen.cards.DetailTopBar
 import com.mobile.memorise.ui.screen.cards.SideLabel
 
-// Make sure AiDraftCard is visible in this package or import it if located elsewhere
-// @kotlinx.serialization.Serializable
-// data class AiDraftCard(val frontSide: String, val backSide: String)
-
+// --- COLORS ---
 private val BgColor = Color(0xFFF8F9FB)
 private val TextDark = Color(0xFF1A1C24)
+private val PrimaryBlue = Color(0xFF536DFE)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AiDetailCardScreen(
-    jsonCards: String,
+    navController: NavController,
     initialIndex: Int,
-    onClose: () -> Unit,
-    onEditAiCard: (Int, String) -> Unit,
-    onReturnUpdatedList: (List<AiDraftCard>) -> Unit
+    viewModel: AiViewModel = hiltViewModel() // Inject ViewModel
 ) {
-    // decode + initial list
-    val decoded = Uri.decode(jsonCards)
-    val initialList = remember { Json.decodeFromString<List<AiDraftCard>>(decoded) }
-    val cardList = remember { mutableStateListOf<AiDraftCard>().apply { addAll(initialList) } }
+    // 2. Observe Data dari 'draftSession' (bukan draftDeck)
+    val draftData by viewModel.draftSession.collectAsState()
 
-    // safety for empty
-    if (cardList.isEmpty()) {
-        LaunchedEffect(Unit) { onReturnUpdatedList(emptyList()) }
-        return
+    // Ambil list kartu terbaru. Jika null, gunakan empty list.
+    val cardList = remember(draftData) { draftData?.cards ?: emptyList() }
+
+    // Jika list kosong (misal semua dihapus), kembali ke screen sebelumnya
+    LaunchedEffect(cardList.size) {
+        // Cek jika draftData sudah terload tapi kosong, baru popBackStack
+        // (Hindari pop saat inisialisasi awal/loading)
+        if (draftData != null && cardList.isEmpty()) {
+            navController.popBackStack()
+        }
     }
 
-    var currentIndex by remember { mutableStateOf(initialIndex.coerceIn(0, cardList.lastIndex)) }
+    // Safety check
+    if (cardList.isEmpty()) return
 
-    // Use the same pager API as your project: rememberPagerState with pageCount lambda
+    // 3. Pager State
+    // Pastikan initial page valid
+    val validInitialIndex = initialIndex.coerceIn(0, (cardList.size - 1).coerceAtLeast(0))
     val pagerState = rememberPagerState(
-        initialPage = currentIndex,
+        initialPage = validInitialIndex,
         pageCount = { cardList.size }
     )
 
     val scope = rememberCoroutineScope()
+
+    // 4. Dialog States
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
+
+    // Temp variables untuk Edit Dialog
+    var editFront by remember { mutableStateOf("") }
+    var editBack by remember { mutableStateOf("") }
+
+    // Mendapatkan kartu yang sedang aktif
+    // Menggunakan getOrNull untuk keamanan jika index out of bounds saat delete
+    val currentCard = cardList.getOrNull(pagerState.currentPage)
 
     Scaffold(
         containerColor = BgColor,
@@ -74,11 +85,13 @@ fun AiDetailCardScreen(
             DetailTopBar(
                 currentIndex = pagerState.currentPage,
                 totalCards = cardList.size,
-                onClose = onClose,
-                onEditClick = { index ->
-                    val json = Json.encodeToString(cardList.toList())
-                    val encoded = Uri.encode(json)
-                    onEditAiCard(index, encoded)
+                onClose = { navController.popBackStack() },
+                onEditClick = {
+                    currentCard?.let { card ->
+                        editFront = card.front // Asumsi Domain Model Card punya property 'front'
+                        editBack = card.back   // Asumsi Domain Model Card punya property 'back'
+                        showEditDialog = true
+                    }
                 },
                 onDeleteClick = {
                     showDeleteDialog = true
@@ -115,37 +128,78 @@ fun AiDetailCardScreen(
                 state = pagerState,
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(horizontal = 24.dp),
-                pageSpacing = 16.dp
+                pageSpacing = 16.dp,
+                verticalAlignment = Alignment.Top
             ) { pageIndex ->
-                // update currentIndex for TopBar label
-                currentIndex = pageIndex
-                val currentCard = cardList[pageIndex]
-                AiCardContentView(currentCard)
+                // Guard agar tidak out of bounds saat list berubah cepat
+                if (pageIndex < cardList.size) {
+                    AiCardContentView(cardList[pageIndex])
+                }
             }
         }
     }
 
-    if (showDeleteDialog) {
-        com.mobile.memorise.ui.component.DeleteConfirmDialog(
+    // --- DELETE DIALOG ---
+    if (showDeleteDialog && currentCard != null) {
+        DeleteConfirmDialog(
             onCancel = { showDeleteDialog = false },
             onDelete = {
-                val removeAt = pagerState.currentPage
-                if (removeAt in cardList.indices) {
-                    cardList.removeAt(removeAt)
-                }
-                if (cardList.isEmpty()) {
-                    onReturnUpdatedList(emptyList())
-                } else {
-                    onReturnUpdatedList(cardList.toList())
-                }
+                // Panggil ViewModel untuk hapus di API & Local
+                viewModel.deleteCard(currentCard.id)
                 showDeleteDialog = false
+                // Logic untuk handle pager index setelah delete ditangani oleh reactivity compose
             }
+        )
+    }
+
+    // --- EDIT DIALOG ---
+    if (showEditDialog && currentCard != null) {
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = { Text("Edit Card", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = editFront,
+                        onValueChange = { editFront = it },
+                        label = { Text("Front Side") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = editBack,
+                        onValueChange = { editBack = it },
+                        label = { Text("Back Side") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 3
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // Panggil ViewModel untuk update API & Local
+                        viewModel.updateCard(currentCard.id, editFront, editBack)
+                        showEditDialog = false
+                    }
+                ) {
+                    Text("Save", color = PrimaryBlue, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditDialog = false }) {
+                    Text("Cancel", color = TextDark)
+                }
+            },
+            containerColor = Color.White,
+            shape = RoundedCornerShape(16.dp)
         )
     }
 }
 
+// 5. Ubah parameter 'AiCard' (DTO) menjadi 'Card' (Domain Model)
 @Composable
-fun AiCardContentView(card: AiDraftCard) {
+fun AiCardContentView(card: Card) {
     Card(
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -164,7 +218,7 @@ fun AiCardContentView(card: AiDraftCard) {
             Spacer(Modifier.height(24.dp))
 
             Text(
-                text = card.frontSide,
+                text = card.front, // Domain Model Property
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = TextDark,
@@ -173,7 +227,11 @@ fun AiCardContentView(card: AiDraftCard) {
 
             Spacer(Modifier.height(32.dp))
 
-            Divider(thickness = 4.dp, color = BgColor, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(2.dp)))
+            HorizontalDivider(
+                thickness = 4.dp,
+                color = BgColor,
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(2.dp))
+            )
 
             Spacer(Modifier.height(32.dp))
 
@@ -181,7 +239,7 @@ fun AiCardContentView(card: AiDraftCard) {
             Spacer(Modifier.height(24.dp))
 
             Text(
-                text = card.backSide,
+                text = card.back, // Domain Model Property
                 fontSize = 16.sp,
                 color = TextDark.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center
