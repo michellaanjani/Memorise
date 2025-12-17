@@ -122,7 +122,8 @@ data class QuizAnswerDto(
 
 
 data class QuizResultDto(
-    @SerializedName("_id") val id: String,
+    @SerializedName("id", alternate = ["_id"])
+    val id: String, // Tambahkan ID hasil kuisnya sendiri
     val deckId: String,
     val score: Int,
     val totalQuestions: Int,
@@ -149,24 +150,30 @@ data class AiGenerateResultData(
 )
 
 data class AiDeckInfo(
-    @SerializedName("_id") val id: String,
+    @SerializedName("id", alternate = ["_id"])
+    val id: String,
     val name: String,
     val description: String?
 )
 
 data class AiCard(
-    @SerializedName("_id") val id: String,
+    @SerializedName("id", alternate = ["_id"])
+    val id: String,
     val front: String,
     val back: String,
-    val deckId: String? = null
+    val deckId: String
 )
 
 data class AiDraftDetailData(
-    @SerializedName("_id") val id: String,
+    @SerializedName("id", alternate = ["_id"])
+    val id: String,
     val name: String,
     val description: String?,
-    val isDraft: Boolean = true,
-    val cards: List<AiCard>
+    val userId: String,
+    val folderId: String?,
+    val isDraft: Boolean,
+    val draftData: Any?,
+    val cards: List<AiCard> = emptyList()
 )
 
 data class UpdateCardRequest(
@@ -175,11 +182,13 @@ data class UpdateCardRequest(
 )
 
 data class SaveDeckRequest(
-    val folderId: String?
+    val folderId: String?,
+    val name: String?
 )
 
 data class UploadResponseData(
-    @SerializedName("_id") val id: String,
+    @SerializedName("id", alternate = ["_id"])
+    val id: String,
     val url: String?,
     val originalname: String
 )

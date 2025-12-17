@@ -1,19 +1,18 @@
 package com.mobile.memorise.data.repository
 
 import com.google.gson.JsonObject
-import com.google.gson.JsonNull // <--- INI PENTING, TADI HILANG
+import com.google.gson.JsonNull
 import com.mobile.memorise.data.mapper.*
 import com.mobile.memorise.data.remote.api.ApiService
 import com.mobile.memorise.data.remote.dto.common.ApiResponseDto
 import com.mobile.memorise.data.remote.dto.content.*
 import com.mobile.memorise.domain.model.*
-import com.mobile.memorise.domain.model.quiz.*
+import com.mobile.memorise.domain.model.quiz.* // Hati-hati dengan package ini jika Anda sudah menghapus folder quiz
 import com.mobile.memorise.domain.repository.ContentRepository
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import retrofit2.Response
 import java.io.File
 import java.net.URLConnection
@@ -124,31 +123,24 @@ class ContentRepositoryImpl @Inject constructor(
         if (folderId != null) {
             gsonObject.addProperty("folderId", folderId)
         } else {
-            // Ini akan membuat JSON: {"folderId": null}
             gsonObject.add("folderId", JsonNull.INSTANCE)
         }
 
-        // ✅ SOLUSI: Ubah JsonObject menjadi RequestBody
         val requestBody = gsonObject.toString()
             .toRequestBody("application/json".toMediaTypeOrNull())
 
-        // Sekarang tipe datanya sudah cocok dengan RequestBody
+        // Gunakan requestBody, bukan JsonObject jika method api.moveDeck membutuhkan RequestBody
+        // Pastikan signature di ApiService menerima @Body RequestBody
         return safeApiCall({ api.moveDeck(deckId, requestBody) }) { it.toDomain() }
     }
 
-    // ✅ PERBAIKAN UTAMA DI SINI
     override suspend fun moveDeckToHome(deckId: String): Result<Deck> {
         return try {
-            // KITA PAKSA TULIS STRING JSON SECARA MANUAL
-            // Ini menjamin yang terkirim adalah {"folderId": null}
             val jsonString = """{"folderId": null}"""
-
-            // Convert string ke RequestBody
             val requestBody = jsonString.toRequestBody("application/json".toMediaTypeOrNull())
 
-            // Kirim requestBody, bukan JsonObject
+            // Asumsi: api.moveDeck menerima RequestBody sebagai @Body
             val response = api.moveDeck(deckId, requestBody)
-
             val responseBody = response.body()
 
             if (response.isSuccessful && responseBody?.success == true && responseBody.data != null) {
@@ -191,7 +183,7 @@ class ContentRepositoryImpl @Inject constructor(
     // 3. AI GENERATOR IMPLEMENTATION
     // =================================================================
 
-    override suspend fun generateFlashcards(prompt: String, fileId: String?): Result<AiGeneratedContent> {
+    override suspend fun generateFlashcards(prompt: String, fileId: String?, cardAmount: Int ): Result<AiGeneratedContent> {
         val validFormat = when {
             prompt.contains("Question", ignoreCase = true) -> "question"
             else -> "definition"
@@ -200,7 +192,7 @@ class ContentRepositoryImpl @Inject constructor(
         val request = AiGenerateRequest(
             fileId = fileId,
             format = validFormat,
-            cardAmount = 5
+            cardAmount = cardAmount
         )
 
         return safeApiCall(
@@ -209,45 +201,46 @@ class ContentRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun getAiDraft(deckId: String): Result<Deck> {
+    // 🔥 PERBAIKAN: Menggunakan mapper .toDomainContent() untuk mengembalikan AiDraftContent
+    override suspend fun getAiDraft(deckId: String): Result<AiDraftContent> {
         return safeApiCall(
             apiCall = { api.getDraftDeck(deckId) },
+            mapper = { dto: AiDraftDetailData -> dto.toDomainContent() } // Mapper Baru
+        )
+    }
+
+    // 🔥 PERBAIKAN: Update card mengembalikan konten draft terbaru (Deck + Cards)
+    override suspend fun updateDraftCard(deckId: String, cardId: String, front: String, back: String): Result<AiDraftContent> {
+        val request = UpdateCardRequest(front, back)
+        return safeApiCall(
+            apiCall = { api.updateDraftCard(deckId, cardId, request) },
+            mapper = { dto: AiDraftDetailData -> dto.toDomainContent() } // Mapper Baru
+        )
+    }
+
+    // 🔥 PERBAIKAN: Delete card mengembalikan konten draft terbaru (Deck + Cards)
+    override suspend fun deleteDraftCard(deckId: String, cardId: String): Result<AiDraftContent> {
+        return safeApiCall(
+            apiCall = { api.deleteDraftCard(deckId, cardId) },
+            mapper = { dto: AiDraftDetailData -> dto.toDomainContent() } // Mapper Baru
+        )
+    }
+
+    override suspend fun saveAiDraft(deckId: String, destinationFolderId: String?, name: String?): Result<Deck> {
+        val request = SaveDeckRequest(
+            folderId = destinationFolderId,
+            name = name // Pastikan parameter ini dikirim!
+        )
+        return safeApiCall(
+            apiCall = { api.saveDeck(deckId, request) },
             mapper = { dto: AiDraftDetailData ->
+                // Saat save, biasanya kita hanya butuh Deck info akhir
                 Deck(
                     id = dto.id,
                     name = dto.name,
                     description = dto.description ?: "",
                     cardCount = dto.cards.size,
                     folderId = null,
-                    updatedAt = ""
-                )
-            }
-        )
-    }
-
-    override suspend fun updateDraftCard(deckId: String, cardId: String, front: String, back: String): Result<Card> {
-        val request = UpdateCardRequest(front, back)
-        return safeApiCall(
-            apiCall = { api.updateDraftCard(deckId, cardId, request) },
-            mapper = { dto: AiCard -> dto.toDomain() }
-        )
-    }
-
-    override suspend fun deleteDraftCard(deckId: String, cardId: String): Result<Unit> {
-        return safeApiCallUnit { api.deleteDraftCard(deckId, cardId) }
-    }
-
-    override suspend fun saveAiDraft(deckId: String, destinationFolderId: String?): Result<Deck> {
-        val request = SaveDeckRequest(destinationFolderId)
-        return safeApiCall(
-            apiCall = { api.saveDeck(deckId, request) },
-            mapper = { info: AiDeckInfo ->
-                Deck(
-                    id = info.id,
-                    name = info.name,
-                    description = info.description ?: "",
-                    cardCount = 0,
-                    folderId = destinationFolderId,
                     updatedAt = ""
                 )
             }
@@ -303,35 +296,46 @@ class ContentRepositoryImpl @Inject constructor(
     }
 
     // =================================================================
-    // 5. QUIZ
-    // =================================================================
-
-    // =================================================================
     // 5. QUIZ (IMPLEMENTASI BARU)
     // =================================================================
 
-    override suspend fun startQuiz(deckId: String): Result<QuizStartData> {
+    override suspend fun startQuiz(deckId: String): Result<QuizSession> {
         return safeApiCall(
             apiCall = { api.startQuiz(deckId) },
-            mapper = { it.toDomain() } // Menggunakan mapper QuizSessionDto.toDomain()
+            mapper = { it.toDomain() } // Mapper QuizSessionDto -> QuizSession
         )
     }
 
-    override suspend fun submitQuiz(request: QuizSubmitRequest): Result<QuizSubmitData> {
+    override suspend fun submitQuiz(
+        deckId: String,
+        totalQuestions: Int,
+        correctAnswers: Int,
+        answers: List<QuizAnswerInput>
+    ): Result<QuizResult> {
+        // Build DTO Request Manual
+        val answerDtos = answers.map { it.toDto() } // Menggunakan mapper QuizAnswerInput -> QuizAnswerDto
+
+        val requestDto = QuizSubmitRequestDto(
+            deckId = deckId,
+            totalQuestions = totalQuestions,
+            correctAnswers = correctAnswers,
+            answers = answerDtos
+        )
+
         return safeApiCall(
-            apiCall = { api.submitQuiz(request.toDto()) }, // Menggunakan mapper toDto()
-            mapper = { it.toDomain() } // Menggunakan mapper QuizResultDto.toDomain()
+            apiCall = { api.submitQuiz(requestDto) },
+            mapper = { it.toDomain() } // Mapper QuizResultDto -> QuizResult
         )
     }
 
-    override suspend fun getQuizHistory(): Result<List<QuizSubmitData>> {
+    override suspend fun getQuizHistory(): Result<List<QuizResult>> {
         return safeApiCall(
             apiCall = { api.getQuizHistory() },
             mapper = { list -> list.map { it.toDomain() } }
         )
     }
 
-    override suspend fun getQuizDetail(quizId: String): Result<QuizSubmitData> {
+    override suspend fun getQuizDetail(quizId: String): Result<QuizResult> {
         return safeApiCall(
             apiCall = { api.getQuizDetail(quizId) },
             mapper = { it.toDomain() }

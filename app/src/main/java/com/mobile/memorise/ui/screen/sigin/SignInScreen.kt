@@ -5,6 +5,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle // Import TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -21,22 +25,22 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.mobile.memorise.R // Pastikan import R sesuai package Anda
+import com.mobile.memorise.R
 
 @Composable
 fun SignInScreen(
     onSignInSuccess: () -> Unit = {},
     onSignUpClick: () -> Unit = {},
     onForgotPasswordClick: () -> Unit = {},
-    viewModel: AuthViewModel = hiltViewModel() // Inject ViewModel di sini
+    viewModel: AuthViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
 
-    // State UI lokal (hanya visual, data tetap di ViewModel)
+    // State UI lokal
     var passwordVisible by remember { mutableStateOf(false) }
     val deepBlue = Color(0xFF0C3DF4)
 
-    // Efek untuk mendengarkan respon API (Sukses/Gagal)
+    // Efek untuk mendengarkan respon API
     LaunchedEffect(key1 = true) {
         viewModel.authEvent.collect { event ->
             when(event) {
@@ -94,17 +98,25 @@ fun SignInScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             OutlinedTextField(
-                value = viewModel.email, // Ambil dari ViewModel
+                value = viewModel.email,
                 onValueChange = {
                     viewModel.email = it
-                    viewModel.isError = false // Reset visual error saat mengetik
+                    viewModel.isError = false
                 },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
-                isError = viewModel.isError, // Visual error (merah) jika gagal
-                textStyle = LocalTextStyle.current.copy(
+                isError = viewModel.isError,
+                // PERBAIKAN: Gunakan TextStyle biasa dengan warna Hitam
+                textStyle = TextStyle(
                     fontSize = 14.sp,
                     color = Color.Black
+                ),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black,
+                    cursorColor = Color.Black,
+                    focusedBorderColor = deepBlue,
+                    unfocusedBorderColor = Color.LightGray
                 ),
                 singleLine = true
             )
@@ -116,7 +128,7 @@ fun SignInScreen(
             Spacer(modifier = Modifier.height(4.dp))
 
             OutlinedTextField(
-                value = viewModel.password, // Ambil dari ViewModel
+                value = viewModel.password,
                 onValueChange = {
                     viewModel.password = it
                     viewModel.isError = false
@@ -124,21 +136,38 @@ fun SignInScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(10.dp),
                 isError = viewModel.isError,
-                textStyle = LocalTextStyle.current.copy(fontSize = 14.sp),
+                // PERBAIKAN: Gunakan TextStyle biasa dengan warna Hitam
+                textStyle = TextStyle(
+                    fontSize = 14.sp,
+                    color = Color.Black
+                ),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.Black,
+                    unfocusedTextColor = Color.Black,
+                    cursorColor = Color.Black,
+                    focusedBorderColor = deepBlue,
+                    unfocusedBorderColor = Color.LightGray
+                ),
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 singleLine = true,
+                // PERBAIKAN LOGIC ICON MATA
                 trailingIcon = {
-                    Image(
-                        painter = painterResource(id = R.drawable.mata),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clickable { passwordVisible = !passwordVisible }
-                    )
+                    val image = if (passwordVisible)
+                        Icons.Filled.Visibility
+                    else
+                        Icons.Filled.VisibilityOff
+
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            imageVector = image,
+                            contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                            tint = Color.Gray
+                        )
+                    }
                 }
             )
 
-            // Pesan Error Text di bawah input (Opsional)
+            // Pesan Error Text
             if (viewModel.isError) {
                 Text(
                     text = "Invalid email or password",
@@ -168,7 +197,7 @@ fun SignInScreen(
         // ========== LOGIN BUTTON ==========
         Button(
             onClick = { viewModel.onSignInClick() },
-            enabled = !viewModel.isLoading, // Matikan tombol saat loading
+            enabled = !viewModel.isLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp),
@@ -179,7 +208,6 @@ fun SignInScreen(
             )
         ) {
             if (viewModel.isLoading) {
-                // Tampilkan Loading Spinner
                 CircularProgressIndicator(
                     color = Color.White,
                     modifier = Modifier.size(24.dp),

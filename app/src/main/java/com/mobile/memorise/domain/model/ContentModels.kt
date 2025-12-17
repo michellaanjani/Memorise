@@ -9,7 +9,7 @@ data class Folder(
     val name: String,
     val description: String,
     val color: String,
-    val deckCount: Int,      // Tambahan
+    val deckCount: Int,
     val createdAt: String
 )
 
@@ -20,7 +20,6 @@ data class Deck(
     val description: String,
     val cardCount: Int,
     val updatedAt: String
-
 )
 
 data class Card(
@@ -40,24 +39,51 @@ data class AiGeneratedContent(
     val cardCount: Int
 )
 
+/**
+ * 🔥 TAMBAHAN PENTING:
+ * Model ini digunakan untuk menampung respon dari:
+ * - getAiDraft
+ * - updateDraftCard
+ * - deleteDraftCard
+ * Agar ViewModel bisa langsung mendapatkan Deck info DAN List Card terbaru.
+ */
+data class AiDraftContent(
+    val deck: Deck,
+    val cards: List<Card>
+)
+
 // ==========================
 // 3. QUIZ MODELS
 // ==========================
 
+/**
+ * Model khusus untuk satu pertanyaan kuis.
+ * Dibuat terpisah dari 'Card' karena kuis mungkin memiliki pilihan ganda (options).
+ */
+data class QuizQuestion(
+    val cardId: String,
+    val question: String,
+    val correctAnswer: String,
+    val options: List<String>, // List pilihan jawaban (A, B, C, D)
+    val explanation: String?
+)
+
 data class QuizSession(
-    val quizId: String,
-    val cards: List<Card> // Diubah agar sesuai dengan Repository (List<Card>)
+    val deckId: String,        // Disesuaikan dengan DTO (deckId)
+    val totalQuestions: Int,
+    val questions: List<QuizQuestion> // Menggunakan QuizQuestion, bukan Card
 )
 
 data class QuizAnswerInput(
     val cardId: String,
-    val answer: String
+    val userAnswer: String,    // Jawaban user
+    val correctAnswer: String  // Jawaban benar (diperlukan server untuk validasi)
 )
 
 data class QuizResult(
     val id: String,
     val deckId: String,
-    val score: Int, // Diubah ke Int agar sesuai dengan DTO dan Repo
+    val score: Int,
     val totalQuestions: Int,
     val correctAnswers: Int,
     val playedAt: String
@@ -70,5 +96,5 @@ data class QuizResult(
 data class UploadedFile(
     val id: String,
     val url: String,
-    val originalName: String // Diubah ke String agar sesuai dengan Repo
+    val originalName: String
 )

@@ -9,4 +9,7 @@ interface UserRepository {
     suspend fun getUserProfile(): Resource<User>
     suspend fun updateProfile(firstName: String, lastName: String): Resource<User>
     suspend fun changePassword(currentPassword: String, newPassword: String): Resource<Unit>
+
+    suspend fun forgotPassword(email: String): Resource<Unit>
+    suspend fun resetPassword(token: String, newPassword: String): Resource<Unit>
 }

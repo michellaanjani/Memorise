@@ -1,10 +1,16 @@
 package com.mobile.memorise.ui.screen.signup
 
+import android.util.Patterns
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,8 +38,18 @@ fun SignUpScreen(
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // State untuk scroll
+    val scrollState = rememberScrollState()
+
     var passwordVisible by remember { mutableStateOf(false) }
     val deepBlue = Color(0xFF0C3DF4)
+
+    // PERBAIKAN LOGIC: Menggunakan .trim() agar spasi depan/belakang diabaikan saat validasi
+    val isEmailError = remember(viewModel.email) {
+        val trimmedEmail = viewModel.email.trim()
+        // Error terjadi jika: Text asli tidak kosong (isNotBlank) TAPI format (setelah di-trim) salah
+        viewModel.email.isNotBlank() && !Patterns.EMAIL_ADDRESS.matcher(trimmedEmail).matches()
+    }
 
     LaunchedEffect(key1 = true) {
         viewModel.signUpEvent.collect { event ->
@@ -53,7 +69,6 @@ fun SignUpScreen(
     }
 
     Scaffold(
-        // PERBAIKAN 1: Paksa background menjadi Putih agar teks hitam terlihat jelas
         containerColor = Color.White,
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { paddingValues ->
@@ -65,10 +80,8 @@ fun SignUpScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    // Menghapus statusBarsPadding() jika background status bar jadi aneh,
-                    // tapi jika transparan biarkan saja.
-                    // .statusBarsPadding()
-                    .padding(horizontal = 22.dp),
+                    .padding(horizontal = 22.dp)
+                    .verticalScroll(scrollState),
                 horizontalAlignment = Alignment.Start
             ) {
 
@@ -89,7 +102,7 @@ fun SignUpScreen(
                     text = "Sign Up",
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Black,
-                    color = Color(0xFF121212) // Warna Teks Hitam Pekat
+                    color = Color(0xFF121212)
                 )
 
                 Spacer(modifier = Modifier.height(3.dp))
@@ -106,9 +119,21 @@ fun SignUpScreen(
                     MinimalInput(
                         label = "Email",
                         value = viewModel.email,
-                        onValueChange = { viewModel.email = it }
+                        onValueChange = { viewModel.email = it },
+                        isError = isEmailError
                     )
+
+                    if (isEmailError) {
+                        Text(
+                            text = "Invalid email address format",
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(top = 2.dp, start = 4.dp)
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(13.dp))
+
                     MinimalInput(
                         label = "First Name",
                         value = viewModel.firstName,
@@ -121,6 +146,7 @@ fun SignUpScreen(
                         onValueChange = { viewModel.lastName = it }
                     )
                     Spacer(modifier = Modifier.height(13.dp))
+
                     MinimalInput(
                         label = "Password (min 8 characters)",
                         value = viewModel.password,
@@ -169,9 +195,16 @@ fun SignUpScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
+                // Update logika validasi form: gunakan isNotBlank() agar aman terhadap spasi saja
+                val isFormValid = !viewModel.isLoading &&
+                        viewModel.termsAccepted &&
+                        viewModel.password.length >= 8 &&
+                        !isEmailError &&
+                        viewModel.email.isNotBlank()
+
                 Button(
                     onClick = { viewModel.onSignUpClick() },
-                    enabled = !viewModel.isLoading && viewModel.termsAccepted && viewModel.password.length >= 8,
+                    enabled = isFormValid,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp),
@@ -200,7 +233,9 @@ fun SignUpScreen(
                 Spacer(modifier = Modifier.height(14.dp))
 
                 Row(
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = 20.dp)
                 ) {
                     Text(
                         text = "Already have an account?",
@@ -240,7 +275,7 @@ fun MinimalInput(
         Text(
             text = label,
             fontSize = 13.sp,
-            color = Color.Gray // Label warna abu-abu
+            color = if(isError) MaterialTheme.colorScheme.error else Color.Gray
         )
 
         Spacer(modifier = Modifier.height(3.dp))
@@ -253,7 +288,6 @@ fun MinimalInput(
                 .height(50.dp),
             shape = RoundedCornerShape(12.dp),
 
-            // Memastikan teks input berwarna Hitam
             textStyle = TextStyle(
                 fontSize = 14.sp,
                 color = Color.Black
@@ -269,27 +303,31 @@ fun MinimalInput(
 
             trailingIcon = {
                 if (isPassword) {
-                    Image(
-                        painter = painterResource(id = R.drawable.mata),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .clickable { onToggleVisibility() }
-                    )
+                    val image = if (passwordVisible)
+                        Icons.Filled.Visibility
+                    else
+                        Icons.Filled.VisibilityOff
+
+                    val description = if (passwordVisible) "Hide password" else "Show password"
+
+                    IconButton(onClick = onToggleVisibility) {
+                        Icon(imageVector = image, contentDescription = description, tint = Color.Gray)
+                    }
                 }
             },
 
             colors = OutlinedTextFieldDefaults.colors(
-                // PERBAIKAN 2: Pastikan warna teks jelas
                 focusedBorderColor = Color(0xFF0C3DF4),
                 unfocusedBorderColor = Color(0xFFD0D7E2),
                 cursorColor = Color(0xFF0C3DF4),
 
+                errorBorderColor = MaterialTheme.colorScheme.error,
+                errorCursorColor = MaterialTheme.colorScheme.error,
+                errorLabelColor = MaterialTheme.colorScheme.error,
+
                 focusedTextColor = Color.Black,
                 unfocusedTextColor = Color.Black,
 
-                // Pastikan container transparan (mengikuti warna Scaffold Putih)
-                // atau set focusedContainerColor = Color.White jika mau eksplisit
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent
             )

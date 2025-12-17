@@ -16,19 +16,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.rounded.Lightbulb
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Cancel
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -37,10 +36,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobile.memorise.R
-import com.mobile.memorise.domain.model.quiz.QuizAnswerDetail
-import com.mobile.memorise.domain.model.quiz.QuizQuestion
-import com.mobile.memorise.domain.model.quiz.QuizSubmitData
-import com.mobile.memorise.domain.model.quiz.QuizSubmitRequest
+// 1. FIX IMPORT DOMAIN MODEL
+import com.mobile.memorise.domain.model.QuizAnswerInput
+import com.mobile.memorise.domain.model.QuizQuestion
+import com.mobile.memorise.domain.model.QuizResult
 import com.mobile.memorise.ui.viewmodel.QuizViewModel
 import com.mobile.memorise.util.Resource
 
@@ -57,7 +56,7 @@ private val SurfaceWhite = Color.White
 @Composable
 fun QuizScreen(
     deckId: String,
-    deckName: String,
+    deckName: String, // (Optional: parameter ini tidak terpakai di kode bawah, tapi oke dibiarkan)
     onBackClick: () -> Unit,
     quizViewModel: QuizViewModel = hiltViewModel()
 ) {
@@ -70,7 +69,9 @@ fun QuizScreen(
     // State Lokal
     var currentIndex by remember { mutableIntStateOf(0) }
     var correctCount by remember { mutableIntStateOf(0) }
-    var answers by remember { mutableStateOf(listOf<QuizAnswerDetail>()) }
+
+    // 2. FIX TIPE DATA STATE JAWABAN (Gunakan QuizAnswerInput)
+    var answers by remember { mutableStateOf(listOf<QuizAnswerInput>()) }
 
     // Efek Error Submit
     LaunchedEffect(submitState) {
@@ -86,21 +87,18 @@ fun QuizScreen(
         quizViewModel.startQuiz(deckId)
     }
 
+    // Ambil data questions dari startState (Tipe: QuizSession)
     val questions = (startState as? Resource.Success)?.data?.questions ?: emptyList()
     val totalQuestions = (startState as? Resource.Success)?.data?.totalQuestions ?: questions.size
 
-    // Container Utama (Tanpa Scaffold di sini untuk hindari double padding)
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = LightBlueBg
     ) {
-        // Bungkus dengan Box untuk menampung Snackbar di lapisan paling atas jika perlu,
-        // tapi idealnya Scaffold di dalam Question/Result menangani ini.
-        // Kita gunakan Scaffold pembungkus khusus Snackbar jika mau global.
         Scaffold(
             containerColor = Color.Transparent,
             snackbarHost = { SnackbarHost(snackbarHostState) },
-            contentWindowInsets = WindowInsets(0, 0, 0, 0) // Reset insets
+            contentWindowInsets = WindowInsets(0, 0, 0, 0)
         ) { paddingValues ->
             Box(Modifier.padding(paddingValues).fillMaxSize()) {
                 when (startState) {
@@ -118,6 +116,7 @@ fun QuizScreen(
                         ErrorStateView(message = msg, onRetry = { quizViewModel.startQuiz(deckId) }, onBack = onBackClick)
                     }
                     is Resource.Success -> {
+                        // Cek apakah sudah submit sukses -> Tampilkan Result
                         if (submitState is Resource.Success) {
                             val result = (submitState as Resource.Success).data!!
                             QuizResultContent(
@@ -127,22 +126,28 @@ fun QuizScreen(
                                 onBackClick = onBackClick
                             )
                         } else if (questions.isNotEmpty()) {
+                            // Tampilkan Soal
                             QuizQuestionContent(
                                 question = questions[currentIndex],
                                 currentIndex = currentIndex,
                                 totalQuestions = totalQuestions,
                                 onBackClick = onBackClick,
-                                submitState = submitState,
-                                onAnswered = { detail ->
-                                    answers = answers.filterNot { it.cardId == detail.cardId } + detail
-                                    if (detail.isCorrect) correctCount++
+                                submitState = submitState, // Resource<QuizResult>
+                                onAnswered = { input, isCorrect ->
+                                    // 3. UPDATE LOGIC: Filter list lama & tambah jawaban baru
+                                    answers = answers.filterNot { it.cardId == input.cardId } + input
+                                    if (isCorrect) correctCount++
                                 },
                                 onNextClick = {
                                     if (currentIndex < questions.size - 1) {
                                         currentIndex++
                                     } else {
+                                        // 4. FIX SUBMIT PARAMETERS (4 Parameter terpisah)
                                         quizViewModel.submitQuiz(
-                                            QuizSubmitRequest(deckId, totalQuestions, correctCount, answers)
+                                            deckId = deckId,
+                                            totalQuestions = totalQuestions,
+                                            correctAnswers = correctCount,
+                                            answers = answers
                                         )
                                     }
                                 }
@@ -158,7 +163,6 @@ fun QuizScreen(
     }
 }
 
-// ... (QuizQuestionContent dan QuizOptionItem SAMA SEPERTI SEBELUMNYA, TIDAK PERLU DIUBAH) ...
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun QuizQuestionContent(
@@ -166,8 +170,8 @@ fun QuizQuestionContent(
     currentIndex: Int,
     totalQuestions: Int,
     onBackClick: () -> Unit,
-    submitState: Resource<QuizSubmitData>,
-    onAnswered: (QuizAnswerDetail) -> Unit,
+    submitState: Resource<QuizResult>, // 5. FIX TIPE PARAMETER
+    onAnswered: (QuizAnswerInput, Boolean) -> Unit, // Callback: InputModel & Status Benar/Salah
     onNextClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -235,10 +239,17 @@ fun QuizQuestionContent(
         ) {
             Text(text = "Question ${currentIndex + 1} of $totalQuestions", style = MaterialTheme.typography.labelLarge, color = TextGray)
             Spacer(modifier = Modifier.height(24.dp))
-            AnimatedContent(targetState = question, transitionSpec = { fadeIn(tween(300)) + slideInHorizontally { it } togetherWith fadeOut(tween(300)) + slideOutHorizontally { -it } }, label = "q") { target ->
+
+            AnimatedContent(
+                targetState = question,
+                transitionSpec = { fadeIn(tween(300)) + slideInHorizontally { it } togetherWith fadeOut(tween(300)) + slideOutHorizontally { -it } },
+                label = "q"
+            ) { target ->
                 Text(text = target.question, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = TextDark, textAlign = TextAlign.Center, lineHeight = 30.sp, modifier = Modifier.fillMaxWidth())
             }
+
             Spacer(modifier = Modifier.height(32.dp))
+
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 val options = remember(question) { (question.options ?: emptyList()).take(4) }
                 options.forEach { option ->
@@ -249,18 +260,28 @@ fun QuizQuestionContent(
                         isCorrectAnswer = option == question.correctAnswer,
                         onClick = {
                             if (!isAnswered) {
-                                selectedAnswer = option; isAnswered = true;
+                                selectedAnswer = option
+                                isAnswered = true
                                 val isCorrect = option == question.correctAnswer
+
                                 try {
                                     val soundRes = if (isCorrect) R.raw.correct else R.raw.wrong
                                     MediaPlayer.create(context, soundRes).apply { setOnCompletionListener { release() }; start() }
                                 } catch (e: Exception) { e.printStackTrace() }
-                                onAnswered(QuizAnswerDetail(question.cardId, isCorrect, option, question.correctAnswer ?: "", question.explanation))
+
+                                // 6. CONSTRUCT QUIZ ANSWER INPUT
+                                val answerInput = QuizAnswerInput(
+                                    cardId = question.cardId,
+                                    userAnswer = option,
+                                    correctAnswer = question.correctAnswer
+                                )
+                                onAnswered(answerInput, isCorrect)
                             }
                         }
                     )
                 }
             }
+
             AnimatedVisibility(visible = isAnswered && !question.explanation.isNullOrBlank()) {
                 Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF8E1)), border = BorderStroke(1.dp, Color(0xFFFFC107)), modifier = Modifier.fillMaxWidth().padding(top = 24.dp)) {
                     Column(Modifier.padding(16.dp)) {
@@ -273,6 +294,10 @@ fun QuizQuestionContent(
         }
     }
 }
+
+// --- BAGIAN KE BAWAH INI (UI COMPONENTS) TIDAK PERLU DIUBAH DARI VERSI SEBELUMNYA ---
+// (QuizOptionItem, QuizResultContent, AnimatedCircularProgress, StatCardModern, ErrorStateView)
+// Saya sertakan agar file lengkap bisa langsung dicopy-paste.
 
 @Composable
 fun QuizOptionItem(optionText: String, isSelected: Boolean, isAnswered: Boolean, isCorrectAnswer: Boolean, onClick: () -> Unit) {
@@ -287,7 +312,6 @@ fun QuizOptionItem(optionText: String, isSelected: Boolean, isAnswered: Boolean,
     }
 }
 
-// 🔥 PERBAIKAN TAMPILAN RESULT 🔥
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuizResultContent(
@@ -298,8 +322,6 @@ fun QuizResultContent(
 ) {
     val context = LocalContext.current
     val wrongAnswers = totalQuestions - correctAnswers
-
-    // Pesan Motivasi berdasarkan Score
     val (resultTitle, resultMessage, resultColor) = remember(score) {
         when {
             score >= 80 -> Triple("Excellent!", "Kamu luar biasa!", SuccessGreen)
@@ -308,189 +330,69 @@ fun QuizResultContent(
             else -> Triple("Keep Learning", "Jangan menyerah, ayo belajar lagi!", ErrorRed)
         }
     }
-
-    // Animasi Angka Score
     val animatedScore = remember { Animatable(0f) }
 
-    // Efek Suara & Animasi saat muncul
     LaunchedEffect(Unit) {
-        // 1. Play Sound
         try {
-            // Pastikan file 'done.mp3' ada di res/raw/done.mp3
             val mp = MediaPlayer.create(context, R.raw.done)
             mp.start()
             mp.setOnCompletionListener { it.release() }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        // 2. Animasi Progress
-        animatedScore.animateTo(
-            targetValue = score.toFloat(),
-            animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing)
-        )
+        } catch (e: Exception) { e.printStackTrace() }
+        animatedScore.animateTo(targetValue = score.toFloat(), animationSpec = tween(durationMillis = 1500, easing = FastOutSlowInEasing))
     }
 
-    Scaffold(
-        containerColor = SurfaceWhite,
-        contentWindowInsets = WindowInsets.safeDrawing
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+    Scaffold(containerColor = SurfaceWhite, contentWindowInsets = WindowInsets.safeDrawing) { padding ->
+        Column(modifier = Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(modifier = Modifier.height(24.dp))
-
             Text("Quiz Result", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextDark)
-
             Spacer(modifier = Modifier.height(32.dp))
-
-            // --- CUSTOM CIRCULAR PROGRESS ---
             Box(contentAlignment = Alignment.Center) {
-                // Panggil Custom Composable
-                AnimatedCircularProgress(
-                    percentage = animatedScore.value / 100f,
-                    color = resultColor,
-                    size = 220.dp,
-                    strokeWidth = 18.dp
-                )
-
+                AnimatedCircularProgress(percentage = animatedScore.value / 100f, color = resultColor, size = 220.dp, strokeWidth = 18.dp)
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "${animatedScore.value.toInt()}%",
-                        fontSize = 42.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = TextDark
-                    )
+                    Text(text = "${animatedScore.value.toInt()}%", fontSize = 42.sp, fontWeight = FontWeight.ExtraBold, color = TextDark)
                     Text("Score", fontSize = 14.sp, color = TextGray)
                 }
             }
-
             Spacer(modifier = Modifier.height(24.dp))
-
-            // Pesan Motivasi
             Text(resultTitle, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = resultColor)
             Text(resultMessage, fontSize = 16.sp, color = TextGray, textAlign = TextAlign.Center)
-
             Spacer(modifier = Modifier.height(32.dp))
-
-            // Statistik Grid
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                StatCardModern(
-                    label = "Correct",
-                    value = correctAnswers.toString(),
-                    color = SuccessGreen,
-                    icon = Icons.Rounded.CheckCircle,
-                    modifier = Modifier.weight(1f)
-                )
-                StatCardModern(
-                    label = "Wrong",
-                    value = wrongAnswers.toString(),
-                    color = ErrorRed,
-                    icon = Icons.Rounded.Cancel,
-                    modifier = Modifier.weight(1f)
-                )
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                StatCardModern(label = "Correct", value = correctAnswers.toString(), color = SuccessGreen, icon = Icons.Rounded.CheckCircle, modifier = Modifier.weight(1f))
+                StatCardModern(label = "Wrong", value = wrongAnswers.toString(), color = ErrorRed, icon = Icons.Rounded.Cancel, modifier = Modifier.weight(1f))
             }
-
             Spacer(modifier = Modifier.height(16.dp))
-
-            // Total Question Card
-            Card(
-                colors = CardDefaults.cardColors(containerColor = LightBlueBg),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.padding(horizontal = 24.dp).fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            Card(colors = CardDefaults.cardColors(containerColor = LightBlueBg), shape = RoundedCornerShape(16.dp), modifier = Modifier.padding(horizontal = 24.dp).fillMaxWidth()) {
+                Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text("Total Questions", color = TextGray, fontSize = 14.sp)
                     Text("$totalQuestions", fontWeight = FontWeight.Bold, color = TextDark, fontSize = 18.sp)
                 }
             }
-
             Spacer(modifier = Modifier.weight(1f))
             Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = onBackClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
-            ) {
+            Button(onClick = onBackClick, modifier = Modifier.fillMaxWidth().padding(24.dp).height(56.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)) {
                 Text("Back to Deck", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SurfaceWhite)
             }
         }
     }
 }
 
-// --- HELPER COMPOSABLE: Custom Circle ---
 @Composable
-fun AnimatedCircularProgress(
-    percentage: Float,
-    color: Color,
-    size: Dp,
-    strokeWidth: Dp
-) {
+fun AnimatedCircularProgress(percentage: Float, color: Color, size: Dp, strokeWidth: Dp) {
     Canvas(modifier = Modifier.size(size)) {
-        // Background Circle (Abu-abu muda)
-        drawCircle(
-            color = Color(0xFFF3F4F6),
-            style = Stroke(width = strokeWidth.toPx())
-        )
-
-        // Foreground Arc (Warna Score)
-        drawArc(
-            color = color,
-            startAngle = -90f,
-            sweepAngle = 360 * percentage,
-            useCenter = false,
-            style = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
-        )
+        drawCircle(color = Color(0xFFF3F4F6), style = Stroke(width = strokeWidth.toPx()))
+        drawArc(color = color, startAngle = -90f, sweepAngle = 360 * percentage, useCenter = false, style = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round))
     }
 }
 
-// --- HELPER COMPOSABLE: Modern Stat Card ---
 @Composable
-fun StatCardModern(
-    label: String,
-    value: String,
-    color: Color,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = SurfaceWhite),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, Color(0xFFE5E7EB))
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(color.copy(alpha = 0.1f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
+fun StatCardModern(label: String, value: String, color: Color, icon: ImageVector, modifier: Modifier = Modifier) {
+    Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = SurfaceWhite), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, Color(0xFFE5E7EB))) {
+        Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(40.dp).background(color.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
                 Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(24.dp))
             }
-
             Spacer(modifier = Modifier.width(12.dp))
-
             Column {
                 Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextDark)
                 Text(label, fontSize = 12.sp, color = TextGray)
@@ -501,11 +403,7 @@ fun StatCardModern(
 
 @Composable
 fun ErrorStateView(message: String, onRetry: () -> Unit, onBack: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
+    Column(modifier = Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Icon(Icons.Default.Close, null, tint = ErrorRed, modifier = Modifier.size(64.dp))
         Spacer(Modifier.height(16.dp))
         Text("Oops!", fontSize = 20.sp, fontWeight = FontWeight.Bold)

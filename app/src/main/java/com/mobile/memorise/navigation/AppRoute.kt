@@ -4,11 +4,13 @@ sealed class AppRoute(val route: String) {
     data object Landing : AppRoute("landing")
 
     // Onboarding
-    data object Onboarding1 : AppRoute("onboarding1")
-    data object Onboarding2 : AppRoute("onboarding2")
-    data object Onboarding3 : AppRoute("onboarding3")
-    data object Onboarding4 : AppRoute("onboarding4")
-    data object Onboarding5 : AppRoute("onboarding5")
+//    data object Onboarding1 : AppRoute("onboarding1")
+//    data object Onboarding2 : AppRoute("onboarding2")
+//    data object Onboarding3 : AppRoute("onboarding3")
+//    data object Onboarding4 : AppRoute("onboarding4")
+//    data object Onboarding5 : AppRoute("onboarding5")
+    // Onboarding (GABUNGAN)
+    data object OnboardingFlow : AppRoute("onboarding_flow")
 
     // Auth
     data object SignIn : AppRoute("signin")

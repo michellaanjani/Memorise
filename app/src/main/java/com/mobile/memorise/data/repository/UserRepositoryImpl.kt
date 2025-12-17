@@ -4,6 +4,8 @@ import com.mobile.memorise.data.remote.api.UserApi
 import com.mobile.memorise.data.remote.dto.UpdateProfileRequest
 import com.mobile.memorise.data.remote.dto.ChangePasswordRequest
 import com.mobile.memorise.data.remote.dto.ProfileDataDto
+import com.mobile.memorise.data.remote.dto.ForgotPasswordRequest
+import com.mobile.memorise.data.remote.dto.ResetPasswordRequest
 import com.mobile.memorise.domain.model.EmailVerificationStatus
 import com.mobile.memorise.domain.model.User
 import com.mobile.memorise.domain.repository.UserRepository
@@ -89,6 +91,48 @@ class UserRepositoryImpl @Inject constructor(
                 Resource.Success(Unit)
             } else {
                 val message = body?.message ?: body?.error ?: "Failed to change password"
+                Resource.Error(message)
+            }
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Connection error")
+        }
+    }
+
+    override suspend fun forgotPassword(email: String): Resource<Unit> {
+        return try {
+            // Membuat body request: {"email": "user@example.com"}
+            val request = ForgotPasswordRequest(email = email)
+
+            val response = api.forgotPassword(request)
+            val body = response.body()
+
+            // Menggunakan BaseResponse (sesuai DTO yang kamu berikan)
+            if (response.isSuccessful && body != null && body.success) {
+                Resource.Success(Unit)
+            } else {
+                // Ambil pesan error dari API jika ada
+                val message = body?.message ?: body?.error ?: "Failed to send reset link"
+                Resource.Error(message)
+            }
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Connection error")
+        }
+    }
+    override suspend fun resetPassword(token: String, newPassword: String): Resource<Unit> {
+        return try {
+            val request = ResetPasswordRequest(
+                token = token,
+                newPassword = newPassword
+            )
+
+            // Asumsi API return BaseResponse<Unit> atau sejenisnya
+            val response = api.resetPassword(request)
+            val body = response.body()
+
+            if (response.isSuccessful && body != null && body.success) {
+                Resource.Success(Unit)
+            } else {
+                val message = body?.message ?: body?.error ?: "Failed to reset password"
                 Resource.Error(message)
             }
         } catch (e: Exception) {

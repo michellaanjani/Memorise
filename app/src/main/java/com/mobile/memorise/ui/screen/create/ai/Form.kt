@@ -45,9 +45,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.mobile.memorise.R
-// Import Utility yang diperlukan
+import com.mobile.memorise.navigation.MainRoute
+import com.mobile.memorise.util.Resource
 import com.mobile.memorise.util.getFileName
-import com.mobile.memorise.util.getFileFromUri
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -70,16 +70,15 @@ fun AiGenerationScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // --- VIEWMODEL STATE OBSERVER ---
-    val uiState by viewModel.uiState.collectAsState()
+    // --- STATES ---
+    val uploadState by viewModel.uploadState.collectAsState()
+    val generateState by viewModel.generateState.collectAsState()
 
-    // --- FORM STATES ---
     var selectedTab by remember { mutableIntStateOf(0) }
     var cardFormat by remember { mutableStateOf("Definition / Meaning") }
     var cardsAmount by remember { mutableStateOf("2") }
     var isFormatExpanded by remember { mutableStateOf(false) }
 
-    // --- VALIDATION STATES ---
     var isAmountError by remember { mutableStateOf(false) }
     var amountErrorMessage by remember { mutableStateOf("") }
 
@@ -87,20 +86,18 @@ fun AiGenerationScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    // --- STATE KAMERA ---
+    // --- KAMERA & FILE ---
     val currentBackStack = navController.currentBackStackEntry?.savedStateHandle
     val capturedImageUri by currentBackStack
         ?.getLiveData<String>("captured_image_uri")
         ?.observeAsState() ?: remember { mutableStateOf(null) }
 
-    // --- STATE FILE PICKER ---
     var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
+    var selectedMimeType by remember { mutableStateOf<String?>(null) }
 
     val mimeTypes = arrayOf(
-        "image/jpeg",
-        "image/png",
-        "application/pdf",
+        "image/jpeg", "image/png", "application/pdf",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
 
@@ -110,12 +107,12 @@ fun AiGenerationScreen(
         if (uri != null) {
             selectedFileUri = uri
             selectedFileName = getFileName(context, uri)
+            selectedMimeType = context.contentResolver.getType(uri)
         }
     }
 
-    val isGenerateEnabled =
-        (selectedTab == 0 && capturedImageUri != null) ||
-                (selectedTab == 1 && selectedFileUri != null)
+    val isGenerateEnabled = (selectedTab == 0 && capturedImageUri != null) ||
+            (selectedTab == 1 && selectedFileUri != null)
 
     fun validateCardAmount() {
         val amount = cardsAmount.toIntOrNull()
@@ -129,95 +126,93 @@ fun AiGenerationScreen(
         }
     }
 
-    // --- EFFECT: HANDLE NAVIGATION & ERROR (FIXED ORDER) ---
-    LaunchedEffect(uiState) {
-        val currentState = uiState
-
-        when (currentState) {
-            is AiUiState.SuccessGenerated -> {
-                // 1. Navigasi dulu
-                navController.navigate("ai_draft_screen/${currentState.deckId}")
-                // 2. Reset state agar tidak loop
-                viewModel.resetState()
+    // --- EFFECTS ---
+    LaunchedEffect(generateState) {
+        val state = generateState
+        if (state is Resource.Success) {
+            val deckId = state.data?.deckId
+            if (deckId != null) {
+                navController.navigate(MainRoute.AiDraft.createRoute(deckId))
+                viewModel.resetStates()
             }
-            is AiUiState.Error -> {
-                // FILTER ERROR MESSAGE DI SINI
-                // Jangan tampilkan pesan coding mentah ke user
-                val rawMessage = currentState.message
-                val friendlyMessage = getFriendlyErrorMessage(rawMessage)
-
-                snackbarHostState.showSnackbar(friendlyMessage)
-                viewModel.resetState()
-            }
-            else -> {}
+        } else if (state is Resource.Error) {
+            snackbarHostState.showSnackbar(getFriendlyErrorMessage(state.message ?: "Generate gagal"))
+            viewModel.resetStates()
         }
     }
 
-    Scaffold(
-        containerColor = BgColor,
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("AI Generation", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark) },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextDark)
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgColor)
-            )
-        },
-        bottomBar = {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = if (isGenerateEnabled) Color.White else Color(0xFFE0E0E0),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
-                    .height(46.dp)
-            ) {
-                TextButton(
-                    onClick = {
-                        if (!isGenerateEnabled) return@TextButton
-                        validateCardAmount()
+    val isLoading = uploadState is Resource.Loading || generateState is Resource.Loading
+    val loadingMessage = when {
+        uploadState is Resource.Loading -> "Mengunggah dokumen..."
+        generateState is Resource.Loading -> "AI sedang menganalisa..."
+        else -> ""
+    }
 
-                        if (!isAmountError) {
-                            val finalUri = if (selectedTab == 0 && capturedImageUri != null) {
-                                Uri.parse(capturedImageUri)
-                            } else {
-                                selectedFileUri
-                            }
+    // PERBAIKAN 1: Bungkus Scaffold dengan Box agar LoadingOverlay bisa menutup SEMUANYA (termasuk TopBar & BottomBar)
+    Box(modifier = Modifier.fillMaxSize()) {
 
-                            if (finalUri != null) {
-                                val file = getFileFromUri(context, finalUri)
-
-                                if (file != null) {
-                                    viewModel.processFileAndGenerate(
-                                        file = file,
-                                        format = cardFormat,
-                                        amount = cardsAmount.toInt()
-                                    )
-                                } else {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Gagal membaca file gambar.")
-                                    }
-                                }
-                            }
+        Scaffold(
+            containerColor = BgColor,
+            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = { Text("AI Generation", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TextDark) },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick, enabled = !isLoading) { // Disable back saat loading
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextDark)
                         }
                     },
-                    modifier = Modifier.fillMaxSize(),
-                    enabled = isGenerateEnabled,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = if (isGenerateEnabled) PrimaryBlue else Color(0xFF9E9E9E)
-                    )
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = BgColor)
+                )
+            },
+            bottomBar = {
+                // PERBAIKAN 2: Gunakan Box + Button biasa (Filled) agar warna jelas
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp)
+                        // Beri padding bawah jika ada navigasi bar HP, atau biarkan default
+                        .navigationBarsPadding()
                 ) {
-                    Text("Generate Flashcards", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Button(
+                        onClick = {
+                            if (!isGenerateEnabled || isLoading) return@Button
+                            validateCardAmount()
+                            if (!isAmountError) {
+                                val finalUri = if (selectedTab == 0 && capturedImageUri != null) Uri.parse(capturedImageUri) else selectedFileUri
+                                if (finalUri != null) {
+                                    viewModel.uploadAndGenerate(
+                                        context.contentResolver, finalUri, selectedMimeType, selectedFileName,
+                                        cardsAmount, cardFormat
+                                    )
+                                } else {
+                                    scope.launch { snackbarHostState.showSnackbar("File tidak valid.") }
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp), // Tinggi button standar agar mudah ditekan
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = isGenerateEnabled && !isLoading,
+                        // PERBAIKAN 3: Atur warna Button secara eksplisit
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryBlue,        // Biru saat aktif
+                            contentColor = Color.White,          // Teks putih saat aktif
+                            disabledContainerColor = Color(0xFFE0E0E0), // Abu-abu saat disabled/loading
+                            disabledContentColor = Color(0xFF9E9E9E)    // Teks abu tua saat disabled
+                        )
+                    ) {
+                        Text(
+                            text = if (isLoading) "Processing..." else "Generate Flashcards",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
-        }
-    ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            // --- KONTEN UTAMA ---
+        ) { innerPadding ->
+            // --- KONTEN FORM (Sama seperti sebelumnya) ---
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -226,8 +221,9 @@ fun AiGenerationScreen(
                     .padding(horizontal = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
+                // ... (Tab Selector, Input Area, Form Fields - COPY PASTE code lama Anda di sini) ...
 
-                // 1. Custom Tab Selector
+                // 1. Tab Selector
                 Row(
                     modifier = Modifier.fillMaxWidth().height(50.dp)
                         .background(Color(0xFFF0F2F5), RoundedCornerShape(12.dp)).padding(4.dp)
@@ -239,7 +235,6 @@ fun AiGenerationScreen(
                 // 2. Input Area
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(if (selectedTab == 0) "Camera Input" else "File Input", fontWeight = FontWeight.Medium, fontSize = 14.sp, color = TextDark)
-
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -248,58 +243,39 @@ fun AiGenerationScreen(
                             .background(Color.White.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                             .clip(RoundedCornerShape(12.dp))
                             .clickable {
-                                if (selectedTab == 0) {
-                                    navController.navigate("camera_screen")
-                                } else {
-                                    filePickerLauncher.launch(mimeTypes)
+                                if (!isLoading) { // Cegah klik saat loading
+                                    if (selectedTab == 0) navController.navigate("camera_screen") else filePickerLauncher.launch(mimeTypes)
                                 }
                             },
                         contentAlignment = Alignment.Center
                     ) {
+                        // ... Logic Image preview (sama seperti kode Anda) ...
                         if (selectedTab == 0) {
                             if (capturedImageUri != null) {
                                 AsyncImage(
-                                    model = capturedImageUri,
-                                    contentDescription = "Captured",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
+                                    model = capturedImageUri, contentDescription = "Captured",
+                                    modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop
                                 )
-                            } else {
-                                DefaultInputPlaceholder(isCamera = true)
-                            }
+                            } else { DefaultInputPlaceholder(isCamera = true) }
                         } else {
                             if (selectedFileUri != null) {
                                 val isImage = context.contentResolver.getType(selectedFileUri!!)?.startsWith("image") == true
-
                                 if (isImage) {
                                     AsyncImage(
-                                        model = selectedFileUri,
-                                        contentDescription = "File",
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
+                                        model = selectedFileUri, contentDescription = "File",
+                                        modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop
                                     )
                                 } else {
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                         Icon(Icons.Default.Description, "Doc", tint = PrimaryBlue, modifier = Modifier.size(48.dp))
                                         Spacer(modifier = Modifier.height(8.dp))
-                                        Text(
-                                            text = selectedFileName ?: "Selected File",
-                                            color = TextDark,
-                                            fontWeight = FontWeight.SemiBold,
-                                            fontSize = 14.sp,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.padding(horizontal = 16.dp)
-                                        )
+                                        Text(selectedFileName ?: "Selected File", color = TextDark, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 16.dp))
                                         Text("Tap to change", color = TextGray, fontSize = 12.sp)
                                     }
                                 }
-                            } else {
-                                DefaultInputPlaceholder(isCamera = false)
-                            }
+                            } else { DefaultInputPlaceholder(isCamera = false) }
                         }
                     }
-
                     if (selectedTab == 1 && selectedFileUri == null) {
                         Text("Accepted types: PDF, DOCX, JPG, PNG", fontSize = 12.sp, color = TextGray)
                     }
@@ -312,29 +288,22 @@ fun AiGenerationScreen(
                         RichLabel("Card format", true)
                         Box {
                             OutlinedTextField(
-                                value = cardFormat,
-                                onValueChange = {},
-                                readOnly = true,
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
+                                value = cardFormat, onValueChange = {}, readOnly = true,
+                                modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = InputBg,
-                                    unfocusedContainerColor = InputBg,
-                                    focusedBorderColor = PrimaryBlue,
-                                    unfocusedBorderColor = BorderGray,
-                                    focusedTextColor = TextDark,
-                                    unfocusedTextColor = TextDark
+                                    focusedContainerColor = InputBg, unfocusedContainerColor = InputBg,
+                                    focusedBorderColor = PrimaryBlue, unfocusedBorderColor = BorderGray,
+                                    focusedTextColor = TextDark, unfocusedTextColor = TextDark
                                 ),
                                 trailingIcon = {
-                                    IconButton(onClick = { isFormatExpanded = !isFormatExpanded }) {
+                                    IconButton(onClick = { if(!isLoading) isFormatExpanded = !isFormatExpanded }) {
                                         Icon(if (isFormatExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, "Expand")
                                     }
                                 }
                             )
-                            Box(Modifier.matchParentSize().clip(RoundedCornerShape(12.dp)).clickable { isFormatExpanded = true })
+                            Box(Modifier.matchParentSize().clip(RoundedCornerShape(12.dp)).clickable { if(!isLoading) isFormatExpanded = true })
                             DropdownMenu(
-                                expanded = isFormatExpanded,
-                                onDismissRequest = { isFormatExpanded = false },
+                                expanded = isFormatExpanded, onDismissRequest = { isFormatExpanded = false },
                                 modifier = Modifier.fillMaxWidth(0.9f).background(Color.White)
                             ) {
                                 formatOptions.forEach { option ->
@@ -349,58 +318,39 @@ fun AiGenerationScreen(
                         RichLabel("Cards amount", true)
                         OutlinedTextField(
                             value = cardsAmount,
-                            onValueChange = { newValue ->
-                                if (newValue.all { it.isDigit() }) {
-                                    cardsAmount = newValue
-                                    isAmountError = false
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .onFocusChanged { if (!it.isFocused) validateCardAmount() },
+                            onValueChange = { newValue -> if (newValue.all { it.isDigit() }) { cardsAmount = newValue; isAmountError = false } },
+                            modifier = Modifier.fillMaxWidth().onFocusChanged { if (!it.isFocused) validateCardAmount() },
                             shape = RoundedCornerShape(12.dp),
+                            enabled = !isLoading,
                             isError = isAmountError,
-                            supportingText = {
-                                if (isAmountError) Text(amountErrorMessage, color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
-                            },
+                            supportingText = { if (isAmountError) Text(amountErrorMessage, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = {
-                                validateCardAmount()
-                                keyboardController?.hide()
-                                focusManager.clearFocus()
-                            }),
+                            keyboardActions = KeyboardActions(onDone = { validateCardAmount(); keyboardController?.hide(); focusManager.clearFocus() }),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = InputBg,
-                                unfocusedContainerColor = InputBg,
-                                focusedBorderColor = PrimaryBlue,
-                                unfocusedBorderColor = BorderGray,
-                                errorBorderColor = Color.Red,
-                                focusedTextColor = TextDark,
-                                unfocusedTextColor = TextDark,
-                                errorTextColor = TextDark
+                                focusedContainerColor = InputBg, unfocusedContainerColor = InputBg,
+                                focusedBorderColor = PrimaryBlue, unfocusedBorderColor = BorderGray,
+                                errorBorderColor = Color.Red, focusedTextColor = TextDark,
+                                unfocusedTextColor = TextDark, errorTextColor = TextDark
                             )
                         )
                     }
                 }
                 Spacer(Modifier.height(100.dp))
             }
+        }
 
-            // --- LOADING OVERLAY BARU (Lebih Interaktif) ---
-            if (uiState is AiUiState.Loading) {
-                // Ambil pesan teknis dari state untuk debug, tapi gunakan UI yang lebih ramah
-                val technicalMessage = (uiState as AiUiState.Loading).message
-                AiLoadingOverlay(technicalMessage = technicalMessage)
-            }
+        // PERBAIKAN 4: Overlay ditaruh di LUAR Scaffold (paling bawah dalam Box)
+        // Ini memastikan overlay menutupi TopBar dan BottomBar
+        if (isLoading) {
+            AiLoadingOverlay(technicalMessage = loadingMessage)
         }
     }
 }
 
-// ===========================================
-// KOMPONEN LOADING BARU (DENGAN ROTASI TEKS)
-// ===========================================
+// ... Loading Overlay, TabButton, DefaultInputPlaceholder, dll ...
+// Copy paste saja komponen UI lain yang tidak berubah
 @Composable
 fun AiLoadingOverlay(technicalMessage: String) {
-    // List pesan yang akan berganti-ganti agar user tidak bosan
     val loadingMessages = remember {
         listOf(
             "Mengunggah dokumen kamu...",
@@ -414,7 +364,6 @@ fun AiLoadingOverlay(technicalMessage: String) {
 
     var currentMessageIndex by remember { mutableIntStateOf(0) }
 
-    // Ganti pesan setiap 3.5 detik
     LaunchedEffect(Unit) {
         while (true) {
             delay(3500)
@@ -425,8 +374,8 @@ fun AiLoadingOverlay(technicalMessage: String) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.7f)) // Background agak gelap biar fokus
-            .clickable(enabled = false) {}, // Block sentuhan layar belakang
+            .background(Color.Black.copy(alpha = 0.7f))
+            .clickable(enabled = false) {},
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -452,7 +401,6 @@ fun AiLoadingOverlay(technicalMessage: String) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Tampilkan pesan teknis kecil di bawah (opsional, bisa dihapus jika ingin lebih bersih)
             Text(
                 text = "Status: $technicalMessage",
                 color = Color.White.copy(alpha = 0.5f),
@@ -463,22 +411,6 @@ fun AiLoadingOverlay(technicalMessage: String) {
     }
 }
 
-// ===========================================
-// HELPER: BERSIHKAN PESAN ERROR
-// ===========================================
-fun getFriendlyErrorMessage(rawMessage: String): String {
-    val msg = rawMessage.lowercase()
-    return when {
-        msg.contains("timeout") -> "Koneksi lambat, namun AI mungkin masih bekerja. Cek menu Draft beberapa saat lagi."
-        msg.contains("connect") || msg.contains("host") -> "Gagal terhubung ke server. Periksa koneksi internet Anda."
-        msg.contains("json") || msg.contains("serialize") -> "Berhasil generate, namun gagal menampilkan respon. Coba cek menu Draft."
-        msg.contains("413") -> "Ukuran file terlalu besar. Coba file yang lebih kecil."
-        else -> "Gagal memproses: $rawMessage"
-    }
-}
-
-
-// ... Helper Composables yang sudah ada (Tidak berubah) ...
 @Composable
 fun DefaultInputPlaceholder(isCamera: Boolean) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -520,4 +452,39 @@ fun RichLabel(text: String, isRequired: Boolean = false) {
 fun Modifier.dashedBorder(width: Dp, color: Color, cornerRadius: Dp) = drawBehind {
     val stroke = Stroke(width = width.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(20f, 20f), 0f))
     drawRoundRect(color = color, style = stroke, cornerRadius = CornerRadius(cornerRadius.toPx()))
+}
+
+// =========================================================================
+// FITUR PENTING: BERSIHKAN PESAN ERROR DARI SERVER YANG ANEH
+// =========================================================================
+fun getFriendlyErrorMessage(rawMessage: String): String {
+    val msg = rawMessage.lowercase()
+
+    // Log pesan error asli ke console untuk debugging (opsional, tapi berguna)
+    android.util.Log.e("AI_ERROR", "Raw Error: $rawMessage")
+
+    return when {
+        // 1. Tangani error "Overloaded" (Server Penuh/Sibuk)
+        msg.contains("overloaded") || msg.contains("too many requests") || msg.contains("quota") ->
+            "Server AI sedang sibuk. Mohon tunggu 1-2 menit lalu coba lagi."
+
+        // 2. Tangani error OCR/Vision (Gagal baca gambar)
+        msg.contains("ocr_failed") || msg.contains("vision generation failed") ->
+            "Gagal membaca teks dari gambar. Pastikan gambar jelas, tidak buram, dan pencahayaan cukup."
+
+        // 3. Tangani error kode server ("err is not defined" dll)
+        msg.contains("is not defined") || msg.contains("referenceerror") || msg.contains("internal server error") ->
+            "Terjadi kesalahan internal server. Tim kami sedang memperbaikinya. Coba lagi nanti."
+
+        // 4. Koneksi Jaringan
+        msg.contains("timeout") -> "Koneksi lambat. Coba cek menu Draft, mungkin sudah berhasil dibuat."
+        msg.contains("connect") || msg.contains("host") -> "Gagal terhubung ke server. Periksa koneksi internet Anda."
+
+        // 5. Masalah Data/File
+        msg.contains("json") || msg.contains("serialize") -> "Gagal memproses respon server. Coba gambar lain."
+        msg.contains("413") || msg.contains("payload too large") -> "Ukuran file terlalu besar. Gunakan file/gambar yang lebih kecil."
+
+        // 6. Fallback (Tampilkan pesan asli jika pendek, potong jika terlalu panjang)
+        else -> if (rawMessage.length > 50) "Gagal memproses permintaan. Coba lagi nanti." else "Gagal: $rawMessage"
+    }
 }

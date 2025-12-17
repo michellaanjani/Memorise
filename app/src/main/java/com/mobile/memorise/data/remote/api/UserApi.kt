@@ -7,6 +7,8 @@ import com.mobile.memorise.data.remote.dto.common.ApiResponseDto
 import com.mobile.memorise.data.remote.dto.UserProfileResponseDto
 import com.mobile.memorise.data.remote.dto.UpdateProfileRequest
 import com.mobile.memorise.data.remote.dto.ChangePasswordRequest
+import com.mobile.memorise.data.remote.dto.ForgotPasswordRequest
+import com.mobile.memorise.data.remote.dto.ResetPasswordRequest
 import retrofit2.http.GET
 import retrofit2.http.PUT
 import retrofit2.http.POST
@@ -24,10 +26,10 @@ interface UserApi {
     ): BaseResponse<EmailVerificationStatusDataDto>
 
     @POST("auth/forgot-password")
-    suspend fun forgotPassword(@Body request: Map<String, String>): Response<ApiResponseDto<Unit>>
+    suspend fun forgotPassword(@Body request: ForgotPasswordRequest): Response<ApiResponseDto<Unit>>
 
     @POST("auth/reset-password")
-    suspend fun resetPassword(@Body request: Map<String, String>): Response<ApiResponseDto<Unit>>
+    suspend fun resetPassword(@Body request: ResetPasswordRequest): Response<ApiResponseDto<Unit>>
 
     @POST("auth/verify-email")
     suspend fun verifyEmail(@Body request: Map<String, String>): Response<ApiResponseDto<Unit>>

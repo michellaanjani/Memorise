@@ -1,43 +1,62 @@
 package com.mobile.memorise.ui.screen.password.forgot
 
+import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.foundation.Image
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobile.memorise.R
 
 @Composable
 fun ResetPwScreen(
     onBackClick: () -> Unit = {},
-    onEmailSent: () -> Unit
+    // 🔥 PERBAIKAN 1: Callback menerima String email
+    onEmailSent: (String) -> Unit,
+    viewModel: ForgotPasswordViewModel = hiltViewModel()
 ) {
-    var email by remember { mutableStateOf("") }        // <-- selalu kosong
-    var emailError by remember { mutableStateOf(false) }
+    val state = viewModel.state
+    val context = LocalContext.current
 
-    val buttonEnabled = email.isNotBlank()
+    LaunchedEffect(state.isSuccess) {
+        if (state.isSuccess) {
+            Toast.makeText(context, "Reset link sent to your email!", Toast.LENGTH_SHORT).show()
+            // 🔥 PERBAIKAN 2: Kirim email ke screen selanjutnya via navigasi
+            onEmailSent(state.email)
+            viewModel.onEvent(ForgotPasswordEvent.ResetState)
+        }
+    }
+
+    LaunchedEffect(state.error) {
+        if (state.error != null) {
+            Toast.makeText(context, state.error, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Tombol aktif jika email tidak kosong & tidak sedang loading
+    val buttonEnabled = state.email.isNotBlank() && !state.isLoading
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF3F3FA)),
+            .background(Color(0xFFF3F3FA)), // Background utama abu-abu muda
         horizontalAlignment = Alignment.Start
     ) {
 
         Spacer(modifier = Modifier.height(30.dp))
 
-        // BACK + LOGO
+        // --- HEADER (Back + Logo) ---
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -50,6 +69,7 @@ fun ResetPwScreen(
                 modifier = Modifier
                     .size(24.dp)
                     .clickable { onBackClick() },
+                tint = Color.Black
             )
 
             Spacer(modifier = Modifier.weight(1f))
@@ -61,13 +81,12 @@ fun ResetPwScreen(
             )
         }
 
-        // TITLE
+        // --- TITLE ---
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
         ) {
-
             Text(
                 text = "Reset password",
                 fontSize = 28.sp,
@@ -87,19 +106,17 @@ fun ResetPwScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // WHITE CONTAINER
+        // --- WHITE CONTAINER ---
         Surface(
             modifier = Modifier.fillMaxSize(),
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             color = Color.White
         ) {
-
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(20.dp)
             ) {
-
                 Text(
                     text = "Email",
                     fontSize = 14.sp,
@@ -108,60 +125,72 @@ fun ResetPwScreen(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
+                // --- INPUT EMAIL ---
                 OutlinedTextField(
-                    value = email,
+                    value = state.email,
                     onValueChange = {
-                        email = it
-                        emailError = false
+                        viewModel.onEvent(ForgotPasswordEvent.EmailChanged(it))
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true,
-                    isError = emailError
+                    isError = state.error != null,
+                    enabled = !state.isLoading,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color(0xFF111111),
+                        unfocusedTextColor = Color(0xFF111111),
+                        cursorColor = Color(0xFF0C3DF4),
+                        focusedBorderColor = Color(0xFF0C3DF4),
+                        unfocusedBorderColor = Color(0xFFE0E0E0)
+                    )
                 )
 
-                // ERROR MESSAGE
-                if (emailError) {
+                if (state.error != null) {
                     Text(
-                        text = "Email not found!",
+                        text = state.error ?: "An error occurred",
                         color = Color(0xFFFF6A00),
                         fontSize = 11.sp,
-                        modifier = Modifier.padding(top = 2.dp)
+                        modifier = Modifier.padding(top = 4.dp, start = 4.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.height(40.dp))
 
-                // SEND RESET BUTTON
+                // --- BUTTON ---
                 Button(
                     onClick = {
-                        val emailExists = email.lowercase() == "user01@gmail.com"
-
-                        if (!emailExists) {
-                            emailError = true
-                            email = ""        // kosongkan form jika salah
-                        } else {
-                            onEmailSent()
-                        }
+                        viewModel.onEvent(ForgotPasswordEvent.Submit)
                     },
                     enabled = buttonEnabled,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
+                    // 🔥 PERBAIKAN 3: Warna tombol sesuai permintaan (Abu Tua & Putih saat disabled) 🔥
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (buttonEnabled) Color(0xFF0C3DF4) else Color(0xFFD6DDFF),
-                        contentColor = Color.White
+                        containerColor = Color.Black, // Atau Color(0xFF0C3DF4) sesuai tema aktif kamu
+                        contentColor = Color.White,
+
+                        // Saat tombol MATI (Disabled)
+                        disabledContainerColor = Color.Gray, // Abu Tua
+                        disabledContentColor = Color.White       // Tulisan Tetap Putih
                     ),
                     shape = RoundedCornerShape(14.dp)
                 ) {
-                    Text(
-                        text = "Send reset link",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    if (state.isLoading) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = "Send reset link",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
         }
     }
 }
-

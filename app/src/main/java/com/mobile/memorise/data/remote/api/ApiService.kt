@@ -83,11 +83,6 @@ interface ApiService {
     // AI (UPDATED: Menggunakan ApiResponseDto)
     // =================================================================
 
-//    @Multipart
-//    @POST("upload/file")
-//    suspend fun uploadFile(
-//        @Part file: MultipartBody.Part
-//    ): Response<ApiResponseDto<UploadResponseData>> // Ubah ke ApiResponseDto
 
     @POST("ai/generate-flashcards")
     suspend fun generateFlashcards(
@@ -104,25 +99,19 @@ interface ApiService {
         @Path("deckId") deckId: String,
         @Path("cardId") cardId: String,
         @Body request: UpdateCardRequest
-    ): Response<ApiResponseDto<AiCard>>
+    ): Response<ApiResponseDto<AiDraftDetailData>>
 
-//    @DELETE("ai/draft/{deckId}/cards/{cardId}")
-//    suspend fun deleteDraftCard(
-//        @Path("deckId") deckId: String,
-//        @Path("cardId") cardId: String
-//    ): Response<ApiResponseDto<Any>>
-//    // UBAH MENJADI (Gunakan Unit)
     @DELETE("ai/draft/{deckId}/cards/{cardId}") // sesuaikan path
     suspend fun deleteDraftCard(
         @Path("deckId") deckId: String,
         @Path("cardId") cardId: String
-    ): Response<ApiResponseDto<Unit>>
+    ): Response<ApiResponseDto<AiDraftDetailData>>
 
     @POST("ai/draft/{deckId}/save")
     suspend fun saveDeck(
         @Path("deckId") deckId: String,
         @Body request: SaveDeckRequest
-    ): Response<ApiResponseDto<AiDeckInfo>>
+    ): Response<ApiResponseDto<AiDraftDetailData>>
 
 
 

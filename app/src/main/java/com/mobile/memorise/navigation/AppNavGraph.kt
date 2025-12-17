@@ -1,10 +1,12 @@
 package com.mobile.memorise.navigation
 
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 
 // MAIN
 import com.mobile.memorise.ui.screen.main.MainScreenContent
@@ -21,6 +23,7 @@ import com.mobile.memorise.ui.screen.signup.linksentverif.VerivicationLinkSentSc
 // PASSWORD RESET FLOW
 import com.mobile.memorise.ui.screen.password.sent.ResetOtpScreen
 import com.mobile.memorise.ui.screen.password.forgot.ResetPwScreen
+// Pastikan import ini mengarah ke file NewPasswordScreen yang benar
 import com.mobile.memorise.ui.screen.password.newpassword.NewPasswordScreen
 import com.mobile.memorise.ui.screen.password.successupdatepassword.PasswordUpdateSuccessPopup
 
@@ -35,69 +38,42 @@ fun AppNavGraph(
 
     NavHost(
         navController = navController,
-        startDestination = "landing"
+        startDestination = AppRoute.Landing.route
     ) {
 
         // =========================================================
         // LANDING
         // =========================================================
-        composable("landing") {
+        composable(AppRoute.Landing.route) {
             LandingScreen(
-                onNavigate = { navController.navigate("onboarding1") }
+                onNavigate = { navController.navigate(AppRoute.OnboardingFlow.route) }
             )
         }
 
         // =========================================================
-        // ONBOARDING (1–5)
+        // ONBOARDING
         // =========================================================
-        composable("onboarding1") {
-            OnboardingScreen1(
-                onNext = { navController.navigate("onboarding2") },
-                onSkip = { navController.navigate("onboarding5") }
-            )
-        }
-
-        composable("onboarding2") {
-            OnboardingScreen2(
-                onNext = { navController.navigate("onboarding3") },
-                onSkip = { navController.navigate("onboarding5") }
-            )
-        }
-
-        composable("onboarding3") {
-            OnboardingScreen3(
-                onNext = { navController.navigate("onboarding4") },
-                onSkip = { navController.navigate("onboarding5") }
-            )
-        }
-
-        composable("onboarding4") {
-            OnboardingScreen4(
-                onNext = { navController.navigate("onboarding5") },
-                onSkip = { navController.navigate("onboarding5") }
-            )
-        }
-
-        composable("onboarding5") {
-            OnboardingScreen5(
-                onSignUp = { navController.navigate("signup") },
-                onLogin = { navController.navigate("signin") }
+        composable(AppRoute.OnboardingFlow.route) {
+            OnboardingMainScreen(
+                onFinished = { },
+                onSignUpClick = { navController.navigate(AppRoute.SignUp.route) },
+                onLoginClick = { navController.navigate(AppRoute.SignIn.route) }
             )
         }
 
         // =========================================================
         // SIGN IN
         // =========================================================
-        composable("signin") {
+        composable(AppRoute.SignIn.route) {
             SignInScreen(
                 onSignInSuccess = {
-                    navController.navigate("main_entry") {
-                        popUpTo("landing") { inclusive = true }
+                    navController.navigate(AppRoute.MainEntry.route) {
+                        popUpTo(AppRoute.Landing.route) { inclusive = true }
                     }
                 },
-                onSignUpClick = { navController.navigate("signup") },
+                onSignUpClick = { navController.navigate(AppRoute.SignUp.route) },
                 onForgotPasswordClick = {
-                    navController.navigate("reset_password")
+                    navController.navigate(AppRoute.ResetPassword.route)
                 }
             )
         }
@@ -105,31 +81,28 @@ fun AppNavGraph(
         // =========================================================
         // SIGN UP FLOW
         // =========================================================
-        composable("signup") {
+        composable(AppRoute.SignUp.route) {
             SignUpScreen(
-                onLoginClick = { navController.navigate("signin") },
+                onLoginClick = { navController.navigate(AppRoute.SignIn.route) },
                 onSignUpSuccess = {
-                    navController.navigate("verification_link_sent")
+                    navController.navigate(AppRoute.VerificationLinkSent.route)
                 }
             )
         }
 
-        // EMAIL VERIFICATION LINK SENT
-        composable("verification_link_sent") {
+        composable(AppRoute.VerificationLinkSent.route) {
             VerivicationLinkSentScreen(
                 onContinue = {
-                    // ⬅️ FIX: sebelumnya langsung ke signin, ini salah
-                    navController.navigate("verification_success")
+                    navController.navigate(AppRoute.VerificationSuccess.route)
                 }
             )
         }
 
-        // VERIFICATION SUCCESS PAGE
-        composable("verification_success") {
+        composable(AppRoute.VerificationSuccess.route) {
             VerificationSuccessPopup(
                 onDone = {
-                    navController.navigate("main_entry") {
-                        popUpTo("signup") { inclusive = true }
+                    navController.navigate(AppRoute.MainEntry.route) {
+                        popUpTo(AppRoute.SignUp.route) { inclusive = true }
                     }
                 }
             )
@@ -138,56 +111,73 @@ fun AppNavGraph(
         // =========================================================
         // PASSWORD RESET FLOW
         // =========================================================
-        composable("reset_password") {
+
+        // 1. INPUT EMAIL
+        composable(AppRoute.ResetPassword.route) {
             ResetPwScreen(
                 onBackClick = { navController.popBackStack() },
-                onEmailSent = {
-                    navController.navigate("reset_password_otp")
+                onEmailSent = { emailInput ->
+                    navController.navigate("${AppRoute.ResetPasswordOtp.route}/$emailInput")
                 }
             )
         }
 
-        composable("reset_password_otp") {
+        // 2. INPUT OTP (Menerima parameter {email})
+        composable(
+            route = "${AppRoute.ResetPasswordOtp.route}/{email}",
+            arguments = listOf(navArgument("email") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val emailArg = backStackEntry.arguments?.getString("email") ?: ""
+
             ResetOtpScreen(
+                email = emailArg,
                 onBack = { navController.popBackStack() },
-                onVerified = {
-                    navController.navigate("reset_password_new")
+                onVerified = { otpCode ->
+                    // Kirim OTP Code ke layar New Password
+                    navController.navigate("${AppRoute.ResetPasswordNew.route}/$otpCode")
                 }
             )
         }
 
-        composable("reset_password_new") {
+        // 3. NEW PASSWORD (Menerima parameter {otpToken})
+        composable(
+            route = "${AppRoute.ResetPasswordNew.route}/{otpToken}",
+            arguments = listOf(navArgument("otpToken") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val tokenArg = backStackEntry.arguments?.getString("otpToken") ?: ""
+
+            // 🔥 PERBAIKAN DI SINI: Gunakan NewPasswordScreen, BUKAN ResetOtpScreen 🔥
             NewPasswordScreen(
-                onSuccess = {
-                    navController.navigate("password_update_success") {
-                        popUpTo("reset_password") { inclusive = true }
-                    }
-                },
-                onBackToResetPw = {
-                    navController.navigate("reset_password") {
-                        popUpTo("reset_password")
+                otpToken = tokenArg,
+                onSuccessReset = {
+                    navController.navigate(AppRoute.PasswordUpdateSuccess.route) {
+                        popUpTo(AppRoute.ResetPassword.route) { inclusive = true }
                     }
                 }
             )
         }
 
-        composable("password_update_success") {
+        // 4. SUCCESS POPUP
+        composable(AppRoute.PasswordUpdateSuccess.route) {
             PasswordUpdateSuccessPopup(
-                onDone = { navController.navigate("signin") }
+                onDone = {
+                    navController.navigate(AppRoute.SignIn.route) {
+                        popUpTo(AppRoute.Landing.route) { inclusive = false }
+                    }
+                }
             )
         }
 
         // =========================================================
-        // MAIN AREA (BOTTOM NAV)
+        // MAIN AREA
         // =========================================================
-        composable("main_entry") {
+        composable(AppRoute.MainEntry.route) {
             val mainNavController = rememberNavController()
-
             MainScreenContent(
                 navController = mainNavController,
                 onLogout = {
-                    navController.navigate("landing") {
-                        popUpTo("landing") { inclusive = true }
+                    navController.navigate(AppRoute.Landing.route) {
+                        popUpTo(AppRoute.Landing.route) { inclusive = true }
                     }
                 }
             )

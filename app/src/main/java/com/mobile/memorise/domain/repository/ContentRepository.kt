@@ -1,7 +1,6 @@
 package com.mobile.memorise.domain.repository
 
 import com.mobile.memorise.domain.model.*
-import com.mobile.memorise.domain.model.quiz.* // Pastikan import ini ada
 import java.io.File
 
 interface ContentRepository {
@@ -40,32 +39,42 @@ interface ContentRepository {
     // =================================================================
     // AI GENERATOR MODULE
     // =================================================================
-    suspend fun generateFlashcards(prompt: String, fileId: String? = null): Result<AiGeneratedContent>
+    suspend fun generateFlashcards(prompt: String, fileId: String? = null, cardAmount: Int ): Result<AiGeneratedContent>
 
-    suspend fun getAiDraft(deckId: String): Result<Deck>
+    // 🔥 PERBAIKAN: Mengembalikan AiDraftContent (Deck + Cards)
+    // agar ViewModel bisa langsung update UI tanpa request ulang
+    suspend fun getAiDraft(deckId: String): Result<AiDraftContent>
 
-    suspend fun updateDraftCard(deckId: String, cardId: String, front: String, back: String): Result<Card>
+    suspend fun updateDraftCard(deckId: String, cardId: String, front: String, back: String): Result<AiDraftContent>
 
-    suspend fun deleteDraftCard(deckId: String, cardId: String): Result<Unit>
+    suspend fun deleteDraftCard(deckId: String, cardId: String): Result<AiDraftContent>
 
-    suspend fun saveAiDraft(deckId: String, destinationFolderId: String?): Result<Deck>
+    // Save biasanya mengembalikan Deck final yang sudah tersimpan
+    suspend fun saveAiDraft(deckId: String, destinationFolderId: String?, name: String?): Result<Deck>
 
     // =================================================================
-    // QUIZ SYSTEM (DIPERBARUI SESUAI MAPPER & DTO BARU)
+    // QUIZ SYSTEM (DIPERBARUI SESUAI DOMAIN MODEL BARU)
     // =================================================================
 
-    // Return tipe berubah dari QuizSession -> QuizStartData
-    suspend fun startQuiz(deckId: String): Result<QuizStartData>
+    // Menggunakan QuizSession (bukan QuizStartData)
+    suspend fun startQuiz(deckId: String): Result<QuizSession>
 
     /**
-     * Menggunakan Request Object lengkap (termasuk score & totalQuestions)
+     * Submit Quiz sekarang menerima parameter spesifik karena kita tidak
+     * mendefinisikan 'QuizSubmitRequest' di file Domain Model.
+     * Kita menggunakan List<QuizAnswerInput> untuk detail jawaban.
      */
-    suspend fun submitQuiz(request: QuizSubmitRequest): Result<QuizSubmitData>
+    suspend fun submitQuiz(
+        deckId: String,
+        totalQuestions: Int,
+        correctAnswers: Int,
+        answers: List<QuizAnswerInput>
+    ): Result<QuizResult>
 
-    // Menggunakan QuizSubmitData karena itu hasil mapping dari QuizResultDto
-    suspend fun getQuizHistory(): Result<List<QuizSubmitData>>
+    // Menggunakan QuizResult (bukan QuizSubmitData)
+    suspend fun getQuizHistory(): Result<List<QuizResult>>
 
-    suspend fun getQuizDetail(quizId: String): Result<QuizSubmitData>
+    suspend fun getQuizDetail(quizId: String): Result<QuizResult>
 
     // =================================================================
     // FILE UPLOAD MODULE
@@ -76,3 +85,4 @@ interface ContentRepository {
 
     suspend fun deleteFile(id: String): Result<Unit>
 }
+

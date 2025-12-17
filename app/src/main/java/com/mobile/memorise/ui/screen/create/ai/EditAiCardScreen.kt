@@ -1,58 +1,64 @@
 package com.mobile.memorise.ui.screen.create.ai
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mobile.memorise.util.Resource
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // --- COLORS ---
 private val BgColor = Color(0xFFF8F9FB)
 private val PrimaryBlue = Color(0xFF536DFE)
+private val InactiveBg = Color(0xFFE0E0E0)
+private val InactiveText = Color(0xFF757575)
 
 @Composable
 fun EditAiCardScreen(
-    cardId: String, // Terima ID
+    cardId: String,
     onBackClick: () -> Unit,
     viewModel: AiViewModel = hiltViewModel()
 ) {
-    // 1. Ambil data kartu dari ViewModel state 'draftSession' (bukan draftDeck)
-    val draftData by viewModel.draftSession.collectAsState()
+    val draftState by viewModel.draftState.collectAsState()
 
-    // Cari kartu berdasarkan ID dari list cards yang ada di session
+    val draftData = (draftState as? Resource.Success)?.data
+    val deckId = draftData?.deck?.id
+
     val card = remember(draftData, cardId) {
         draftData?.cards?.find { it.id == cardId }
     }
 
-    // State untuk form menggunakan TextFieldValue agar cursor stabil
     var front by remember(card) { mutableStateOf(TextFieldValue(card?.front ?: "")) }
     var back by remember(card) { mutableStateOf(TextFieldValue(card?.back ?: "")) }
 
-    // State Popup
     var showSuccessPopup by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    // Cek apakah ada perubahan data
     val isEdited = card != null && (front.text != card.front || back.text != card.back)
 
-    // Jika data card tidak ditemukan (misal error load / loading awal), tampilkan Loading
-    if (card == null) {
+    if (card == null || deckId == null) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = PrimaryBlue)
         }
@@ -62,6 +68,7 @@ fun EditAiCardScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .background(BgColor)
     ) {
 
@@ -121,12 +128,15 @@ fun EditAiCardScreen(
                 OutlinedTextField(
                     value = front,
                     onValueChange = { front = it },
-                    placeholder = { Text("Enter AI front text...") },
+                    placeholder = { Text("Enter AI front text...", color = Color.Gray) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 20.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.Black,
+                        cursorColor = Color.Black,
                         focusedContainerColor = Color.White,
                         unfocusedContainerColor = Color.White,
                         focusedBorderColor = PrimaryBlue,
@@ -144,12 +154,15 @@ fun EditAiCardScreen(
                 OutlinedTextField(
                     value = back,
                     onValueChange = { back = it },
-                    placeholder = { Text("Enter AI back text...") },
+                    placeholder = { Text("Enter AI back text...", color = Color.Gray) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 100.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.Black,
+                        cursorColor = Color.Black,
                         focusedContainerColor = Color.White,
                         unfocusedContainerColor = Color.White,
                         focusedBorderColor = PrimaryBlue,
@@ -167,19 +180,18 @@ fun EditAiCardScreen(
             ) {
                 Button(
                     onClick = {
-                        // 2. Panggil ViewModel Update
-                        viewModel.updateCard(
+                        viewModel.updateDraftCard(
+                            deckId = deckId,
                             cardId = card.id,
                             front = front.text.trim(),
                             back = back.text.trim()
                         )
 
-                        // 3. Tampilkan Popup & Navigasi Balik
                         showSuccessPopup = true
                         scope.launch {
-                            delay(1500)
+                            delay(1500) // Waktu tunggu animasi selesai
                             showSuccessPopup = false
-                            onBackClick() // Kembali ke layar sebelumnya
+                            onBackClick()
                         }
                     },
                     enabled = isEdited,
@@ -189,34 +201,92 @@ fun EditAiCardScreen(
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = PrimaryBlue,
-                        disabledContainerColor = Color.Gray.copy(alpha = 0.5f)
+                        contentColor = Color.White,
+                        disabledContainerColor = InactiveBg,
+                        disabledContentColor = InactiveText
                     )
                 ) {
-                    Text("Update Card", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                    Text("Update Card", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             }
         }
 
-        // POPUP SUCCESS
+        // --- SUCCESS POPUP ANIMATION ---
         if (showSuccessPopup) {
+            // State animasi
+            val alphaAnim by animateFloatAsState(
+                targetValue = if (showSuccessPopup) 1f else 0f,
+                animationSpec = tween(durationMillis = 300),
+                label = "alpha"
+            )
+            val scaleAnim by animateFloatAsState(
+                targetValue = if (showSuccessPopup) 1f else 0.8f,
+                animationSpec = tween(durationMillis = 300),
+                label = "scale"
+            )
+
+            // Overlay Background (Semi-transparent black)
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 80.dp)
-                    .align(Alignment.TopCenter),
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f * alphaAnim))
+                    .clickable(enabled = false) {}, // Mencegah klik di belakang
                 contentAlignment = Alignment.Center
             ) {
-                Box(
+                // Card Popup
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
                     modifier = Modifier
-                        .background(Color(0xFF7CFF8A), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                        .padding(32.dp)
+                        .graphicsLayer {
+                            scaleX = scaleAnim
+                            scaleY = scaleAnim
+                            alpha = alphaAnim
+                        }
                 ) {
-                    Text(
-                        "AI Card Updated!",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.Black
-                    )
+                    Column(
+                        modifier = Modifier
+                            .padding(horizontal = 32.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Green Circle Icon
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFDCFCE7)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color(0xFF166534),
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Title
+                        Text(
+                            text = "Success!",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Subtitle
+                        Text(
+                            text = "Card updated successfully.",
+                            fontSize = 14.sp,
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }

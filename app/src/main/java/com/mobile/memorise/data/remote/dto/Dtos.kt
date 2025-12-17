@@ -14,7 +14,7 @@ data class BaseResponse<T>(
 
 // --- 2. Request Bodies ---
 data class RegisterRequest(
-    val firstName: String, // Ubah jadi firstName
+    val firstName: String,
     val lastName: String,
     val email: String,
     val password: String
@@ -25,6 +25,15 @@ data class LoginRequest(
     val password: String
 )
 
+// 🔥 INI YANG DITAMBAHKAN
+data class ForgotPasswordRequest(
+    val email: String
+)
+
+data class ResetPasswordRequest(
+    val token: String,       // Ini adalah kode OTP yang diinput user sebelumnya
+    val newPassword: String  // Password baru yang diinput user
+)
 data class UpdateProfileRequest(
     val firstName: String,
     val lastName: String,
@@ -64,7 +73,6 @@ data class EmailVerificationStatusDataDto(
     val isEmailVerified: Boolean
 )
 
-// Mapping User dari JSON yang rumit ke object DTO
 // Mapping User dari JSON yang rumit ke object DTO
 data class UserDto(
     @SerializedName(value = "id", alternate = ["_id"]) val id: String, // profile pakai "id", login pakai "_id"
