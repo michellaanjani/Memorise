@@ -196,7 +196,7 @@ fun EditDeckScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = PrimaryBlue,
                         contentColor = Color.White,
-                        disabledContainerColor = Color(0xFFE5E7EB),
+                        disabledContainerColor = Color(0xFFB3D4FC),
                         disabledContentColor = Color(0xFF9CA3AF)
                     )
                 ) {

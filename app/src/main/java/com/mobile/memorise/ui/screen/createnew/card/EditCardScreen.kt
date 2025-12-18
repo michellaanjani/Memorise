@@ -31,7 +31,7 @@ import com.mobile.memorise.ui.screen.createnew.deck.DeckViewModel
 import kotlinx.coroutines.delay
 
 // Definisi Warna Konsisten
-private val PrimaryBlue = Color(0xFF3D5CFF)
+private val PrimaryBlue = Color(0xFF0C3DF4)
 private val TextBlack = Color(0xFF111827)
 private val TextGray = Color(0xFF6B7280)
 private val BgColor = Color(0xFFF8F9FB)
@@ -238,8 +238,7 @@ fun EditCardScreen(
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = PrimaryBlue,
-                        // ✅ PERBAIKAN 2: Warna Disabled dibuat lebih gelap
-                        disabledContainerColor = Color(0xFFD1D5DB), // Abu-abu solid terlihat
+                        disabledContainerColor = Color(0xFFB3D4FC), // Abu-abu solid terlihat
                         contentColor = Color.White,
                         disabledContentColor = Color.White // Teks putih
                     ),

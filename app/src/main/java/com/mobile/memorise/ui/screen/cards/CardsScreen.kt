@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
@@ -176,80 +177,120 @@ fun CardsScreen(
             ) {
                 // 1. Judul Deck
                 item {
-                    Text(
-                        text = deckName,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextDark,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-                }
-
-                // 2. Summary Card (Kotak Biru)
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(180.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(BlueHeader),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "${cardList.size}",
-                                fontSize = 64.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Text(
-                                text = "Cards in deck",
-                                fontSize = 16.sp,
-                                color = Color.White.copy(alpha = 0.9f)
-                            )
-                        }
-                    }
-                }
-
-                // 3. Tombol Actions (Study & Quiz)
-                item {
-                    Row(
+                    Card(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        shape = RoundedCornerShape(24.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
                     ) {
-                        // Tombol Study
-                        Button(
-                            onClick = {
-                                if (cardList.isEmpty()) {
-                                    showStudyAlert = true
-                                } else {
-                                    onStudyClick()
-                                }
-                            },
-                            modifier = Modifier.weight(1f).height(50.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = OrangeButton)
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color(0xFF4B89F3),
+                                            Color(0xFF3366FF)
+                                        )
+                                    )
+                                )
+                                .padding(24.dp)
                         ) {
-                            Text("Study cards", color = Color.White, fontWeight = FontWeight.SemiBold)
-                        }
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
 
-                        // Tombol Quiz
-                        Button(
-                            onClick = {
-                                if (cardList.size < 3) {
-                                    showQuizAlert = true
-                                } else {
-                                    onQuizClick()
+                                // 🔹 Deck Title (pindah dari atas ke sini)
+                                Text(
+                                    text = deckName,
+                                    color = Color.White,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                )
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // 🔹 Jumlah Card
+                                Text(
+                                    text = "${cardList.size}",
+                                    fontSize = 64.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+
+                                // 🔹 Cards in Deck (style MOST RECENT ATTEMPT)
+                                Text(
+                                    text = "CARDS IN DECK",
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    fontSize = 12.sp,
+                                    letterSpacing = 1.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+
+                                Spacer(modifier = Modifier.height(24.dp))
+
+                                // 🔹 Buttons (Study & Quiz)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+
+                                    // Study Cards → Review Answers style
+                                    Button(
+                                        onClick = {
+                                            if (cardList.isEmpty()) {
+                                                showStudyAlert = true
+                                            } else {
+                                                onStudyClick()
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(50.dp)
+                                            .padding(end = 8.dp)
+                                    ) {
+                                        Text(
+                                            "Study Cards",
+                                            color = Color(0xFF3366FF),
+                                            textAlign = TextAlign.Center,
+                                            lineHeight = 16.sp,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+
+                                    // Start Quiz → Retry Quiz style
+                                    Button(
+                                        onClick = {
+                                            if (cardList.size < 3) {
+                                                showQuizAlert = true
+                                            } else {
+                                                onQuizClick()
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF7E21)),
+                                        shape = RoundedCornerShape(12.dp),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(50.dp)
+                                            .padding(start = 8.dp)
+                                    ) {
+                                        Text(
+                                            "Start Quiz",
+                                            color = Color.White,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
                                 }
-                            },
-                            modifier = Modifier.weight(1f).height(50.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = BlueButton)
-                        ) {
-                            Text("Start Quiz", color = Color.White, fontWeight = FontWeight.SemiBold)
+                            }
                         }
                     }
                 }
+
 
                 // --- LOGIKA LIST VS EMPTY STATE ---
 

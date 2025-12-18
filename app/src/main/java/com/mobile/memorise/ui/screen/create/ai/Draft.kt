@@ -162,7 +162,7 @@ fun AiGeneratedDraftScreen(
                 Button(
                     onClick = {
                         if (deckName.isBlank()) {
-                            scope.launch { snackbarHostState.showSnackbar("Nama deck tidak boleh kosong") }
+                            scope.launch { snackbarHostState.showSnackbar("Deck name cannot be empty.") }
                             return@Button
                         }
                         // Kirim currentDeckId yang sudah divalidasi
@@ -179,11 +179,11 @@ fun AiGeneratedDraftScreen(
                     if (saveState is Resource.Loading) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = PrimaryBlue)
                         Spacer(Modifier.width(8.dp))
-                        Text("Menyimpan...", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Saving...", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     } else if (saveState is Resource.Success) {
                         Icon(Icons.Default.Check, contentDescription = null, tint = PrimaryBlue)
                         Spacer(Modifier.width(8.dp))
-                        Text("Tersimpan!", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Saved!", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     } else {
                         Text("Save Deck", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }
@@ -204,7 +204,7 @@ fun AiGeneratedDraftScreen(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(bottomStart = 34.dp, bottomEnd = 34.dp))
                         .background(HeaderBlue)
-                        .padding(bottom = 20.dp)
+                        .padding(bottom = 14.dp)
                 ) {
                     Row(
                         modifier = Modifier
@@ -213,30 +213,38 @@ fun AiGeneratedDraftScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(onClick = onBackClick) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color.White
+                            )
                         }
                         Text(
                             text = "Draft Preview",
                             color = Color.White,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f)
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 12.dp),
+                            .padding(bottom = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
                             painter = painterResource(id = R.drawable.logm),
                             contentDescription = "App Logo",
-                            modifier = Modifier.size(80.dp)
+                            modifier = Modifier.size(96.dp)
                         )
                     }
                 }
             }
+
 
             // DECK NAME INPUT
             item {

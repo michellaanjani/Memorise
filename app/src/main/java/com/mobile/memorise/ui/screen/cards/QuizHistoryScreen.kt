@@ -252,7 +252,8 @@ fun RecentAttemptCard(
                             color = Color(0xFF3366FF),
                             textAlign = TextAlign.Center,
                             lineHeight = 16.sp,
-                            fontSize = 14.sp
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
 
@@ -268,6 +269,7 @@ fun RecentAttemptCard(
                         Text(
                             "Retry Quiz",
                             color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
                             fontSize = 14.sp
                         )
                     }

@@ -37,7 +37,7 @@ import kotlinx.coroutines.delay
 // --- Definisi Warna ---
 private val TextBlack = Color(0xFF111827)
 private val TextGray = Color(0xFF6B7280)
-private val PrimaryBlue = Color(0xFF0961F5)
+private val PrimaryBlue = Color(0xFF0C3DF4)
 private val BgColor = Color(0xFFFFFFFF)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -262,7 +262,7 @@ fun EditFolderScreen(
                         containerColor = PrimaryBlue,
                         disabledContainerColor = Color(0xFFE5E7EB),
                         contentColor = Color.White,
-                        disabledContentColor = Color(0xFF9CA3AF)
+                        disabledContentColor = Color(0xFFB3D4FC)
                     )
                 ) {
                     if (isLoading) {

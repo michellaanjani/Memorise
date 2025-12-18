@@ -5,6 +5,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -353,7 +354,20 @@ fun HeaderSection(firstName: String?, onHistoryClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(DeepBlue)
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF4B89F3),
+                        Color(0xFF3366FF)
+                    )
+                ),
+                shape = RoundedCornerShape(
+                    topStart = 0.dp,
+                    topEnd = 0.dp,
+                    bottomStart = 24.dp,
+                    bottomEnd = 24.dp
+                )
+            )
             .statusBarsPadding()
             .padding(24.dp)
     ) {
@@ -366,13 +380,13 @@ fun HeaderSection(firstName: String?, onHistoryClick: () -> Unit) {
             Column {
                 Text(
                     text = "Hi, $displayName",
-                    color = White,
+                    color = Color.White,
                     fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Black
                 )
                 Text(
                     text = "Let's train your memory!",
-                    color = White.copy(alpha = 0.8f),
+                    color = Color.White.copy(alpha = 0.8f),
                     fontSize = 14.sp
                 )
             }

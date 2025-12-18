@@ -238,7 +238,7 @@ fun UpdatePasswordScreen(
                         containerColor =
                             if (isFormFilled && newPassword.length >= 8) Color(0xFF0961F5)
                             else Color(0xFFB9C4FF),
-                        disabledContainerColor = Color(0xFFB9C4FF)
+                        disabledContainerColor = Color(0xFFB3D4FC)
                     ),
                     modifier = Modifier
                         .width(220.dp)

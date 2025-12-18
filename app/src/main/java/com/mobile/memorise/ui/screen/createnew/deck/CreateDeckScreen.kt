@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -219,7 +220,7 @@ fun CreateDeckScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = PrimaryBlue,
                         contentColor = Color.White,
-                        disabledContainerColor = Color(0xFFE5E7EB),
+                        disabledContainerColor = Color(0xFFB3D4FC),
                         disabledContentColor = Color(0xFF9CA3AF)
                     )
                 ) {

@@ -52,7 +52,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 // --- COLORS ---
-private val PrimaryBlue = Color(0xFF536DFE)
+private val PrimaryBlue = Color( 0xFF0C3DF4)
+
 private val TextDark = Color(0xFF1A1C24)
 private val TextGray = Color(0xFF757575)
 private val BgColor = Color(0xFFF8F9FB)
@@ -136,15 +137,15 @@ fun AiGenerationScreen(
                 viewModel.resetStates()
             }
         } else if (state is Resource.Error) {
-            snackbarHostState.showSnackbar(getFriendlyErrorMessage(state.message ?: "Generate gagal"))
+            snackbarHostState.showSnackbar(getFriendlyErrorMessage(state.message ?: "Failed generate"))
             viewModel.resetStates()
         }
     }
 
     val isLoading = uploadState is Resource.Loading || generateState is Resource.Loading
     val loadingMessage = when {
-        uploadState is Resource.Loading -> "Mengunggah dokumen..."
-        generateState is Resource.Loading -> "AI sedang menganalisa..."
+        uploadState is Resource.Loading -> "Uploading documen...."
+        generateState is Resource.Loading -> "Our AI is going through your material..."
         else -> ""
     }
 
@@ -199,7 +200,8 @@ fun AiGenerationScreen(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = PrimaryBlue,        // Biru saat aktif
                             contentColor = Color.White,          // Teks putih saat aktif
-                            disabledContainerColor = Color(0xFFE0E0E0), // Abu-abu saat disabled/loading
+                            disabledContainerColor = Color(0xFFB3D4FC), // Abu-abu saat disabled/loading
+
                             disabledContentColor = Color(0xFF9E9E9E)    // Teks abu tua saat disabled
                         )
                     ) {
@@ -353,12 +355,12 @@ fun AiGenerationScreen(
 fun AiLoadingOverlay(technicalMessage: String) {
     val loadingMessages = remember {
         listOf(
-            "Mengunggah dokumen kamu...",
-            "AI sedang membaca materi...",
-            "Menganalisis poin-poin penting...",
-            "Menyusun pertanyaan flashcard...",
-            "Sedikit lagi selesai...",
-            "Memastikan format kartu rapi..."
+            "Uploading your document...",
+            "Our AI is going through your material...",
+            "Identifying key points...",
+            "Turning them into flashcard questions...",
+            "Just a moment...",
+            "Polishing the flashcards..."
         )
     }
 

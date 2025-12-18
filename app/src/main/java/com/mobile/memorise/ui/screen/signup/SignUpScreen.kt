@@ -212,7 +212,7 @@ fun SignUpScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = deepBlue,
                         contentColor = Color.White,
-                        disabledContainerColor = Color.Gray.copy(alpha = 0.5f)
+                        disabledContainerColor = Color(0xFFB3D4FC).copy(alpha = 0.5f)
                     )
                 ) {
                     if (viewModel.isLoading) {

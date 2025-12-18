@@ -30,7 +30,7 @@ import com.mobile.memorise.ui.screen.createnew.deck.DeckViewModel
 import kotlinx.coroutines.delay
 
 // Definisi Warna agar konsisten
-private val PrimaryBlue = Color(0xFF3D5CFF)
+private val PrimaryBlue = Color(0xFF0961F5)
 private val TextBlack = Color(0xFF111827)
 private val TextGray = Color(0xFF6B7280)
 private val BgColor = Color(0xFFF8F9FB)
@@ -144,7 +144,6 @@ fun AddCardScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            // ✅ PERBAIKAN 1: Teks menjadi Hitam saat mengetik
                             focusedTextColor = TextBlack,
                             unfocusedTextColor = TextBlack,
                             cursorColor = PrimaryBlue,
@@ -176,7 +175,6 @@ fun AddCardScreen(
                             .heightIn(min = 120.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            // ✅ PERBAIKAN 1: Teks menjadi Hitam saat mengetik
                             focusedTextColor = TextBlack,
                             unfocusedTextColor = TextBlack,
                             cursorColor = PrimaryBlue,
@@ -226,7 +224,7 @@ fun AddCardScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = PrimaryBlue,
                         // ✅ PERBAIKAN 2: Warna Disabled dibuat lebih gelap agar terlihat
-                        disabledContainerColor = Color(0xFFD1D5DB), // Abu-abu solid
+                        disabledContainerColor = Color(0xFFB3D4FC), // Abu-abu solid
                         contentColor = Color.White,
                         disabledContentColor = Color.White // Teks tetap putih agar terbaca di abu-abu
                     ),

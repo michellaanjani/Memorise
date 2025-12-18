@@ -167,11 +167,11 @@ fun ResetPwScreen(
                         .height(52.dp),
                     // 🔥 PERBAIKAN 3: Warna tombol sesuai permintaan (Abu Tua & Putih saat disabled) 🔥
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Black, // Atau Color(0xFF0C3DF4) sesuai tema aktif kamu
+                        containerColor = Color(0xFF0961F5), // Atau Color(0xFF0C3DF4) sesuai tema aktif kamu
                         contentColor = Color.White,
 
                         // Saat tombol MATI (Disabled)
-                        disabledContainerColor = Color.Gray, // Abu Tua
+                        disabledContainerColor = Color(0xFFB3D4FC),
                         disabledContentColor = Color.White       // Tulisan Tetap Putih
                     ),
                     shape = RoundedCornerShape(14.dp)

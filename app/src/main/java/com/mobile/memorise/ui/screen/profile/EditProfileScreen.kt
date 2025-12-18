@@ -63,11 +63,13 @@ fun EditProfileScreen(
 
     // Show success popup when update is successful
     LaunchedEffect(updateState) {
-        if (updateState is com.mobile.memorise.util.Resource.Success) {
+        if (updateState is Resource.Success) {
             showSuccessPopup = true
-            viewModel.loadUserProfile() // Reload to get updated data
+            viewModel.loadUserProfile() // Reload data
+            viewModel.resetUpdateState() // Reset supaya popup tidak muncul lagi saat masuk screen berikutnya
         }
     }
+
 
     val pickImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -273,7 +275,7 @@ fun EditProfileScreen(
                     shape = RoundedCornerShape(50),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (isFormFilled && isChanged) Color(0xFF0961F5) else Color(0xFFBFD4FF),
-                        disabledContainerColor = Color(0xFFBFD4FF)
+                        disabledContainerColor = Color(0xFFB3D4FC)
                     )
                 ) {
                     Text(

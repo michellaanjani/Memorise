@@ -163,7 +163,7 @@ fun NewPasswordScreen(
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF0A57F2),
                 contentColor = Color.White,
-                disabledContainerColor = Color.DarkGray,
+                disabledContainerColor = Color(0xFFB3D4FC),
                 disabledContentColor = Color.White
             ),
             modifier = Modifier

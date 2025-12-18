@@ -44,7 +44,7 @@ import com.mobile.memorise.ui.viewmodel.QuizViewModel
 import com.mobile.memorise.util.Resource
 
 // --- COLORS PALETTE ---
-private val PrimaryBlue = Color(0xFF4285F4)
+private val PrimaryBlue = Color(0xFF0C3DF4)
 private val LightBlueBg = Color(0xFFF3F7FF)
 private val WarningOrange = Color(0xFFFF9800)
 
@@ -105,7 +105,7 @@ fun QuizScreen(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 CircularProgressIndicator(color = PrimaryBlue)
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Text("Menyiapkan Kuis...", color = TextGray)
+                                Text("Preparing your quiz...", color = TextGray)
                             }
                         }
                     }
@@ -322,11 +322,12 @@ fun QuizResultContent(
     val wrongAnswers = totalQuestions - correctAnswers
     val (resultTitle, resultMessage, resultColor) = remember(score) {
         when {
-            score >= 80 -> Triple("Excellent!", "Kamu luar biasa!", SuccessGreen)
-            score >= 60 -> Triple("Good Job!", "Pertahankan semangatmu!", PrimaryBlue)
-            score >= 40 -> Triple("Not Bad", "Coba lagi biar makin jago!", WarningOrange)
-            else -> Triple("Keep Learning", "Jangan menyerah, ayo belajar lagi!", ErrorRed)
+            score >= 80 -> Triple("Excellent!", "You're amazing!", SuccessGreen)
+            score >= 60 -> Triple("Good Job!", "Keep up the spirit!", PrimaryBlue)
+            score >= 40 -> Triple("Not Bad", "Try again to get even better!", WarningOrange)
+            else -> Triple("Keep Learning", "Don't give up, let's study more!", ErrorRed)
         }
+
     }
     val animatedScore = remember { Animatable(0f) }
 

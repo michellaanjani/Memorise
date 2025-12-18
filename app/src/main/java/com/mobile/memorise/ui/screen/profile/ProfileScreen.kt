@@ -29,6 +29,7 @@ import androidx.navigation.NavHostController
 import com.mobile.memorise.R
 import com.mobile.memorise.navigation.MainRoute
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.graphics.Brush
 
 @Composable
 fun ProfileScreen(
@@ -52,8 +53,15 @@ fun ProfileScreen(
                 .fillMaxWidth()
                 .height(180.dp) // ⭐ LEBIH PENDEK → text & logo otomatis naik
                 .clip(RoundedCornerShape(bottomStart = 34.dp, bottomEnd = 34.dp))
-                .background(Color(0xFF0961F5))
-        ) {
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF4B89F3),
+                            Color(0xFF3366FF)
+                        )
+                    )
+                ))
+         {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

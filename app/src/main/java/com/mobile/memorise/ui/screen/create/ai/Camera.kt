@@ -65,8 +65,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 // --- CONSTANTS ---
-private val PrimaryBlue = Color(0xFF536DFE)
-
+private val PrimaryBlue = Color(0xFF0C3DF4)
 @Composable
 fun CameraCaptureScreen(
     onImageCaptured: (Uri) -> Unit,

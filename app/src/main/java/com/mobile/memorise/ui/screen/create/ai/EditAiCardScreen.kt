@@ -31,8 +31,8 @@ import kotlinx.coroutines.launch
 
 // --- COLORS ---
 private val BgColor = Color(0xFFF8F9FB)
-private val PrimaryBlue = Color(0xFF536DFE)
-private val InactiveBg = Color(0xFFE0E0E0)
+private val PrimaryBlue = Color(0xFF0C3DF4)
+private val InactiveBg = Color(0xFFB3D4FC)
 private val InactiveText = Color(0xFF757575)
 
 @Composable

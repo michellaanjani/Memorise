@@ -41,7 +41,7 @@ import kotlinx.coroutines.delay
 private val BgColor = Color.White
 private val TextBlack = Color(0xFF1F2937)
 private val TextGray = Color(0xFF6B7280)
-private val PrimaryBlue = Color(0xFF0961F5)
+private val PrimaryBlue = Color(0xFF0C3DF4)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -263,7 +263,7 @@ fun CreateFolderScreen(
                     colors = ButtonDefaults.buttonColors(
                         containerColor = PrimaryBlue,
                         contentColor = Color.White,
-                        disabledContainerColor = Color(0xFFE5E7EB),
+                        disabledContainerColor = Color(0xFFB3D4FC),
                         disabledContentColor = Color(0xFF9CA3AF)
                     )
                 ) {

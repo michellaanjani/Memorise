@@ -1,5 +1,6 @@
 package com.mobile.memorise.ui.screen.cards
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -20,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -27,11 +30,12 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mobile.memorise.R
 import com.mobile.memorise.domain.model.QuizHistoryDetail
 import com.mobile.memorise.domain.model.QuizResult
 
 // Definisi Warna dari Desain
-val BrandPurple = Color(0xFF4B4CED)
+val BrandPurple = Color(0xFF0C3DF4)
 val SuccessGreen = Color(0xFF2ECC71)
 val SuccessBg = Color(0xFFE8F8F0)
 val ErrorRed = Color(0xFFE74C3C)
@@ -52,11 +56,13 @@ fun QuizDetailScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text(
-                        "Memorise.",
-                        color = BrandPurple,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
+                    Image(
+                        painter = painterResource(id = R.drawable.memorisey),
+                        contentDescription = "Logo",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .height(20.dp)
+                            .padding(end = 16.dp)
                     )
                 },
                 navigationIcon = {
@@ -139,7 +145,7 @@ fun QuizDetailContent(
                         color = TextDark
                     )
                     Text(
-                        text = "Soal 1 dari ${result.totalQuestions}",
+                        text = "Question 1 of ${result.totalQuestions}",
                         fontSize = 14.sp,
                         color = Color.Gray
                     )

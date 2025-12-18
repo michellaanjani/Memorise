@@ -280,11 +280,11 @@ fun ResetOtpScreen(
                 .height(44.dp),
             colors = ButtonDefaults.buttonColors(
                 // State Aktif
-                containerColor = Color.Black,
+                containerColor = Color(0xFF0961F5),
                 contentColor = Color.White,
 
                 // State Tidak Aktif (Abu Tua, Tulisan Putih)
-                disabledContainerColor = Color.Gray,
+                disabledContainerColor = Color(0xFFB3D4FC),
                 disabledContentColor = Color.White
             ),
             shape = RoundedCornerShape(10.dp)
