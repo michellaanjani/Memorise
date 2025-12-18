@@ -44,6 +44,13 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
             "quiz/$deckId/${Uri.encode(deckName)}"
     }
 
+    // --- TAMBAHAN HISTORY & DETAIL ---
+    object QuizHistory : MainRoute("quiz_history", "History", Icons.Filled.Home)
+
+    object QuizDetail : MainRoute("quiz_detail/{quizId}", "Quiz Detail", Icons.Filled.Home) {
+        fun createRoute(quizId: String) = "quiz_detail/$quizId"
+    }
+
     // Detail Kartu (Swipe View)
     object CardDetail : MainRoute("detail_card/{deckId}/{deckName}/{cardList}/{index}", "Detail", Icons.Filled.ViewCarousel) {
         // Penting: Encode JSON di sini agar navigasi tidak crash
@@ -109,4 +116,6 @@ sealed class MainRoute(val route: String, val title: String, val icon: ImageVect
     object AiEditCard : MainRoute("ai_edit_card/{cardId}", "AI Edit Card", Icons.Filled.Edit) {
         fun createRoute(cardId: String) = "ai_edit_card/$cardId"
     }
+
+
 }

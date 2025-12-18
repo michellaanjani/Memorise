@@ -139,7 +139,6 @@ class AiViewModel @Inject constructor(
                 val result = repository.getAiDraft(deckId)
                 result.onSuccess { content ->
                     _draftState.value = Resource.Success(content)
-                    // Set initial name jika local state masih kosong
                     if (_currentDeckName.value.isEmpty()) {
                         _currentDeckName.value = content.deck.name
                     }
@@ -160,7 +159,7 @@ class AiViewModel @Inject constructor(
                     _draftState.value = Resource.Success(content)
                 }
             } catch (e: Exception) {
-                // Silent fail or show toast
+                // Silent fail
             }
         }
     }
@@ -170,8 +169,23 @@ class AiViewModel @Inject constructor(
             _deleteState.value = Resource.Loading()
             try {
                 val result = repository.deleteDraftCard(deckId, cardId)
-                result.onSuccess { content ->
-                    _draftState.value = Resource.Success(content)
+
+                result.onSuccess { _ ->
+                    val currentState = _draftState.value
+                    if (currentState is Resource.Success) {
+                        // 🔥 PERBAIKAN: Elvis Operator (?: return@launch)
+                        // Jika data null, hentikan eksekusi agar tidak crash.
+                        val currentData = currentState.data ?: return@launch
+
+                        // Filter manual untuk UI update instan
+                        val updatedCards = currentData.cards.filter { it.id != cardId }
+
+                        val updatedContent = currentData.copy(
+                            cards = updatedCards,
+                            deck = currentData.deck.copy(cardCount = updatedCards.size)
+                        )
+                        _draftState.value = Resource.Success(updatedContent)
+                    }
                     _deleteState.value = Resource.Success(true)
                 }.onFailure {
                     _deleteState.value = Resource.Error(it.message ?: "Gagal menghapus")
@@ -182,30 +196,25 @@ class AiViewModel @Inject constructor(
         }
     }
 
-    /**
-     * 🔥 LOGIKA UTAMA DISINI 🔥
-     * 1. Cek apakah ada nama baru.
-     * 2. Jika ada, panggil repository.updateDeck dulu.
-     * 3. Setelah sukses (atau jika tidak ada nama baru), panggil repository.saveAiDraft.
-     */
     fun saveDraft(deckId: String, folderId: String?, newName: String?) {
         viewModelScope.launch {
+            if (deckId.isBlank()) {
+                _saveState.value = Resource.Error("Gagal menyimpan: ID Deck tidak valid")
+                return@launch
+            }
+
             _saveState.value = Resource.Loading()
             try {
-                // --- LANGKAH 1: UPDATE NAMA DECK (Jika diperlukan) ---
-                if (!newName.isNullOrBlank()) {
-                    // Kita perlu deskripsi lama agar tidak tertimpa jadi kosong.
-                    // Ambil dari _draftState saat ini.
-                    val currentDesc = (_draftState.value as? Resource.Success)?.data?.deck?.description ?: ""
+                val currentDesc = (_draftState.value as? Resource.Success)?.data?.deck?.description ?: ""
 
+                if (!newName.isNullOrBlank()) {
                     val updateResult = repository.updateDeck(
                         id = deckId,
                         name = newName,
                         desc = currentDesc,
-                        folderId = null // Pass null agar folder tidak berubah saat rename
+                        folderId = null
                     )
 
-                    // Jika gagal update nama, hentikan proses dan beri tahu user
                     if (updateResult.isFailure) {
                         val errorMsg = updateResult.exceptionOrNull()?.message ?: "Gagal mengubah nama deck"
                         _saveState.value = Resource.Error(errorMsg)
@@ -213,8 +222,6 @@ class AiViewModel @Inject constructor(
                     }
                 }
 
-                // --- LANGKAH 2: SAVE / FINALIZE DRAFT ---
-                // Parameter 'name' dikirim null karena sudah dihandle di langkah 1 (atau biarkan repository mengabaikannya)
                 val saveResult = repository.saveAiDraft(deckId, folderId, null)
 
                 saveResult.onSuccess {
@@ -232,7 +239,6 @@ class AiViewModel @Inject constructor(
     // =================================================================
     // 3. FILE HELPER FUNCTIONS
     // =================================================================
-    // (Kode di bawah ini sama persis dengan sebelumnya, disembunyikan agar ringkas)
 
     private fun createTempFileFromUri(cr: ContentResolver, uri: Uri, mime: String?, name: String?): File? {
         val detectedMimeType = detectMimeType(uri, mime, name)

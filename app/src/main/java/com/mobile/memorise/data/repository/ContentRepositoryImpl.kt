@@ -239,7 +239,9 @@ class ContentRepositoryImpl @Inject constructor(
                     id = dto.id,
                     name = dto.name,
                     description = dto.description ?: "",
-                    cardCount = dto.cards.size,
+                    // 🔥 PERBAIKAN: Gunakan "?." dan "?: 0"
+                    // Artinya: Kalau cards null, anggap jumlahnya 0.
+                    cardCount = dto.cards?.size ?: 0,
                     folderId = null,
                     updatedAt = ""
                 )

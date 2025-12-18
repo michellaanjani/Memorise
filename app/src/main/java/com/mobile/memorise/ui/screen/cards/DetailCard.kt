@@ -37,7 +37,7 @@ import kotlinx.serialization.json.Json
 private val BgColor = Color(0xFFF8F9FB)
 private val LabelBgColor = Color(0xFFE3F2FD)
 private val LabelTextColor = Color(0xFF2196F3)
-private val TextDark = Color(0xFF1A1C24)
+
 
 @Composable
 fun DetailCardScreen(

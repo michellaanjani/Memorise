@@ -22,7 +22,6 @@ import androidx.compose.ui.unit.sp
 // --- COLORS (Sesuaikan dengan tema aplikasi) ---
 private val BlueButton = Color(0xFF4285F4)
 private val BgColor = Color(0xFFF8F9FB)
-private val TextDark = Color(0xFF1A1C24)
 private val TextGray = Color(0xFF757575)
 private val RedError = Color(0xFFFF5252)
 private val RedSoft = Color(0xFFFFEBEE)

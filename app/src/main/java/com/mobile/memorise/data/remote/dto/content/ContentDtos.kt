@@ -121,19 +121,61 @@ data class QuizAnswerDto(
 )
 
 
+// =================================================================
+// DTOs untuk HISTORY & DETAIL QUIZ
+// =================================================================
+
 data class QuizResultDto(
-    @SerializedName("id", alternate = ["_id"])
-    val id: String, // Tambahkan ID hasil kuisnya sendiri
-    val deckId: String,
+    @SerializedName("_id")
+    val id: String,
+
+    // 🔥 FIX 1: deckId di JSON adalah Object, bukan String
+    @SerializedName("deckId")
+    val deck: DeckSummaryDto,
+
     val score: Int,
     val totalQuestions: Int,
     val correctAnswers: Int,
 
-    // 🔥 PERBAIKAN: Mapping 'createdAt' dari JSON ke variabel 'playedAt'
     @SerializedName("createdAt")
-    val playedAt: String
+    val playedAt: String,
+
+    // 🔥 FIX 2: Tambahkan field details (Nullable, karena di list history field ini tidak ada)
+    @SerializedName("details")
+    val details: List<QuizDetailItemDto>? = null
 )
 
+// Helper DTO untuk menangkap object deckId: { "_id": "...", "name": "..." }
+data class DeckSummaryDto(
+    @SerializedName("_id")
+    val id: String,
+
+    @SerializedName("name")
+    val name: String
+)
+
+// Helper DTO untuk item di dalam array "details"
+data class QuizDetailItemDto(
+    @SerializedName("_id")
+    val id: String,
+
+    // 🔥 FIX 3: cardId di sini adalah Object, berisi front & back
+    @SerializedName("cardId")
+    val card: CardSummaryDto,
+
+    val isCorrect: Boolean,
+    val userAnswer: String,
+    val correctAnswer: String,
+    val explanation: String?
+)
+
+// Helper DTO untuk menangkap object cardId: { "_id": "...", "front": "...", "back": "..." }
+data class CardSummaryDto(
+    @SerializedName("_id")
+    val id: String,
+    val front: String,
+    val back: String
+)
 // =================================================================
 // 4. AI & FILE MODULE DTOs
 // =================================================================
@@ -161,7 +203,7 @@ data class AiCard(
     val id: String,
     val front: String,
     val back: String,
-    val deckId: String
+    val deckId: String? = null
 )
 
 data class AiDraftDetailData(

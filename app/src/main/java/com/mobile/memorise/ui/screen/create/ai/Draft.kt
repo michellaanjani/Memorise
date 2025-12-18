@@ -43,7 +43,7 @@ import kotlinx.coroutines.launch
 private val BgColor = Color(0xFFF5F5F7)
 private val HeaderBlue = Color(0xFF0961F5)
 private val CardWhite = Color.White
-private val TextDark = Color(0xFF1A1C24) // Digunakan sebagai pengganti TextBlack
+private val TextDark = Color(0xFF1A1C24)
 private val TextGray = Color(0xFF7A7A7A)
 private val PrimaryBlue = HeaderBlue
 
@@ -108,7 +108,7 @@ fun AiGeneratedDraftScreen(
         }
     }
 
-    // 🔥 5. Handle Delete Result 🔥
+    // 5. Handle Delete Result
     LaunchedEffect(deleteState) {
         if (deleteState is Resource.Success) {
             showDeleteSuccessPopup = true
@@ -144,7 +144,10 @@ fun AiGeneratedDraftScreen(
 
     val draftData = (draftState as? Resource.Success)?.data
     val cards = draftData?.cards ?: emptyList()
-    val currentDeckId = draftData?.deck?.id ?: deckId
+
+    // 🔥 PERBAIKAN PENTING DI SINI:
+    // Pastikan ID tidak kosong. Jika kosong, gunakan ID dari Navigasi.
+    val currentDeckId = draftData?.deck?.id?.takeIf { it.isNotBlank() } ?: deckId
 
     Scaffold(
         containerColor = BgColor,
@@ -162,6 +165,7 @@ fun AiGeneratedDraftScreen(
                             scope.launch { snackbarHostState.showSnackbar("Nama deck tidak boleh kosong") }
                             return@Button
                         }
+                        // Kirim currentDeckId yang sudah divalidasi
                         viewModel.saveDraft(currentDeckId, null, deckName)
                     },
                     enabled = !isProcessing,

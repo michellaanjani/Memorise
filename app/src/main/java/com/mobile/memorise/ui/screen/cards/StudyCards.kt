@@ -31,7 +31,6 @@ import kotlinx.coroutines.launch
 
 // --- WARNA ---
 private val BgColor = Color(0xFFF8F9FB)
-private val TextDark = Color(0xFF000000)
 
 // Warna Question (Biru)
 private val LightBlueBadge = Color(0xFFE3F2FD)

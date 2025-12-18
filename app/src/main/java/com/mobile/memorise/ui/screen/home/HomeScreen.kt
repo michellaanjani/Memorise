@@ -14,6 +14,8 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.foundation.shape.CircleShape // Tambahkan ini
+import androidx.compose.material.icons.filled.History // Tambahkan ini
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -142,6 +144,7 @@ fun HomeScreen(
     onEditFolder: (String, String, String) -> Unit,
     onEditDeck: (String) -> Unit,
     onMoveDeck: (String) -> Unit,
+    onHistoryClick: () -> Unit, // <--- 1. TAMBAHKAN PARAMETER INI
     folderViewModel: FolderViewModel,
     deckViewModel: DeckViewModel,
     homeViewModel: HomeViewModel = hiltViewModel(),
@@ -205,7 +208,7 @@ fun HomeScreen(
         ) {
 
             item {
-                HeaderSection(firstName = userProfile.firstName)
+                HeaderSection(firstName = userProfile.firstName,  onHistoryClick = onHistoryClick )
             }
 
             if (isLoading && homeData.folders.isEmpty() && homeData.decks.isEmpty()) {
@@ -340,7 +343,7 @@ fun HomeScreen(
    ========================= */
 
 @Composable
-fun HeaderSection(firstName: String?) {
+fun HeaderSection(firstName: String?, onHistoryClick: () -> Unit) {
     val displayName = firstName?.let { name ->
         name.lowercase().replaceFirstChar {
             if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
@@ -354,19 +357,41 @@ fun HeaderSection(firstName: String?) {
             .statusBarsPadding()
             .padding(24.dp)
     ) {
+        // --- HEADER ROW (NAMA & HISTORY) ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    text = "Hi, $displayName",
+                    color = White,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Let's train your memory!",
+                    color = White.copy(alpha = 0.8f),
+                    fontSize = 14.sp
+                )
+            }
 
-        Text(
-            text = "Hi, $displayName",
-            color = White,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        Text(
-            text = "Let's train your memory!",
-            color = White.copy(alpha = 0.8f),
-            fontSize = 14.sp
-        )
+            // Tombol History
+            IconButton(
+                onClick = onHistoryClick,
+                modifier = Modifier
+                    .background(Color.White.copy(alpha = 0.2f), CircleShape)
+                    .size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.History,
+                    contentDescription = "History",
+                    tint = Color.White
+                )
+            }
+        }
+        // -----------------------------------
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -382,19 +407,14 @@ fun HeaderSection(firstName: String?) {
             ) {
                 ImageActionCard(
                     drawableId = R.drawable.memorize,
-                    modifier = Modifier
-                        .weight(1f)
-                        .aspectRatio(1.83f)
+                    modifier = Modifier.weight(1f).aspectRatio(1.83f)
                 )
                 ImageActionCard(
                     drawableId = R.drawable.learn,
-                    modifier = Modifier
-                        .weight(1f)
-                        .aspectRatio(1.83f)
+                    modifier = Modifier.weight(1f).aspectRatio(1.83f)
                 )
             }
         }
-
         Spacer(modifier = Modifier.height(16.dp))
     }
 }

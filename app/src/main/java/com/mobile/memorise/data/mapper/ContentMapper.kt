@@ -63,33 +63,34 @@ fun AiGenerateResultData.toDomain(): AiGeneratedContent {
     )
 }
 
-fun AiCard.toDomain(): Card {
+// Helper khusus untuk mapping kartu yang butuh deckId dari luar
+fun AiCard.toDomain(fallbackDeckId: String = ""): Card {
     return Card(
-        id = this.id,
-        deckId = this.deckId, // Hapus elvis operator ?: "" karena field di domain non-nullable
-        front = this.front,
-        back = this.back
+        id = this.id ?: "",
+        // 🔥 LOGIKA: Jika deckId di item kartu ada, pakai itu.
+        // Jika tidak ada (null), pakai fallbackDeckId yang dilempar dari parent.
+        deckId = this.deckId ?: fallbackDeckId,
+        front = this.front ?: "",
+        back = this.back ?: ""
     )
 }
-
 // 🔥 TAMBAHAN: Mapper untuk AiDraftContent (Deck + List<Card>)
 fun AiDraftDetailData.toDomainContent(): AiDraftContent {
+    // Ambil ID deck utama (Parent ID)
+    val parentDeckId = this.id ?: ""
+
     return AiDraftContent(
         deck = Deck(
-            // 🔥 MASALAHNYA DISINI SEBELUMNYA: this.id bernilai null
-            // ✅ SOLUSI: Gunakan ?: "" agar jika null, diganti string kosong
-            id = this.id ?: "",
+            id = parentDeckId,
             name = this.name ?: "",
             description = this.description ?: "",
-            // ❌ SALAH (Penyebab Crash): this.cards.size
-            // ✅ BENAR: Cek dulu apakah cards null. Jika null, anggap 0.
             cardCount = this.cards?.size ?: 0,
             folderId = this.folderId,
-            updatedAt = "" // Default value jika tidak ada di response AI
+            updatedAt = ""
         ),
-        // Mapping list card dari response AI ke domain Card
-        // Cegah crash saat mapping list cards yang null
-        cards = this.cards?.map { it.toDomain() } ?: emptyList()
+        // 🔥 PENTING: Kita kirim 'parentDeckId' ke fungsi toDomain()
+        // agar setiap kartu punya referensi ke Deck ID-nya.
+        cards = this.cards?.map { it.toDomain(fallbackDeckId = parentDeckId) } ?: emptyList()
     )
 }
 
@@ -118,15 +119,34 @@ fun QuizQuestionDto.toDomain(): QuizQuestion {
     )
 }
 
-// --- B. Submit Result (Response API -> Domain) ---
+// --- B. Result / History Mapper (Response API -> Domain) ---
 fun QuizResultDto.toDomain(): QuizResult {
     return QuizResult(
         id = this.id,
-        deckId = this.deckId,
+        // Ambil ID dan Name dari object DeckSummaryDto
+        deckId = this.deck.id,
+        deckName = this.deck.name,
+
         score = this.score,
         totalQuestions = this.totalQuestions,
         correctAnswers = this.correctAnswers,
-        playedAt = this.playedAt // Menggunakan field 'playedAt' dari domain model
+        playedAt = this.playedAt,
+
+        // Mapping list details jika ada (untuk detail view), jika null (untuk list view) kosongkan
+        details = this.details?.map { it.toDomain() } ?: emptyList()
+    )
+}
+
+// Helper: Ubah item detail DTO ke Domain
+fun QuizDetailItemDto.toDomain(): QuizHistoryDetail {
+    return QuizHistoryDetail(
+        cardId = this.card.id,
+        question = this.card.front, // Mapping front kartu sebagai pertanyaan
+        answer = this.card.back,    // Mapping back kartu sebagai referensi jawaban
+        isCorrect = this.isCorrect,
+        userAnswer = this.userAnswer,
+        correctAnswer = this.correctAnswer,
+        explanation = this.explanation
     )
 }
 

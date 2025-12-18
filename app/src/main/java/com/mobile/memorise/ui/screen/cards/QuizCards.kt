@@ -46,10 +46,8 @@ import com.mobile.memorise.util.Resource
 // --- COLORS PALETTE ---
 private val PrimaryBlue = Color(0xFF4285F4)
 private val LightBlueBg = Color(0xFFF3F7FF)
-private val SuccessGreen = Color(0xFF00C853)
-private val ErrorRed = Color(0xFFD32F2F)
 private val WarningOrange = Color(0xFFFF9800)
-private val TextDark = Color(0xFF323A5E)
+
 private val TextGray = Color(0xFF6B7280)
 private val SurfaceWhite = Color.White
 

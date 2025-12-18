@@ -77,6 +77,10 @@ fun NavGraph(
                 onMoveDeck = { deckId ->
                     navController.navigate(MainRoute.MoveDeck.createRoute(deckId))
                 },
+                // --- TAMBAHAN NAVIGASI HISTORY ---
+                onHistoryClick = {
+                    navController.navigate(MainRoute.QuizHistory.route)
+                },
                 folderViewModel = folderViewModel,
                 deckViewModel = deckViewModel
             )
@@ -306,6 +310,43 @@ fun NavGraph(
                 deckId = deckId,
                 deckName = deckName,
                 onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        // ==========================================
+        // --- NEW: HISTORY & DETAIL QUIZ ROUTES ---
+        // ==========================================
+
+        // 1. LIST HISTORY
+        composable(route = MainRoute.QuizHistory.route) {
+            QuizHistoryScreen(
+                onBackClick = { navController.popBackStack() },
+                onReviewClick = { quizId ->
+                    navController.navigate(MainRoute.QuizDetail.createRoute(quizId))
+                },
+                // PERBAIKAN: Menerima (deckId, deckName) yang dikirim dari Screen
+                onRetryClick = { deckId, deckName ->
+                    // Sekarang deckName sudah ASLI dari data history, bukan hardcode
+                    navController.navigate(MainRoute.Cards.createRoute(deckId, deckName))
+                }
+            )
+        }
+
+        // 2. DETAIL HISTORY
+        composable(
+            route = MainRoute.QuizDetail.route,
+            arguments = listOf(navArgument("quizId") { type = NavType.StringType })
+        ) {
+            QuizDetailScreen(
+                onBackClick = { navController.popBackStack() },
+                // PERBAIKAN: Menerima (deckId, deckName)
+                onRetakeClick = { deckId, deckName ->
+                    // Arahkan ke Cards Screen
+                    navController.navigate(MainRoute.Cards.createRoute(deckId, deckName)) {
+                        // Opsional: Agar tidak kembali ke Quiz Detail saat di-back dari Cards
+                        popUpTo(MainRoute.QuizDetail.route) { inclusive = true }
+                    }
+                }
             )
         }
 

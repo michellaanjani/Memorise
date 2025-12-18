@@ -80,13 +80,26 @@ data class QuizAnswerInput(
     val correctAnswer: String  // Jawaban benar (diperlukan server untuk validasi)
 )
 
+
 data class QuizResult(
     val id: String,
     val deckId: String,
+    val deckName: String, // Tambahan biar UI bisa menampilkan nama deck
     val score: Int,
     val totalQuestions: Int,
     val correctAnswers: Int,
-    val playedAt: String
+    val playedAt: String,
+    val details: List<QuizHistoryDetail> = emptyList() // List detail jawaban
+)
+
+data class QuizHistoryDetail(
+    val cardId: String,
+    val question: String, // front
+    val answer: String,   // back
+    val isCorrect: Boolean,
+    val userAnswer: String,
+    val correctAnswer: String,
+    val explanation: String?
 )
 
 // ==========================

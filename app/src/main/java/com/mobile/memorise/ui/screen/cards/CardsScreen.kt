@@ -55,7 +55,6 @@ private val BlueHeader = Color(0xFF5391F5)
 private val OrangeButton = Color(0xFFFF851B)
 private val BlueButton = Color(0xFF4285F4)
 private val BgColor = Color(0xFFF8F9FB)
-private val TextDark = Color(0xFF1A1C24)
 private val TextGray = Color(0xFF757575)
 
 @OptIn(ExperimentalMaterial3Api::class)
