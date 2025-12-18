@@ -1,23 +1,21 @@
 package com.mobile.memorise.data.repository
 
+import com.mobile.memorise.data.local.token.TokenStore
+//import com.mobile.memorise.data.remote.api.AuthApi // Tambahkan ini
 import com.mobile.memorise.data.remote.api.UserApi
-import com.mobile.memorise.data.remote.dto.UpdateProfileRequest
-import com.mobile.memorise.data.remote.dto.ChangePasswordRequest
-import com.mobile.memorise.data.remote.dto.ProfileDataDto
-import com.mobile.memorise.data.remote.dto.ForgotPasswordRequest
-import com.mobile.memorise.data.remote.dto.ResetPasswordRequest
+import com.mobile.memorise.data.remote.dto.auth.* // Import semua DTO
 import com.mobile.memorise.domain.model.EmailVerificationStatus
 import com.mobile.memorise.domain.model.User
 import com.mobile.memorise.domain.repository.UserRepository
 import com.mobile.memorise.util.Resource
-import com.mobile.memorise.data.local.token.TokenStore
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class UserRepositoryImpl @Inject constructor(
-    private val api: UserApi,
+    private val userApi: UserApi, // Ganti nama 'api' jadi 'userApi' biar jelas
+    //private val authApi: AuthApi, // Tambahkan ini untuk fitur public (Lupa Password)
     private val tokenStore: TokenStore
 ) : UserRepository {
 
@@ -28,9 +26,9 @@ class UserRepositoryImpl @Inject constructor(
             throw Exception("Token tidak ditemukan, user mungkin belum login.")
         }
 
-        val response = api.getEmailVerificationStatus("Bearer $token")
+        // Panggil userApi
+        val response = userApi.getEmailVerificationStatus("Bearer $token")
 
-        // Cek dulu response.data agar tidak NullPointerException
         val isVerified = response.data?.isEmailVerified
             ?: throw Exception("Data verifikasi email tidak ditemukan dalam respons.")
 
@@ -41,7 +39,8 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun getUserProfile(): Resource<User> {
         return try {
-            val response = api.getUserProfile()
+            // Panggil userApi
+            val response = userApi.getUserProfile()
             val body = response.body()
 
             if (response.isSuccessful && body != null && body.success && body.data != null) {
@@ -58,12 +57,15 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun updateProfile(firstName: String, lastName: String): Resource<User> {
         return try {
+            // PERBAIKAN: Gunakan 'UpdateProfileRequestDto' (sesuai file DTO)
             val request = UpdateProfileRequest(
                 firstName = firstName,
                 lastName = lastName,
-                profile = null // Bio tidak diupdate untuk sekarang
+                profile = null
             )
-            val response = api.updateProfile(request)
+
+            // Panggil userApi
+            val response = userApi.updateProfile(request)
             val body = response.body()
 
             if (response.isSuccessful && body != null && body.success && body.data != null) {
@@ -80,11 +82,14 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun changePassword(currentPassword: String, newPassword: String): Resource<Unit> {
         return try {
+            // PERBAIKAN: Gunakan 'ChangePasswordRequestDto'
             val request = ChangePasswordRequest(
                 currentPassword = currentPassword,
                 newPassword = newPassword
             )
-            val response = api.changePassword(request)
+
+            // Panggil userApi (karena butuh token login)
+            val response = userApi.changePassword(request)
             val body = response.body()
 
             if (response.isSuccessful && body != null && body.success) {
@@ -100,17 +105,16 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun forgotPassword(email: String): Resource<Unit> {
         return try {
-            // Membuat body request: {"email": "user@example.com"}
+            // PERBAIKAN: Gunakan 'ForgotPasswordRequestDto'
             val request = ForgotPasswordRequest(email = email)
 
-            val response = api.forgotPassword(request)
+            // PENTING: Gunakan 'authApi' (karena ini endpoint public)
+            val response = userApi.forgotPassword(request)
             val body = response.body()
 
-            // Menggunakan BaseResponse (sesuai DTO yang kamu berikan)
             if (response.isSuccessful && body != null && body.success) {
                 Resource.Success(Unit)
             } else {
-                // Ambil pesan error dari API jika ada
                 val message = body?.message ?: body?.error ?: "Failed to send reset link"
                 Resource.Error(message)
             }
@@ -118,15 +122,17 @@ class UserRepositoryImpl @Inject constructor(
             Resource.Error(e.localizedMessage ?: "Connection error")
         }
     }
+
     override suspend fun resetPassword(token: String, newPassword: String): Resource<Unit> {
         return try {
+            // PERBAIKAN: Gunakan 'ResetPasswordRequestDto'
             val request = ResetPasswordRequest(
                 token = token,
                 newPassword = newPassword
             )
 
-            // Asumsi API return BaseResponse<Unit> atau sejenisnya
-            val response = api.resetPassword(request)
+            // PENTING: Gunakan 'authApi' (ini juga endpoint public)
+            val response = userApi.resetPassword(request)
             val body = response.body()
 
             if (response.isSuccessful && body != null && body.success) {

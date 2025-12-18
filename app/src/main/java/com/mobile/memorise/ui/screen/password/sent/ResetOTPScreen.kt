@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobile.memorise.R
+import com.mobile.memorise.ui.screen.password.forgot.deepBlue
 import kotlinx.coroutines.delay
 
 @Composable
@@ -240,14 +241,14 @@ fun ResetOtpScreen(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row {
-                Text("Don’t receive OTP?", color = Color.Gray, fontSize = 14.sp)
+                Text("Don’t receive OTP?", color = Color.Gray.copy(alpha = 0.5f), fontSize = 14.sp)
                 Spacer(modifier = Modifier.width(6.dp))
 
                 val isResendClickable = timer == 0 && !isLoading
 
                 Text(
                     text = "Resend",
-                    color = if (isResendClickable) Color(0xFF3B82F6) else Color.Gray,
+                    color = if (isResendClickable) deepBlue else Color.Gray.copy(alpha = 0.5f),
                     fontSize = 14.sp,
                     textDecoration = TextDecoration.Underline,
                     modifier = Modifier.clickable(enabled = isResendClickable) {
@@ -280,11 +281,11 @@ fun ResetOtpScreen(
                 .height(44.dp),
             colors = ButtonDefaults.buttonColors(
                 // State Aktif
-                containerColor = Color.Black,
+                containerColor = deepBlue,
                 contentColor = Color.White,
 
                 // State Tidak Aktif (Abu Tua, Tulisan Putih)
-                disabledContainerColor = Color.Gray,
+                disabledContainerColor = Color.Gray.copy(alpha = 0.5f),
                 disabledContentColor = Color.White
             ),
             shape = RoundedCornerShape(10.dp)

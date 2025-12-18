@@ -22,7 +22,7 @@ interface ApiService {
     @POST("folders")
     suspend fun createFolder(@Body request: CreateFolderRequestDto): Response<ApiResponseDto<FolderDto>>
 
-    @PUT("folders/{id}")
+    @PATCH("folders/{id}")
     suspend fun updateFolder(
         @Path("id") id: String,
         @Body request: CreateFolderRequestDto
@@ -139,11 +139,13 @@ interface ApiService {
     @POST("quiz/submit")
     suspend fun submitQuiz(@Body request: QuizSubmitRequestDto): Response<ApiResponseDto<QuizResultDto>>
 
+    // Ubah bagian ini:
     @GET("quiz/history")
-    suspend fun getQuizHistory(): Response<ApiResponseDto<List<QuizResultDto>>>
+// Ganti QuizResultDto menjadi QuizHistoryDto
+    suspend fun getQuizHistory(): Response<ApiResponseDto<List<QuizHistoryDto>>>
 
     @GET("quiz/{id}")
-    suspend fun getQuizDetail(@Path("id") id: String): Response<ApiResponseDto<QuizResultDto>>
+    suspend fun getQuizDetail(@Path("id") id: String): Response<ApiResponseDto<QuizDetailDto>>
 
     // --- FILE ENDPOINTS (INI YANG HILANG SEBELUMNYA) ---
     @Multipart

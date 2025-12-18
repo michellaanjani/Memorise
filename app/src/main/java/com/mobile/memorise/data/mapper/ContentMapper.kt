@@ -122,17 +122,24 @@ fun QuizQuestionDto.toDomain(): QuizQuestion {
 // --- B. Result / History Mapper (Response API -> Domain) ---
 fun QuizResultDto.toDomain(): QuizResult {
     return QuizResult(
-        id = this.id,
-        // Ambil ID dan Name dari object DeckSummaryDto
-        deckId = this.deck.id,
-        deckName = this.deck.name,
+        id = this.id ?: "", // Handle null safety jika perlu
+
+        // ✅ FIX: Ambil langsung string-nya
+        deckId = this.deckId,
+
+        // ⚠️ MASALAH: Server tidak mengirim nama deck di response submit.
+        // Solusi: Isi dengan string kosong atau placeholder sementara.
+        // Nanti di UI, jika deckName kosong, kamu mungkin perlu fetch detail deck terpisah
+        // atau pass nama deck dari screen sebelumnya.
+        deckName = "",
 
         score = this.score,
         totalQuestions = this.totalQuestions,
         correctAnswers = this.correctAnswers,
-        playedAt = this.playedAt,
 
-        // Mapping list details jika ada (untuk detail view), jika null (untuk list view) kosongkan
+        // Gunakan current time jika playedAt null (karena kadang server response beda format)
+        playedAt = this.playedAt ?: java.time.Instant.now().toString(),
+
         details = this.details?.map { it.toDomain() } ?: emptyList()
     )
 }
@@ -140,15 +147,89 @@ fun QuizResultDto.toDomain(): QuizResult {
 // Helper: Ubah item detail DTO ke Domain
 fun QuizDetailItemDto.toDomain(): QuizHistoryDetail {
     return QuizHistoryDetail(
-        cardId = this.card.id,
-        question = this.card.front, // Mapping front kartu sebagai pertanyaan
-        answer = this.card.back,    // Mapping back kartu sebagai referensi jawaban
+        // ✅ Ambil dari String langsung
+        cardId = this.cardId,
+
+        // ⚠️ Karena server response submit TIDAK mengirim teks soal (front),
+        // kita tidak bisa menampilkan soal aslinya di sini.
+        // Kita gunakan placeholder atau format ID.
+        question = "Question #${this.cardId.takeLast(4)}",
+
+        // Gunakan correctAnswer sebagai referensi jawaban yang benar
+        answer = this.correctAnswer,
+
         isCorrect = this.isCorrect,
         userAnswer = this.userAnswer,
         correctAnswer = this.correctAnswer,
         explanation = this.explanation
     )
 }
+
+// =================================================================
+// TAMBAHAN: QUIZ DETAIL MAPPER (DTO -> DOMAIN)
+// =================================================================
+
+// 1. Mapping dari Response Detail Utama (QuizDetailDto) ke Domain (QuizResult)
+fun QuizDetailDto.toDomain(): QuizResult {
+    return QuizResult(
+        id = this.id,
+
+        // 🔥 PERBAIKAN PENTING:
+        // Di endpoint Detail, deck dikirim sebagai Object (DeckSummaryDto), bukan String.
+        // Kita harus ambil properti .id dan .name dari object tersebut.
+        deckId = this.deck.id,
+        deckName = this.deck.name,
+
+        score = this.score,
+        totalQuestions = this.totalQuestions,
+        correctAnswers = this.correctAnswers,
+        playedAt = this.playedAt ?: java.time.Instant.now().toString(),
+
+        // Map list detail item (Expanded)
+        details = this.details?.map { it.toDomain() } ?: emptyList()
+    )
+}
+
+// 2. Mapping dari Item Detail Expanded (QuizDetailItemExpandedDto) ke Domain (QuizHistoryDetail)
+fun QuizDetailItemExpandedDto.toDomain(): QuizHistoryDetail {
+    return QuizHistoryDetail(
+        // 🔥 PERBAIKAN PENTING:
+        // Di endpoint Detail, card dikirim sebagai Object (CardSummaryDto).
+        // Kita bisa mengambil ID dan TEKS SOAL ASLI (front).
+
+        cardId = this.card.id,
+
+        // ✅ KUNCI: Karena ini detail history, server mengirimkan isi kartu.
+        // Jadi kita bisa menampilkan pertanyaan asli, bukan placeholder.
+        question = this.card.front,
+
+        answer = this.correctAnswer, // Jawaban yang benar
+        userAnswer = this.userAnswer,
+        correctAnswer = this.correctAnswer,
+        isCorrect = this.isCorrect,
+        explanation = this.explanation
+    )
+}
+// Tambahkan di bagian Quiz Mappers
+
+fun QuizHistoryDto.toDomain(): QuizResult {
+    return QuizResult(
+        id = this.id,
+
+        // 🔥 Ambil ID dan Name dari Object deck
+        deckId = this.deck.id,
+        deckName = this.deck.name,
+
+        score = this.score,
+        totalQuestions = this.totalQuestions,
+        correctAnswers = this.correctAnswers,
+        playedAt = this.playedAt ?: java.time.Instant.now().toString(),
+
+        // History list tidak perlu detail jawaban per soal
+        details = emptyList()
+    )
+}
+
 
 // --- C. Request Mappers (Jika dibutuhkan di ViewModel/Repo) ---
 // Catatan: Biasanya request mapper (Domain -> DTO) dibuat manual di RepositoryImpl

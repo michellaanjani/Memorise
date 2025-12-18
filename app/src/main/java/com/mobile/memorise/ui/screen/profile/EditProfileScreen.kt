@@ -3,6 +3,9 @@ package com.mobile.memorise.ui.screen.profile
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -11,6 +14,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,9 +23,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
@@ -31,19 +37,21 @@ import com.mobile.memorise.R
 import com.mobile.memorise.navigation.MainRoute
 import com.mobile.memorise.util.Resource
 import kotlinx.coroutines.delay
-import androidx.compose.foundation.BorderStroke
 
 @Composable
 fun EditProfileScreen(
     navController: NavHostController,
-    viewModel: ProfileViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
     var showSuccessPopup by remember { mutableStateOf(false) }
 
+    // --- LOGIC PERUBAHAN DI SINI ---
+    // Menangani timer popup dan auto navigation back
     LaunchedEffect(showSuccessPopup) {
         if (showSuccessPopup) {
-            delay(2500)
+            delay(2000) // Tunggu 2 detik agar user membaca "Success"
             showSuccessPopup = false
+            navController.popBackStack() // Otomatis kembali ke layar sebelumnya
         }
     }
 
@@ -63,9 +71,13 @@ fun EditProfileScreen(
 
     // Show success popup when update is successful
     LaunchedEffect(updateState) {
-        if (updateState is com.mobile.memorise.util.Resource.Success) {
+        if (updateState is Resource.Success) {
             showSuccessPopup = true
             viewModel.loadUserProfile() // Reload to get updated data
+            viewModel.resetUpdateState()
+        }
+        if (updateState is Resource.Error) {
+            viewModel.resetUpdateState()
         }
     }
 
@@ -73,7 +85,6 @@ fun EditProfileScreen(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         if (uri != null) {
-            // Hanya ubah state lokal; penyimpanan dilakukan saat klik Update
             avatarUri = uri
         }
     }
@@ -93,10 +104,9 @@ fun EditProfileScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 28.dp), // ⭐ DIPERBESAR
+                    .padding(horizontal = 20.dp, vertical = 28.dp),
                 contentAlignment = Alignment.Center
             ) {
-
                 Icon(
                     painter = painterResource(id = R.drawable.back),
                     contentDescription = "Back",
@@ -114,16 +124,14 @@ fun EditProfileScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp)) // ⭐ Tambah jarak sedikit
+            Spacer(modifier = Modifier.height(14.dp))
 
             /** PROFILE AVATAR */
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-
                 Box(contentAlignment = Alignment.BottomEnd) {
-
                     if (avatarUri != null) {
                         AsyncImage(
                             model = avatarUri,
@@ -187,40 +195,51 @@ fun EditProfileScreen(
                     .padding(20.dp)
             ) {
 
+                // FIRST NAME
                 OutlinedTextField(
                     value = firstName,
                     onValueChange = { firstName = it },
-                    placeholder = { Text("First Name") },
+                    placeholder = { Text("First Name", color = Color.Gray) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 12.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
+                        // Text input warna hitam
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.Black,
                         unfocusedBorderColor = Color(0xFFE7ECF5),
                         focusedBorderColor = Color(0xFF0961F5),
                         cursorColor = Color(0xFF0961F5)
-                    )
+                    ),
+                    singleLine = true
                 )
 
+                // LAST NAME
                 OutlinedTextField(
                     value = lastName,
                     onValueChange = { lastName = it },
-                    placeholder = { Text("Last Name") },
+                    placeholder = { Text("Last Name", color = Color.Gray) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 12.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
+                        // Text input warna hitam
+                        focusedTextColor = Color.Black,
+                        unfocusedTextColor = Color.Black,
                         unfocusedBorderColor = Color(0xFFE7ECF5),
                         focusedBorderColor = Color(0xFF0961F5),
                         cursorColor = Color(0xFF0961F5)
-                    )
+                    ),
+                    singleLine = true
                 )
 
+                // EMAIL (Read Only - Disabled)
                 OutlinedTextField(
                     value = email,
-                    onValueChange = { }, // Disabled - tidak bisa diedit
-                    enabled = false, // Lock email field
+                    onValueChange = { },
+                    enabled = false, // Tidak bisa diedit
                     placeholder = { Text("Email") },
                     leadingIcon = {
                         Image(
@@ -234,13 +253,15 @@ fun EditProfileScreen(
                         .padding(bottom = 12.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
+                        // Warna disabled tetap abu-abu sesuai default/request
                         unfocusedBorderColor = Color(0xFFE7ECF5),
                         focusedBorderColor = Color(0xFFE7ECF5),
                         disabledBorderColor = Color(0xFFE7ECF5),
                         disabledTextColor = Color(0xFF9E9E9E),
                         disabledPlaceholderColor = Color(0xFF9E9E9E),
-                        cursorColor = Color(0xFF0961F5)
-                    )
+                        disabledLeadingIconColor = Color(0xFF9E9E9E)
+                    ),
+                    singleLine = true
                 )
             }
 
@@ -248,7 +269,6 @@ fun EditProfileScreen(
 
             /** UPDATE BUTTON */
             val isFormFilled = firstName.isNotBlank() && lastName.isNotBlank()
-            // Only check firstName, lastName, and avatar changes (not email since it's disabled)
             val isChanged =
                 firstName != userState.firstName ||
                         lastName != userState.lastName ||
@@ -311,24 +331,67 @@ fun EditProfileScreen(
 
         /** SUCCESS POPUP */
         if (showSuccessPopup) {
+            val alphaAnim by animateFloatAsState(
+                if (showSuccessPopup) 1f else 0f,
+                tween(250),
+                label = "alpha"
+            )
+            val scaleAnim by animateFloatAsState(
+                if (showSuccessPopup) 1f else 0.95f,
+                tween(250),
+                label = "scale"
+            )
+
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 40.dp)
-                    .align(Alignment.TopCenter),
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f * alphaAnim))
+                    .clickable(enabled = false) {},
                 contentAlignment = Alignment.Center
             ) {
-                Box(
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
                     modifier = Modifier
-                        .background(Color(0xFF7CFF8A), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                        .padding(32.dp)
+                        .graphicsLayer {
+                            scaleX = scaleAnim
+                            scaleY = scaleAnim
+                        }
                 ) {
-                    Text(
-                        "Profile Updated!",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.Black
-                    )
+                    Column(
+                        modifier = Modifier.padding(horizontal = 32.dp, vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(60.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFDCFCE7)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Check,
+                                null,
+                                tint = Color(0xFF166534),
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "Success!",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Profile Updated successfully.",
+                            fontSize = 14.sp,
+                            color = Color(0xFF6B7280),
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }

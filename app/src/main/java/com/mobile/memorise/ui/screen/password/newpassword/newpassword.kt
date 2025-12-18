@@ -21,6 +21,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.mobile.memorise.ui.screen.password.forgot.deepBlue
 
 @Composable
 fun NewPasswordScreen(
@@ -161,9 +162,9 @@ fun NewPasswordScreen(
             enabled = isButtonEnabled,
             shape = RoundedCornerShape(40.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF0A57F2),
+                containerColor = deepBlue,
                 contentColor = Color.White,
-                disabledContainerColor = Color.DarkGray,
+                disabledContainerColor = Color.Gray.copy(alpha = 0.5f),
                 disabledContentColor = Color.White
             ),
             modifier = Modifier

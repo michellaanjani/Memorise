@@ -3,7 +3,28 @@ package com.mobile.memorise.data.remote.dto.content
 import com.google.gson.annotations.SerializedName
 
 // =================================================================
-// 1. STANDARD CONTENT (Folder, Deck, Card)
+// 1. HELPER DTOs (Komponen Kecil)
+// =================================================================
+
+// Helper untuk menangkap object cardId: { "_id": "...", "front": "...", "back": "..." }
+// Digunakan di endpoint History Detail
+data class CardSummaryDto(
+    @SerializedName("_id")
+    val id: String,
+    val front: String,
+    val back: String
+)
+
+// Helper untuk menangkap object deckId: { "_id": "...", "name": "..." }
+// Digunakan di endpoint History List & Detail
+data class DeckSummaryDto(
+    @SerializedName("_id")
+    val id: String,
+    val name: String
+)
+
+// =================================================================
+// 2. STANDARD CONTENT (Folder, Deck, Card)
 // =================================================================
 
 data class FolderDto(
@@ -39,7 +60,7 @@ data class CardDto(
 )
 
 // =================================================================
-// 2. HOME & REQUEST BODIES
+// 3. HOME & REQUEST BODIES
 // =================================================================
 
 data class HomeDataDto(
@@ -60,7 +81,7 @@ data class CreateDeckRequestDto(
 )
 
 data class CreateCardRequestDto(
-    val deckId: String? = null, // Nullable agar bisa dipakai untuk Update (PATCH)
+    val deckId: String? = null,
     val front: String,
     val back: String
 )
@@ -70,10 +91,9 @@ data class MoveDeckRequestDto(
 )
 
 // =================================================================
-// 3. QUIZ SYSTEM DTOs (BAGIAN INI YANG DIPERBAIKI)
+// 4. QUIZ START & SUBMIT (Request & Session)
 // =================================================================
 
-// Sesuaikan dengan JSON Log: { "deckId": "...", "totalQuestions": 6, "questions": [...] }
 data class QuizSessionDto(
     @SerializedName("deckId")
     val deckId: String? = null,
@@ -82,10 +102,9 @@ data class QuizSessionDto(
     val totalQuestions: Int? = 0,
 
     @SerializedName("questions")
-    val questions: List<QuizQuestionDto>? = emptyList() // Default empty biar gak crash
+    val questions: List<QuizQuestionDto>? = emptyList()
 )
 
-// Class baru untuk menampung detail pertanyaan dari server
 data class QuizQuestionDto(
     @SerializedName("cardId")
     val cardId: String,
@@ -97,87 +116,95 @@ data class QuizQuestionDto(
     val correctAnswer: String,
 
     @SerializedName("options")
-    val options: List<String>? = emptyList(), // Penting: List String, bukan Object
+    val options: List<String>? = emptyList(),
 
     @SerializedName("explanation")
     val explanation: String? = null
 )
 
+// Request body saat mengirim jawaban
 data class QuizSubmitRequestDto(
-    val deckId: String,          // Biasanya butuh deckId
+    val deckId: String,
     val totalQuestions: Int,
     val correctAnswers: Int,
 
-    @SerializedName("details") // <--- TAMBAHKAN INI AGAR SERVER BACA SEBAGAI "details"
+    @SerializedName("details")
     val answers: List<QuizAnswerDto>
 )
+
 data class QuizAnswerDto(
     val cardId: String,
     val isCorrect: Boolean,
     val userAnswer: String,
-
-    // 🔥 TAMBAHKAN INI
     val correctAnswer: String
 )
 
-
 // =================================================================
-// DTOs untuk HISTORY & DETAIL QUIZ
+// 5. QUIZ RESPONSES (PENANGANAN 3 SKENARIO BERBEDA)
 // =================================================================
 
+// --- SKENARIO A: RESPONSE SUBMIT QUIZ ---
+// deckId = String, cardId = String
 data class QuizResultDto(
-    @SerializedName("_id")
-    val id: String,
-
-    // 🔥 FIX 1: deckId di JSON adalah Object, bukan String
-    @SerializedName("deckId")
-    val deck: DeckSummaryDto,
-
+    @SerializedName("_id") val id: String?,
+    @SerializedName("deckId") val deckId: String, // String
     val score: Int,
     val totalQuestions: Int,
     val correctAnswers: Int,
-
-    @SerializedName("createdAt")
-    val playedAt: String,
-
-    // 🔥 FIX 2: Tambahkan field details (Nullable, karena di list history field ini tidak ada)
-    @SerializedName("details")
-    val details: List<QuizDetailItemDto>? = null
+    @SerializedName("createdAt") val playedAt: String?,
+    @SerializedName("details") val details: List<QuizDetailItemDto>?
 )
 
-// Helper DTO untuk menangkap object deckId: { "_id": "...", "name": "..." }
-data class DeckSummaryDto(
-    @SerializedName("_id")
-    val id: String,
-
-    @SerializedName("name")
-    val name: String
-)
-
-// Helper DTO untuk item di dalam array "details"
 data class QuizDetailItemDto(
     @SerializedName("_id")
     val id: String,
-
-    // 🔥 FIX 3: cardId di sini adalah Object, berisi front & back
     @SerializedName("cardId")
-    val card: CardSummaryDto,
-
+    val cardId: String, // String (Hanya ID)
     val isCorrect: Boolean,
     val userAnswer: String,
     val correctAnswer: String,
-    val explanation: String?
+    val explanation: String? = null
 )
 
-// Helper DTO untuk menangkap object cardId: { "_id": "...", "front": "...", "back": "..." }
-data class CardSummaryDto(
+// --- SKENARIO B: RESPONSE HISTORY LIST ---
+// deckId = Object (DeckSummaryDto), details biasanya tidak dipakai di list
+data class QuizHistoryDto(
     @SerializedName("_id")
     val id: String,
-    val front: String,
-    val back: String
+    @SerializedName("deckId")
+    val deck: DeckSummaryDto, // Object Deck
+    val score: Int,
+    val totalQuestions: Int,
+    val correctAnswers: Int,
+    @SerializedName("createdAt")
+    val playedAt: String?
 )
+
+// --- SKENARIO C: RESPONSE QUIZ DETAIL (HISTORY DETAIL) ---
+// deckId = Object, cardId = Object (Expanded)
+data class QuizDetailDto(
+    @SerializedName("_id") val id: String,
+    @SerializedName("deckId") val deck: DeckSummaryDto, // Object Deck
+    val score: Int,
+    val totalQuestions: Int,
+    val correctAnswers: Int,
+    @SerializedName("createdAt") val playedAt: String?,
+    @SerializedName("details") val details: List<QuizDetailItemExpandedDto>?
+)
+
+data class QuizDetailItemExpandedDto(
+    @SerializedName("_id")
+    val id: String,
+    @SerializedName("cardId")
+    val card: CardSummaryDto, // Object Card (Front/Back)
+    val isCorrect: Boolean,
+    val userAnswer: String,
+    val correctAnswer: String,
+    val explanation: String? = null
+)
+
 // =================================================================
-// 4. AI & FILE MODULE DTOs
+// 6. AI & FILE MODULE DTOs
 // =================================================================
 
 data class AiGenerateRequest(

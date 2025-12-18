@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -57,6 +58,7 @@ private val BlueButton = Color(0xFF4285F4)
 private val BgColor = Color(0xFFF8F9FB)
 private val TextGray = Color(0xFF757575)
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CardsScreen(
@@ -77,7 +79,7 @@ fun CardsScreen(
 
     // State dari ViewModel
     val rawCards = deckViewModel.cards
-    val isLoading = deckViewModel.areCardsLoading
+    val isLoading = deckViewModel.areCardsLoading // 🔥 Mengambil status loading
     val errorMessage = deckViewModel.errorMessage
 
     // State UI Lokal
@@ -114,10 +116,13 @@ fun CardsScreen(
 
     Scaffold(
         containerColor = BgColor,
-        snackbarHost = { SnackbarHost(snackbarHostState) }, // Host Snackbar
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = {},
+                title = {
+                    // Opsional: Tampilkan nama Deck di TopBar agar tetap terlihat saat Empty State
+                    // Text(text = deckName, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
@@ -153,108 +158,142 @@ fun CardsScreen(
         }
     ) { innerPadding ->
 
-        // Loading State Penuh jika data kosong dan sedang loading
-        if (isLoading && cardList.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = BlueButton)
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    top = innerPadding.calculateTopPadding(),
-                    bottom = innerPadding.calculateBottomPadding() + 100.dp, // Space untuk FAB
-                    start = 24.dp,
-                    end = 24.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                // 1. Judul Deck
-                item {
-                    Text(
-                        text = deckName,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextDark,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
+        // 🔥 STRUKTUR UTAMA (Box)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            if (isLoading) {
+                // 1. TAMPILAN LOADING
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = BlueButton)
                 }
 
-                // 2. Summary Card (Kotak Biru)
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(180.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(BlueHeader),
-                        contentAlignment = Alignment.Center
+            } else if (cardList.isEmpty()) {
+                // 2. TAMPILAN KOSONG (EMPTY STATE)
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(24.dp)
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "${cardList.size}",
-                                fontSize = 64.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            Text(
-                                text = "Cards in deck",
-                                fontSize = 16.sp,
-                                color = Color.White.copy(alpha = 0.9f)
-                            )
-                        }
+                        Image(
+                            painter = painterResource(id = R.drawable.empty),
+                            contentDescription = "No Cards",
+                            modifier = Modifier.size(200.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Text(
+                            text = "No Cards yet!",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1A1C24)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Let’s create a card for you to learn!",
+                            fontSize = 14.sp,
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
 
-                // 3. Tombol Actions (Study & Quiz)
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Tombol Study
-                        Button(
-                            onClick = {
-                                if (cardList.isEmpty()) {
-                                    showStudyAlert = true
-                                } else {
-                                    onStudyClick()
-                                }
-                            },
-                            modifier = Modifier.weight(1f).height(50.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = OrangeButton)
-                        ) {
-                            Text("Study cards", color = Color.White, fontWeight = FontWeight.SemiBold)
-                        }
+            } else {
+                // 3. TAMPILAN DATA (HEADER + LIST)
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        top = 0.dp, // Reset top padding karena sudah di handle Scaffold
+                        bottom = 100.dp, // Space untuk FAB
+                        start = 24.dp,
+                        end = 24.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // A. Judul Deck
+                    item {
+                        Text(
+                            text = deckName,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextDark,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
 
-                        // Tombol Quiz
-                        Button(
-                            onClick = {
-                                if (cardList.size < 3) {
-                                    showQuizAlert = true
-                                } else {
-                                    onQuizClick()
-                                }
-                            },
-                            modifier = Modifier.weight(1f).height(50.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = BlueButton)
+                    // B. Summary Card (Kotak Biru)
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(Color(0xFF4B89F3), Color(0xFF3366FF))
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Text("Start Quiz", color = Color.White, fontWeight = FontWeight.SemiBold)
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "${cardList.size}",
+                                    fontSize = 64.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = "Cards in deck",
+                                    fontSize = 16.sp,
+                                    color = Color.White.copy(alpha = 0.9f)
+                                )
+                            }
                         }
                     }
-                }
 
-                // --- LOGIKA LIST VS EMPTY STATE ---
+                    // C. Tombol Actions (Study & Quiz)
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            // Tombol Study
+                            Button(
+                                onClick = onStudyClick,
+                                modifier = Modifier.weight(1f).height(50.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = OrangeButton)
+                            ) {
+                                Text("Study cards", color = Color.White, fontWeight = FontWeight.SemiBold)
+                            }
 
-                if (cardList.isNotEmpty()) {
-                    // Header List
+                            // Tombol Quiz
+                            Button(
+                                onClick = {
+                                    if (cardList.size < 3) {
+                                        showQuizAlert = true
+                                    } else {
+                                        onQuizClick()
+                                    }
+                                },
+                                modifier = Modifier.weight(1f).height(50.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = BlueButton)
+                            ) {
+                                Text("Start Quiz", color = Color.White, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+
+                    // D. Header List
                     item {
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
@@ -265,7 +304,7 @@ fun CardsScreen(
                         )
                     }
 
-                    // Item List
+                    // E. List Item Cards
                     itemsIndexed(cardList) { index, card ->
                         CardItemView(
                             card = card,
@@ -280,47 +319,10 @@ fun CardsScreen(
                                 onEditCardClick(encodedJson, index)
                             },
                             onDeleteClick = {
-                                cardIdToDelete = card.id // Simpan ID, bukan index
+                                cardIdToDelete = card.id
                                 showDeleteDialog = true
                             }
                         )
-                    }
-
-                } else {
-                    // Empty State (Gambar Kosong)
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 40.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.padding(24.dp)
-                            ) {
-                                Image(
-                                    painter = painterResource(id = R.drawable.empty),
-                                    contentDescription = "No Cards",
-                                    modifier = Modifier.size(200.dp),
-                                    contentScale = ContentScale.Fit
-                                )
-                                Spacer(modifier = Modifier.height(24.dp))
-                                Text(
-                                    text = "No Cards yet!",
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF1A1C24)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Let’s create a card for you to learn!",
-                                    fontSize = 14.sp,
-                                    color = Color.Gray,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
                     }
                 }
             }
@@ -330,7 +332,7 @@ fun CardsScreen(
 
         if (showQuizAlert) {
             ValidationDialog(
-                iconRes = R.drawable.threecard,
+                iconRes = R.drawable.threecard, // Pastikan drawable ini ada
                 title = "Minimal 3 Kartu Diperlukan",
                 description = "Anda memerlukan minimal 3 kartu untuk memulai mode Quiz. Silakan tambah kartu.",
                 onDismiss = { showQuizAlert = false }

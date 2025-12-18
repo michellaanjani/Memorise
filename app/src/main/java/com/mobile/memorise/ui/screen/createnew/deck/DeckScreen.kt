@@ -32,7 +32,6 @@ import com.mobile.memorise.R
 import com.mobile.memorise.domain.model.Deck
 import com.mobile.memorise.navigation.MainRoute
 import com.mobile.memorise.ui.component.DeleteConfirmDialog
-import com.mobile.memorise.ui.screen.main.CreateOptionItem
 import com.mobile.memorise.ui.theme.*
 import java.time.Instant
 import java.time.ZoneId
@@ -55,13 +54,13 @@ fun DeckScreen(
 ) {
     val deckList = viewModel.decks
 
-    val sheetState = rememberModalBottomSheetState()
-    var showBottomSheet by remember { mutableStateOf(false) }
+    // 🔥 PERUBAHAN 1: Ambil status loading dari ViewModel
+    val isLoading = viewModel.isDecksLoading
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deckToDelete by remember { mutableStateOf<Deck?>(null) }
 
-    // 🔥 PENTING: Ini mengisi currentFolderId di ViewModel agar Edit Deck tidak error
+    // 🔥 PERUBAHAN 2: Hapus delay manual. Cukup panggil fungsi loadDecks.
     LaunchedEffect(folderId) {
         viewModel.loadDecks(folderId)
     }
@@ -94,7 +93,7 @@ fun DeckScreen(
         },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { showBottomSheet = true },
+                onClick = { onNavigate(MainRoute.CreateDeck.createDeckWithFolder(folderId)) },
                 containerColor = WhitePurple,
                 contentColor = BrightBlue,
                 shape = CircleShape,
@@ -109,13 +108,24 @@ fun DeckScreen(
         }
     ) { innerPadding ->
 
-        Column(modifier = Modifier.fillMaxSize()) {
-
-            if (deckList.isEmpty()) {
+        // 🔥 PERUBAHAN 3: Logika Tampilan (Loading -> Empty -> Data)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            if (isLoading) {
+                // 1. TAMPILKAN LOADING (Hanya jika proses API sedang berjalan)
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = innerPadding.calculateTopPadding()),
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = BrightBlue)
+                }
+            } else if (deckList.isEmpty()) {
+                // 2. TAMPILKAN EMPTY STATE (Hanya jika loading selesai DAN data kosong)
+                Box(
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -145,11 +155,12 @@ fun DeckScreen(
                     }
                 }
             } else {
+                // 3. TAMPILKAN DATA (Jika loading selesai DAN data ada)
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
-                        top = innerPadding.calculateTopPadding() + 24.dp,
-                        bottom = innerPadding.calculateBottomPadding() + 100.dp,
+                        top = 24.dp,
+                        bottom = 100.dp,
                         start = 24.dp,
                         end = 24.dp
                     ),
@@ -175,22 +186,6 @@ fun DeckScreen(
             }
         }
 
-        if (showBottomSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showBottomSheet = false },
-                sheetState = sheetState,
-                containerColor = Color.White
-            ) {
-                CreateBottomSheetContent(
-                    folderId = folderId,
-                    onNavigate = { route ->
-                        showBottomSheet = false
-                        onNavigate(route)
-                    }
-                )
-            }
-        }
-
         if (showDeleteDialog && deckToDelete != null) {
             DeleteConfirmDialog(
                 onCancel = {
@@ -207,6 +202,7 @@ fun DeckScreen(
     }
 }
 
+// ... (DeckItemView dan formatDeckDate tetap sama) ...
 @Composable
 fun DeckItemView(
     data: Deck,
@@ -298,9 +294,7 @@ fun DeckItemView(
                             onMoveClicked()
                         }
                     )
-
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color.Gray.copy(alpha = 0.3f))
-
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -314,9 +308,7 @@ fun DeckItemView(
                             onEditClicked()
                         }
                     )
-
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = Color.Gray.copy(alpha = 0.3f))
-
                     DropdownMenuItem(
                         text = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -336,64 +328,14 @@ fun DeckItemView(
     }
 }
 
-@Composable
-fun CreateBottomSheetContent(
-    folderId: String,
-    onNavigate: (String) -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .padding(bottom = 48.dp)
-            .navigationBarsPadding()
-    ) {
-        Text(
-            text = "Create New",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Gray,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        CreateOptionItem(
-            painter = painterResource(id = R.drawable.cdeck),
-            title = "Create Deck",
-            subtitle = "Organize flashcard into decks",
-            onClick = {
-                onNavigate(MainRoute.CreateDeck.createDeckWithFolder(folderId))
-            }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        CreateOptionItem(
-            painter = painterResource(id = R.drawable.cai),
-            title = "Generate With AI",
-            subtitle = "Create cards with AI",
-            onClick = {
-                onNavigate(MainRoute.AiGeneration.route)
-            }
-        )
-    }
-}
-
 fun formatDeckDate(isoDate: String): String {
-    // Cek jika kosong
     if (isoDate.isBlank()) return "Recently"
-
     return try {
         val instant = Instant.parse(isoDate)
         val zone = ZoneId.systemDefault()
         val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.getDefault())
         "Updated: " + instant.atZone(zone).format(formatter)
     } catch (e: Exception) {
-        // Fallback jika format gagal
         "Updated recently"
     }
 }

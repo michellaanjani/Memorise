@@ -173,17 +173,23 @@ fun AiGeneratedDraftScreen(
                         .fillMaxWidth(0.9f)
                         .height(50.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CardWhite, contentColor = PrimaryBlue),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CardWhite,
+                        contentColor = PrimaryBlue,
+                        // Tambahkan dua baris ini agar saat loading (disabled) warnanya tetap muncul
+                        disabledContainerColor = CardWhite,
+                        disabledContentColor = PrimaryBlue
+                    ),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                 ) {
                     if (saveState is Resource.Loading) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = PrimaryBlue)
                         Spacer(Modifier.width(8.dp))
-                        Text("Menyimpan...", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Saving...", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     } else if (saveState is Resource.Success) {
                         Icon(Icons.Default.Check, contentDescription = null, tint = PrimaryBlue)
                         Spacer(Modifier.width(8.dp))
-                        Text("Tersimpan!", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Changes saved!", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     } else {
                         Text("Save Deck", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }

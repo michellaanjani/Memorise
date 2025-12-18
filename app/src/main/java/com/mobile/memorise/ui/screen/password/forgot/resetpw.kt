@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.mobile.memorise.R
 
+
+val deepBlue = Color(0xFF0C3DF4)
 @Composable
 fun ResetPwScreen(
     onBackClick: () -> Unit = {},
@@ -28,6 +30,7 @@ fun ResetPwScreen(
 ) {
     val state = viewModel.state
     val context = LocalContext.current
+
 
     LaunchedEffect(state.isSuccess) {
         if (state.isSuccess) {
@@ -167,11 +170,11 @@ fun ResetPwScreen(
                         .height(52.dp),
                     // 🔥 PERBAIKAN 3: Warna tombol sesuai permintaan (Abu Tua & Putih saat disabled) 🔥
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Black, // Atau Color(0xFF0C3DF4) sesuai tema aktif kamu
+                        containerColor = deepBlue, // Atau Color(0xFF0C3DF4) sesuai tema aktif kamu
                         contentColor = Color.White,
 
                         // Saat tombol MATI (Disabled)
-                        disabledContainerColor = Color.Gray, // Abu Tua
+                        disabledContainerColor = Color.Gray.copy(alpha = 0.5f), // Abu Tua
                         disabledContentColor = Color.White       // Tulisan Tetap Putih
                     ),
                     shape = RoundedCornerShape(14.dp)

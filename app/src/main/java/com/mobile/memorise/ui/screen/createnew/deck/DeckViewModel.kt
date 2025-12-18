@@ -102,6 +102,9 @@ class DeckViewModel @Inject constructor(
     var currentFolderId by mutableStateOf<String?>(null)
         private set
 
+    var isDecksLoading by mutableStateOf(false)
+        private set
+
     // ==========================================================
     // HELPER FUNCTIONS
     // ==========================================================
@@ -160,6 +163,7 @@ class DeckViewModel @Inject constructor(
     fun loadDecks(folderId: String?) {
         currentFolderId = folderId
         viewModelScope.launch {
+            isDecksLoading = true
             repository.getDecks(folderId)
                 .onSuccess { deckList ->
                     _decks.clear()
@@ -168,6 +172,8 @@ class DeckViewModel @Inject constructor(
                 .onFailure {
                     errorMessage = "Gagal memuat decks: ${it.message}"
                 }
+            // 🔥 2. Set Loading FALSE setelah request selesai (sukses/gagal)
+            isDecksLoading = false
         }
     }
 

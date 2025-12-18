@@ -40,7 +40,7 @@ import com.mobile.memorise.R
 import com.mobile.memorise.domain.model.QuizAnswerInput
 import com.mobile.memorise.domain.model.QuizQuestion
 import com.mobile.memorise.domain.model.QuizResult
-import com.mobile.memorise.ui.viewmodel.QuizViewModel
+import com.mobile.memorise.ui.screen.cards.QuizViewModel
 import com.mobile.memorise.util.Resource
 
 // --- COLORS PALETTE ---

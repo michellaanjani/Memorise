@@ -353,12 +353,12 @@ fun AiGenerationScreen(
 fun AiLoadingOverlay(technicalMessage: String) {
     val loadingMessages = remember {
         listOf(
-            "Mengunggah dokumen kamu...",
-            "AI sedang membaca materi...",
-            "Menganalisis poin-poin penting...",
-            "Menyusun pertanyaan flashcard...",
-            "Sedikit lagi selesai...",
-            "Memastikan format kartu rapi..."
+            "Uploading your document...",
+            "AI is reading the material...",
+            "Analyzing key points..",
+            "Generating flashcard questions...",
+            "Almost there...",
+            "Polishing card layout..."
         )
     }
 

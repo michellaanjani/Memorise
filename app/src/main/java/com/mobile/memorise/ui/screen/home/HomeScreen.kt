@@ -1,6 +1,11 @@
 package com.mobile.memorise.ui.screen.home
 
 import android.net.Uri
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -150,6 +155,8 @@ fun HomeScreen(
     homeViewModel: HomeViewModel = hiltViewModel(),
     profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
+    // 🔥 TAMBAHAN 1: Ambil Context untuk menampilkan Toast
+    val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deleteId by remember { mutableStateOf("") }
     var deleteType by remember { mutableStateOf("") }
@@ -162,10 +169,31 @@ fun HomeScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val pullRefreshState = rememberPullToRefreshState()
+    // 🔥 PERUBAHAN: Tambahkan Lifecycle Owner
+    val lifecycleOwner = LocalLifecycleOwner.current
 
+    // 🔥 PERUBAHAN: Gunakan DisposableEffect untuk Auto Reload saat ON_RESUME
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                // Dipanggil setiap kali layar tampil (awal buka atau kembali dari screen lain)
+                homeViewModel.getHomeData()
+                profileViewModel.loadUserProfile()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // HAPUS atau KOMENTARI LaunchedEffect(Unit) yang lama karena sudah digantikan oleh kode di atas
+    /*
     LaunchedEffect(Unit) {
         profileViewModel.loadUserProfile()
     }
+    */
 
     LaunchedEffect(homeState) {
         when (val result = homeState) {
@@ -330,6 +358,7 @@ fun HomeScreen(
                     "deck" -> deckViewModel.deleteDeck(deleteId)
                 }
                 homeViewModel.getHomeData()
+                Toast.makeText(context, "Delete Success", Toast.LENGTH_SHORT).show()
                 deleteId = ""
                 deleteType = ""
             }

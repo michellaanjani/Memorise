@@ -115,6 +115,9 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
+    fun resetUpdateState() {
+        _updateState.value = null
+    }
     private val _changePasswordState = MutableStateFlow<Resource<Unit>?>(null)
     val changePasswordState: StateFlow<Resource<Unit>?> = _changePasswordState.asStateFlow()
 

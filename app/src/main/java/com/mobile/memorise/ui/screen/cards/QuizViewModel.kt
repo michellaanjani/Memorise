@@ -1,8 +1,7 @@
-package com.mobile.memorise.ui.viewmodel
+package com.mobile.memorise.ui.screen.cards
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-// Pastikan import ini sesuai dengan lokasi file model Anda (tanpa .quiz jika satu file)
 import com.mobile.memorise.domain.model.QuizAnswerInput
 import com.mobile.memorise.domain.model.QuizResult
 import com.mobile.memorise.domain.model.QuizSession
