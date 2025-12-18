@@ -337,6 +337,7 @@ class ContentRepositoryImpl @Inject constructor(
         )
     }
 
+
     override suspend fun getQuizDetail(quizId: String): Result<QuizResult> {
         return safeApiCall(
             apiCall = { api.getQuizDetail(quizId) },

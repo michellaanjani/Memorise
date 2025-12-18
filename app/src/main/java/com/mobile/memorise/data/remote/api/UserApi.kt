@@ -1,14 +1,14 @@
 package com.mobile.memorise.data.remote.api
 
-import com.mobile.memorise.data.remote.dto.BaseResponse
-import com.mobile.memorise.data.remote.dto.EmailVerificationStatusDataDto
+import com.mobile.memorise.data.remote.dto.auth.*
+//import com.mobile.memorise.data.remote.dto.EmailVerificationStatusDataDto
 import com.mobile.memorise.data.remote.dto.auth.AuthDataDto
 import com.mobile.memorise.data.remote.dto.common.ApiResponseDto
-import com.mobile.memorise.data.remote.dto.UserProfileResponseDto
-import com.mobile.memorise.data.remote.dto.UpdateProfileRequest
-import com.mobile.memorise.data.remote.dto.ChangePasswordRequest
-import com.mobile.memorise.data.remote.dto.ForgotPasswordRequest
-import com.mobile.memorise.data.remote.dto.ResetPasswordRequest
+//import com.mobile.memorise.data.remote.dto.UserProfileResponseDto
+//import com.mobile.memorise.data.remote.dto.UpdateProfileRequest
+//import com.mobile.memorise.data.remote.dto.ChangePasswordRequest
+//import com.mobile.memorise.data.remote.dto.ForgotPasswordRequest
+//import com.mobile.memorise.data.remote.dto.ResetPasswordRequest
 import retrofit2.http.GET
 import retrofit2.http.PUT
 import retrofit2.http.POST

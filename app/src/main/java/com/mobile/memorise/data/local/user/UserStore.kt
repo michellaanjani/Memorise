@@ -24,11 +24,20 @@ class UserStore @Inject constructor(
 ) {
     private val USER_KEY = stringPreferencesKey("user_data")
 
+    // === TAMBAHAN PENTING ===
+    // Konfigurasi Json agar lebih 'pemaaf' dan tidak mudah crash
+    private val json = Json {
+        ignoreUnknownKeys = true // Jika backend tambah field baru, aplikasi tidak crash
+        encodeDefaults = true    // Menyertakan nilai default saat disimpan
+        isLenient = true         // Lebih toleran terhadap format JSON yang agak berantakan
+        coerceInputValues = true // PENTING: Jika ada null masuk ke field non-null, gunakan default value
+    }
+
     // 1. Simpan User (Dipanggil saat Login/Register Sukses)
     suspend fun saveUser(user: UserDto) {
         context.dataStore.edit { preferences ->
-            // Ubah Object UserDto menjadi String JSON
-            val jsonString = Json.encodeToString(user)
+            // Gunakan variabel 'json' custom kita, bukan Json default
+            val jsonString = json.encodeToString(user)
             preferences[USER_KEY] = jsonString
         }
     }
@@ -39,9 +48,10 @@ class UserStore @Inject constructor(
             val jsonString = preferences[USER_KEY]
             if (jsonString != null) {
                 try {
-                    // Ubah String JSON kembali ke Object UserDto
-                    Json.decodeFromString<UserDto>(jsonString)
+                    // Gunakan variabel 'json' custom untuk membaca kembali
+                    json.decodeFromString<UserDto>(jsonString)
                 } catch (e: Exception) {
+                    e.printStackTrace() // Log error di Logcat jika gagal parsing
                     null
                 }
             } else {

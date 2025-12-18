@@ -1,8 +1,10 @@
 package com.mobile.memorise.ui.screen.main
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mobile.memorise.domain.repository.AuthRepository
+import com.mobile.memorise.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,12 +14,13 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val repository: AuthRepository
+    private val authRepository: AuthRepository, // Untuk Cek Token Lokal
+    private val userRepository: UserRepository  // Untuk Cek Status Verifikasi ke API
 ) : ViewModel() {
 
     // null = loading (Splash screen tampil)
-    // true = Home Screen
-    // false = Login Screen
+    // true = Home Screen (Token Ada & Email Verified)
+    // false = Login Screen (Token Tidak Ada atau Email Belum Verified)
     private val _isLoggedIn = MutableStateFlow<Boolean?>(null)
     val isLoggedIn: StateFlow<Boolean?> = _isLoggedIn.asStateFlow()
 
@@ -27,21 +30,42 @@ class MainViewModel @Inject constructor(
 
     private fun observeLoginStatus() {
         viewModelScope.launch {
-            // Kita meng-collect (memantau) Flow dari repository.
-            // 1. Saat aplikasi dibuka, dia cek DataStore -> Update _isLoggedIn
-            // 2. Saat User Login -> DataStore terisi -> Flow memancarkan True -> Otomatis pindah ke Home
-            // 3. Saat User Logout -> DataStore dihapus -> Flow memancarkan False -> Otomatis pindah ke Login
-            repository.isUserLoggedIn.collect { hasToken ->
-                _isLoggedIn.value = hasToken
+            // 1. Pantau Token dari DataStore
+            authRepository.isUserLoggedIn.collect { hasToken ->
+                if (hasToken) {
+                    // 2. Jika Token Ada, validasi ke Server apakah sudah Verified
+                    checkVerificationStatus()
+                } else {
+                    // Tidak ada token -> Ke Login Screen
+                    _isLoggedIn.value = false
+                }
             }
+        }
+    }
+
+    private suspend fun checkVerificationStatus() {
+        try {
+            // Panggil API User Profile / Status
+            val response = userRepository.getEmailVerificationStatus()
+
+            Log.d("MAIN_VM", "User Verified Status: ${response.isEmailVerified}")
+
+            // Logika Penentu Halaman:
+            // Jika Verified = true -> Masuk Home (true)
+            // Jika Verified = false -> Balik Login/Landing (false)
+            _isLoggedIn.value = response.isEmailVerified
+
+        } catch (e: Exception) {
+            Log.e("MAIN_VM", "Error checking verification: ${e.message}")
+            // Jika gagal koneksi/error, anggap belum login agar aman
+            _isLoggedIn.value = false
         }
     }
 
     fun logout() {
         viewModelScope.launch {
-            // Panggil fungsi logout di repo (menghapus token).
-            // Karena kita memantau flow di atas, UI akan otomatis bereaksi pindah ke layar Login.
-            repository.logout()
+            authRepository.logout()
+            // UI akan otomatis pindah ke Login karena kita observe `isUserLoggedIn` di atas
         }
     }
 }

@@ -162,7 +162,7 @@ fun AiGeneratedDraftScreen(
                 Button(
                     onClick = {
                         if (deckName.isBlank()) {
-                            scope.launch { snackbarHostState.showSnackbar("Deck name cannot be empty.") }
+                            scope.launch { snackbarHostState.showSnackbar("Nama deck tidak boleh kosong") }
                             return@Button
                         }
                         // Kirim currentDeckId yang sudah divalidasi
@@ -173,7 +173,13 @@ fun AiGeneratedDraftScreen(
                         .fillMaxWidth(0.9f)
                         .height(50.dp),
                     shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = CardWhite, contentColor = PrimaryBlue),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CardWhite,
+                        contentColor = PrimaryBlue,
+                        // Tambahkan dua baris ini agar saat loading (disabled) warnanya tetap muncul
+                        disabledContainerColor = CardWhite,
+                        disabledContentColor = PrimaryBlue
+                    ),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                 ) {
                     if (saveState is Resource.Loading) {
@@ -183,7 +189,7 @@ fun AiGeneratedDraftScreen(
                     } else if (saveState is Resource.Success) {
                         Icon(Icons.Default.Check, contentDescription = null, tint = PrimaryBlue)
                         Spacer(Modifier.width(8.dp))
-                        Text("Saved!", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Changes saved!", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     } else {
                         Text("Save Deck", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     }
@@ -204,7 +210,7 @@ fun AiGeneratedDraftScreen(
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(bottomStart = 34.dp, bottomEnd = 34.dp))
                         .background(HeaderBlue)
-                        .padding(bottom = 14.dp)
+                        .padding(bottom = 20.dp)
                 ) {
                     Row(
                         modifier = Modifier
@@ -213,38 +219,30 @@ fun AiGeneratedDraftScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(onClick = onBackClick) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
-                                tint = Color.White
-                            )
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
                         }
                         Text(
                             text = "Draft Preview",
                             color = Color.White,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
                         )
                     }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 8.dp),
+                            .padding(bottom = 12.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
                             painter = painterResource(id = R.drawable.logm),
                             contentDescription = "App Logo",
-                            modifier = Modifier.size(96.dp)
+                            modifier = Modifier.size(80.dp)
                         )
                     }
                 }
             }
-
 
             // DECK NAME INPUT
             item {
